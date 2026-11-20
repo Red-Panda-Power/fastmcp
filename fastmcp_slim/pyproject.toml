@@ -67,7 +67,8 @@ fallback-version = "0.0.0"
 
 [tool.hatch.metadata.hooks.uv-dynamic-versioning.optional-dependencies]
 anthropic = ["certifi>=2026.10.19", "anthropic>=0.48.0,<2"]
-apps = ["prefab-ui>=0.18.0"]
+# MCP Apps UI is not available in the Python 3.8 internal deployment.
+apps = ["prefab-ui>=0.18.0; python_version >= '3.10'"]
 # PyJWT floor: transitive via msal; CVE-2026-32597 affects <= 2.11.0
 azure = ["certifi>=2026.10.19", "azure-identity>=1.16.0", "PyJWT>=2.12.0"]
 client = [

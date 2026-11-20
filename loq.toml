@@ -6,6 +6,43 @@ respect_gitignore = true
 
 exclude = ["**/uv.lock", ".git/**", "docs/**"]
 
+# Upstream SDK sources and tests retain their original file boundaries.
+[[rules]]
+path = "vendor/python-sdk/mcp-types/mcp_types/_types.py"
+max_lines = 2242
+
+[[rules]]
+path = "vendor/python-sdk/mcp-types/mcp_types/_v2025_11_25/__init__.py"
+max_lines = 3411
+
+[[rules]]
+path = "vendor/python-sdk/mcp-types/mcp_types/_v2026_07_28/__init__.py"
+max_lines = 3645
+
+[[rules]]
+path = "vendor/python-sdk/mcp/mcp/client/session.py"
+max_lines = 1505
+
+[[rules]]
+path = "vendor/python-sdk/mcp/mcp/server/mcpserver/server.py"
+max_lines = 1417
+
+[[rules]]
+path = "vendor/python-sdk/mcp/mcp/server/streamable_http.py"
+max_lines = 1135
+
+[[rules]]
+path = "vendor/python-sdk/mcp/mcp/shared/uri_template.py"
+max_lines = 1116
+
+[[rules]]
+path = "vendor/python-sdk/tests/client/test_caching.py"
+max_lines = 1089
+
+[[rules]]
+path = "vendor/python-sdk/tests/types/test_methods.py"
+max_lines = 1007
+
 [[rules]]
 path = "fastmcp_slim/fastmcp/server/context.py"
 max_lines = 1404

@@ -1,0 +1,40 @@
+[project]
+name = "fastmcp-mcp-types-compat-tests"
+version = "0.0.0"
+description = "Development checks for the vendored MCP type package."
+requires-python = ">=3.8"
+dependencies = ["mcp-types==2.3.0"]
+
+[dependency-groups]
+dev = [
+    "fastapi>=0.115.12",
+    "httpx>=0.28.1,<0.29",
+    "inline-snapshot>=0.27.2",
+    "pytest>=8.3.3,<9",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+package = false
+
+[tool.uv.workspace]
+members = ["mcp-types"]
+exclude = ["mcp"]
+
+[tool.uv.sources]
+mcp-types = { workspace = true }
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib", "--inline-snapshot=disable"]
+testpaths = ["tests/types"]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"mcp/mcp/types/*.py" = ["F403"]

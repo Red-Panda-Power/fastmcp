@@ -1,0 +1,23 @@
+[project]
+name = "mcp-types"
+version = "2.3.0"
+description = "Vendored Model Context Protocol wire types, with Python 3.8 compatibility."
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [{ name = "Model Context Protocol a Series of LF Projects, LLC." }]
+dependencies = [
+    "eval-type-backport>=0.4.0; python_version < '3.10'",
+    "pydantic>=2.10.6,<2.11; python_version < '3.9'",
+    "pydantic>=2.12.0,<3; python_version >= '3.9'",
+    "typing-extensions>=4.13.0",
+]
+
+[project.urls]
+Repository = "https://github.com/modelcontextprotocol/python-sdk"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mcp_types"]

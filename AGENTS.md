@@ -2,15 +2,41 @@
 
 > **Audience**: LLM-driven engineering agents and human developers
 
-FastMCP is a comprehensive Python framework (Python ≥3.11) for building Model Context Protocol (MCP) servers and clients.
+FastMCP is a Python framework for building Model Context Protocol (MCP) servers and clients. This branch is an internal-use fork being migrated to Python 3.8; the upstream code and dependencies still require newer Python versions until the migration is complete.
+
+## Python 3.8 Migration
+
+- Target Python 3.8 for this branch, preserve existing FastMCP features, and keep using uv to manage Python, virtual environments, dependencies, and the lockfile. MCP Apps UI and its `prefab-ui` dependency may be omitted from this internal fork.
+- Audit the project, workspace packages, dependencies, and transitive dependencies for Python 3.8 compatibility. Downgrade or adapt packages and code as needed, and verify actual runtime behavior rather than only changing version metadata.
+- Dependencies without a usable Python 3.8 release may be copied into this repository and backported. Preserve their license, upstream version and provenance, and connect validated local packages to uv's dependency sources.
+- Keep runtime dependencies separate from development and test dependencies. Deployment environments do not need tests or development tools; development environments do need the test dependencies.
+- Prefer Python 3.8-compatible syntax and standard-library APIs. Use compatible backports where appropriate, and check runtime evaluation of type annotations as well as parsing.
+- This fork is for internal web deployments. Dependency downgrades may be necessary, but do not disable authentication, input validation, or other existing protections solely because the service is internal.
+- Until the migration is complete, the existing lockfile and package metadata may prevent a Python 3.8 sync. Do not claim Python 3.8 support or a successful deployment install until both dependency resolution and representative runtime tests pass.
 
 ## Required Development Workflow
 
-Install dependencies before running local checks:
+Install Python 3.8 and create the project environment with uv. Once the Python 3.8 migration permits dependency resolution, install the development dependencies before running local checks:
 
 ```bash
-uv sync                              # Install dependencies
+uv python install 3.8
+uv venv --python 3.8
+uv sync --python 3.8                 # Runtime and development/test dependencies
+uv sync --python 3.8 --no-dev        # Deployment: runtime dependencies only
 ```
+
+The current project configuration requires a recent uv; uv 0.13.9 is known to parse it. If the installed uv is too old, prefix project commands with `uvx uv@0.13.9` instead of `uv` (for example, `uvx uv@0.13.9 sync --python 3.8`).
+
+During the migration, the separate `dev-docs/py38-bootstrap` UV project can install Python 3.8 test tools into the root environment. For example, from the repository root in PowerShell:
+
+```powershell
+$env:UV_PROJECT_ENVIRONMENT = (Resolve-Path -LiteralPath '.venv').Path
+uvx uv@0.13.9 sync --locked --project dev-docs/py38-bootstrap --python 3.8
+Remove-Item Env:UV_PROJECT_ENVIRONMENT
+.venv\Scripts\python.exe -m pytest --noconftest dev-docs/py38-bootstrap/test_bootstrap.py -n 0
+```
+
+This bootstrap installs test tools only, not FastMCP or its runtime dependencies; `pytest-retry` and `pytest-examples` still need Python 3.8-compatible solutions. See [the migration baseline](dev-docs/py38-migration.md) for the current blockers. Once the root workspace supports Python 3.8, use its normal development group instead of the bootstrap.
 
 Run the tests relevant to the behavior you changed, including neighboring paths
 that share the implementation. For example:
@@ -162,7 +188,7 @@ Load the `release` skill to cut one; it holds the procedure. The policy it imple
 
 ### Code Standards
 
-- Python ≥ 3.11 with full type annotations
+- Target Python 3.8-compatible code with full type annotations
 - Follow existing patterns and maintain consistency
 - **Prioritize readable, understandable code** - clarity over cleverness
 - Avoid obfuscated or confusing patterns even if they're shorter
