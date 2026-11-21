@@ -127,16 +127,14 @@ async def test_concurrent_cold_calls_share_tool_discovery():
     second = Client(make_server("second"))
     group = ClientGroup({"first": first, "second": second})
 
-    with (
-        patch.object(first, "list_tools", wraps=first.list_tools) as first_list,
-        patch.object(second, "list_tools", wraps=second.list_tools) as second_list,
-    ):
-        async with group:
-            results = await asyncio.gather(
-                group.call_tool("first_echo", {"value": "one"}),
-                group.call_tool("second_echo", {"value": "two"}),
-                group.call_tool("first_protocol_era"),
-            )
+    with patch.object(first, "list_tools", wraps=first.list_tools) as first_list:
+        with patch.object(second, "list_tools", wraps=second.list_tools) as second_list:
+            async with group:
+                results = await asyncio.gather(
+                    group.call_tool("first_echo", {"value": "one"}),
+                    group.call_tool("second_echo", {"value": "two"}),
+                    group.call_tool("first_protocol_era"),
+                )
 
     assert [result.data for result in results] == [
         "first: one",
@@ -152,14 +150,12 @@ async def test_unknown_tools_do_not_repeat_discovery():
     second = Client(make_server("second"))
     group = ClientGroup({"first": first, "second": second})
 
-    with (
-        patch.object(first, "list_tools", wraps=first.list_tools) as first_list,
-        patch.object(second, "list_tools", wraps=second.list_tools) as second_list,
-    ):
-        async with group:
-            for name in ("missing", "also_missing", "missing"):
-                with pytest.raises(KeyError, match=f"Unknown tool: {name!r}"):
-                    await group.call_tool(name)
+    with patch.object(first, "list_tools", wraps=first.list_tools) as first_list:
+        with patch.object(second, "list_tools", wraps=second.list_tools) as second_list:
+            async with group:
+                for name in ("missing", "also_missing", "missing"):
+                    with pytest.raises(KeyError, match=f"Unknown tool: {name!r}"):
+                        await group.call_tool(name)
 
     assert first_list.call_count == 1
     assert second_list.call_count == 1
@@ -333,17 +329,15 @@ async def test_known_route_survives_the_group_context():
         route = await group.resolve_tool("calc_echo")
     assert not calc.is_connected()
 
-    with (
-        patch.object(calc, "list_tools", wraps=calc.list_tools) as calc_list,
-        patch.object(greet, "list_tools", wraps=greet.list_tools) as greet_list,
-    ):
-        async with route.client:
-            assert await group.resolve_tool("calc_echo") is route
-            result = await group.call_tool("calc_echo", {"value": "hi"})
-            assert result.data == "calc: hi"
+    with patch.object(calc, "list_tools", wraps=calc.list_tools) as calc_list:
+        with patch.object(greet, "list_tools", wraps=greet.list_tools) as greet_list:
+            async with route.client:
+                assert await group.resolve_tool("calc_echo") is route
+                result = await group.call_tool("calc_echo", {"value": "hi"})
+                assert result.data == "calc: hi"
 
-            with pytest.raises(RuntimeError, match="'greet' is not connected"):
-                await group.call_tool("greet_echo", {"value": "hi"})
+                with pytest.raises(RuntimeError, match="'greet' is not connected"):
+                    await group.call_tool("greet_echo", {"value": "hi"})
 
     assert calc_list.call_count == 0
     assert greet_list.call_count == 0

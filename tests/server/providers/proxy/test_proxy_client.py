@@ -538,21 +538,23 @@ class TestProxyClient:
         async def log_handler_b(message: LogMessage) -> None:
             results["logger_b"] = message
 
-        async with (
-            Client(proxy_server, mode="legacy", log_handler=log_handler_a) as client_a,
-            Client(proxy_server, mode="legacy", log_handler=log_handler_b) as client_b,
-        ):
-            async with create_task_group() as tg:
-                tg.start_soon(
-                    client_a.call_tool,
-                    "log",
-                    {"message": "Hello, world!", "level": "info", "logger": "a"},
-                )
-                tg.start_soon(
-                    client_b.call_tool,
-                    "log",
-                    {"message": "Hello, world!", "level": "info", "logger": "b"},
-                )
+        async with Client(
+            proxy_server, mode="legacy", log_handler=log_handler_a
+        ) as client_a:
+            async with Client(
+                proxy_server, mode="legacy", log_handler=log_handler_b
+            ) as client_b:
+                async with create_task_group() as tg:
+                    tg.start_soon(
+                        client_a.call_tool,
+                        "log",
+                        {"message": "Hello, world!", "level": "info", "logger": "a"},
+                    )
+                    tg.start_soon(
+                        client_b.call_tool,
+                        "log",
+                        {"message": "Hello, world!", "level": "info", "logger": "b"},
+                    )
 
         assert results["logger_a"].logger == "a"
         assert results["logger_b"].logger == "b"
@@ -581,25 +583,23 @@ class TestProxyClient:
             result = await coro
             results[name] = result.data
 
-        async with (
-            Client(
-                proxy_server, mode="legacy", elicitation_handler=elicitation_handler_a
-            ) as client_a,
-            Client(
+        async with Client(
+            proxy_server, mode="legacy", elicitation_handler=elicitation_handler_a
+        ) as client_a:
+            async with Client(
                 proxy_server, mode="legacy", elicitation_handler=elicitation_handler_b
-            ) as client_b,
-        ):
-            async with create_task_group() as tg:
-                tg.start_soon(
-                    get_and_store,
-                    "elicitation_a",
-                    client_a.call_tool("elicit", {}),
-                )
-                tg.start_soon(
-                    get_and_store,
-                    "elicitation_b",
-                    client_b.call_tool("elicit", {}),
-                )
+            ) as client_b:
+                async with create_task_group() as tg:
+                    tg.start_soon(
+                        get_and_store,
+                        "elicitation_a",
+                        client_a.call_tool("elicit", {}),
+                    )
+                    tg.start_soon(
+                        get_and_store,
+                        "elicitation_b",
+                        client_b.call_tool("elicit", {}),
+                    )
 
         assert results["elicitation_a"] == "Hello, Alice!"
         assert results["elicitation_b"] == "Hello, Bob!"

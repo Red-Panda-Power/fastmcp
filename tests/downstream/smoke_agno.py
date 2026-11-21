@@ -217,43 +217,45 @@ async def main() -> None:
         ("proxy", "FastMCP proxy", "streamable-http"),
     ):
         # The SDK's SSE reader logs a traceback when a session closes mid-stream.
-        with (
-            report.transport(label),
-            serve(transport) as server,
-            quiet("mcp.client.sse", "agno", "agno-agent"),
-        ):
+        with report.transport(label):
+            with serve(transport) as server:
+                with quiet("mcp.client.sse", "agno", "agno-agent"):
 
-            async def rejects_missing_token() -> None:
-                try:
-                    async with MCPTools(url=server.url, transport=kind) as mcp:
-                        listed = sorted(mcp.functions)
-                except Exception:
-                    return
-                assert not listed, f"listed tools without a bearer token: {listed}"
+                    async def rejects_missing_token() -> None:
+                        try:
+                            async with MCPTools(url=server.url, transport=kind) as mcp:
+                                listed = sorted(mcp.functions)
+                        except Exception:
+                            return
+                        assert not listed, (
+                            f"listed tools without a bearer token: {listed}"
+                        )
 
-            async def header_provider() -> None:
-                seen: list[int] = []
+                    async def header_provider() -> None:
+                        seen: list[int] = []
 
-                def provide() -> dict[str, str]:
-                    seen.append(1)
-                    return server.headers
+                        def provide() -> dict[str, str]:
+                            seen.append(1)
+                            return server.headers
 
-                async with MCPTools(
-                    url=server.url, transport=kind, header_provider=provide
-                ) as mcp:
-                    result = await mcp.functions["add"].entrypoint(a=4, b=4)
-                    assert result.content == "8", result
-                assert seen, "header_provider was never called"
+                        async with MCPTools(
+                            url=server.url, transport=kind, header_provider=provide
+                        ) as mcp:
+                            result = await mcp.functions["add"].entrypoint(a=4, b=4)
+                            assert result.content == "8", result
+                        assert seen, "header_provider was never called"
 
-            await report.check("rejects missing bearer token", rejects_missing_token)
-            await report.check("header provider", header_provider)
-            await exercise(
-                report,
-                lambda kind=kind, server=server, **kw: MCPTools(
-                    url=server.url, transport=kind, headers=server.headers, **kw
-                ),
-                gaps=PROXY_GAPS if transport == "proxy" else None,
-            )
+                    await report.check(
+                        "rejects missing bearer token", rejects_missing_token
+                    )
+                    await report.check("header provider", header_provider)
+                    await exercise(
+                        report,
+                        lambda kind=kind, server=server, **kw: MCPTools(
+                            url=server.url, transport=kind, headers=server.headers, **kw
+                        ),
+                        gaps=PROXY_GAPS if transport == "proxy" else None,
+                    )
 
     report.finish()
 

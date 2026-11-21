@@ -204,31 +204,31 @@ def build(auth_token: str | None = None) -> FastMCP:
 if __name__ == "__main__":
     if log := os.environ.get("DOWNSTREAM_SMOKE_SERVER_LOG"):
         sys.stderr = open(log, "a")  # noqa: SIM115
-    match sys.argv[1:]:
-        case [] | ["stdio"]:
-            build().run("stdio", show_banner=False)
-        case ["proxy", port, token]:
-            backend = StdioTransport(
-                sys.executable, [__file__, "stdio"], env=dict(os.environ)
-            )
-            proxy = create_proxy(backend, name="downstream-smoke")
-            proxy.auth = StaticTokenVerifier(
-                {token: {"client_id": "smoke", "scopes": []}}
-            )
-            proxy.run(
-                "http",
-                host="127.0.0.1",
-                port=int(port),
-                show_banner=False,
-                log_level="critical",
-            )
-        case ["http" | "sse" as transport, port, token]:
-            build(token).run(
-                transport,
-                host="127.0.0.1",
-                port=int(port),
-                show_banner=False,
-                log_level="critical",
-            )
-        case args:
-            sys.exit(f"usage: server.py [stdio | http|sse <port> <token>], got {args}")
+    args = sys.argv[1:]
+    if not args or args == ["stdio"]:
+        build().run("stdio", show_banner=False)
+    elif len(args) == 3 and args[0] == "proxy":
+        _, port, token = args
+        backend = StdioTransport(
+            sys.executable, [__file__, "stdio"], env=dict(os.environ)
+        )
+        proxy = create_proxy(backend, name="downstream-smoke")
+        proxy.auth = StaticTokenVerifier({token: {"client_id": "smoke", "scopes": []}})
+        proxy.run(
+            "http",
+            host="127.0.0.1",
+            port=int(port),
+            show_banner=False,
+            log_level="critical",
+        )
+    elif len(args) == 3 and args[0] in {"http", "sse"}:
+        transport, port, token = args
+        build(token).run(
+            transport,
+            host="127.0.0.1",
+            port=int(port),
+            show_banner=False,
+            log_level="critical",
+        )
+    else:
+        sys.exit(f"usage: server.py [stdio | http|sse <port> <token>], got {args}")

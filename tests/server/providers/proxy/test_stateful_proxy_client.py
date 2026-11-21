@@ -128,25 +128,23 @@ class TestStatefulProxyClient:
         async def log_handler_b(message: LogMessage) -> None:
             results["logger_b"] = message
 
-        async with (
-            Client(
-                stateful_proxy_server, mode="legacy", log_handler=log_handler_a
-            ) as client_a,
-            Client(
+        async with Client(
+            stateful_proxy_server, mode="legacy", log_handler=log_handler_a
+        ) as client_a:
+            async with Client(
                 stateful_proxy_server, mode="legacy", log_handler=log_handler_b
-            ) as client_b,
-        ):
-            async with create_task_group() as tg:
-                tg.start_soon(
-                    client_a.call_tool,
-                    "log",
-                    {"message": "Hello, world!", "level": "info", "logger": "a"},
-                )
-                tg.start_soon(
-                    client_b.call_tool,
-                    "log",
-                    {"message": "Hello, world!", "level": "info", "logger": "b"},
-                )
+            ) as client_b:
+                async with create_task_group() as tg:
+                    tg.start_soon(
+                        client_a.call_tool,
+                        "log",
+                        {"message": "Hello, world!", "level": "info", "logger": "a"},
+                    )
+                    tg.start_soon(
+                        client_b.call_tool,
+                        "log",
+                        {"message": "Hello, world!", "level": "info", "logger": "b"},
+                    )
 
         assert results["logger_a"].logger == "a"
         assert results["logger_b"].logger == "b"

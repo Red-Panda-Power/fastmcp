@@ -179,19 +179,17 @@ class MockOAuthProvider(OAuthAuthorizationServerProvider):
         )
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
-        match token:
-            case RefreshToken():
-                # Remove the refresh token
-                del self.refresh_tokens[token.token]
+        if isinstance(token, RefreshToken):
+            # Remove the refresh token
+            del self.refresh_tokens[token.token]
+        elif isinstance(token, AccessToken):
+            # Remove the access token
+            del self.tokens[token.token]
 
-            case AccessToken():
-                # Remove the access token
-                del self.tokens[token.token]
-
-                # Also remove any refresh tokens that point to this access token
-                for refresh_token, access_token in list(self.refresh_tokens.items()):
-                    if access_token == token.token:
-                        del self.refresh_tokens[refresh_token]
+            # Also remove any refresh tokens that point to this access token
+            for refresh_token, access_token in list(self.refresh_tokens.items()):
+                if access_token == token.token:
+                    del self.refresh_tokens[refresh_token]
 
 
 @pytest.fixture

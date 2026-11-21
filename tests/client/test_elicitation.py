@@ -733,15 +733,13 @@ class TestPatternMatching:
         async def pattern_match_tool(context: Context) -> str:
             result = await context.elicit("Enter your name:", response_type=str)
 
-            match result:
-                case AcceptedElicitation(data=name):
-                    return f"Hello {name}!"
-                case DeclinedElicitation():
-                    return "You declined"
-                case CancelledElicitation():
-                    return "Cancelled"
-                case _:
-                    return "Unknown result"
+            if isinstance(result, AcceptedElicitation):
+                return f"Hello {result.data}!"
+            if isinstance(result, DeclinedElicitation):
+                return "You declined"
+            if isinstance(result, CancelledElicitation):
+                return "Cancelled"
+            return "Unknown result"
 
         async def elicitation_handler(message, response_type, params, ctx):
             return ElicitResult(action="accept", content={"value": "Alice"})
@@ -760,15 +758,13 @@ class TestPatternMatching:
         async def pattern_match_tool(context: Context) -> str:
             result = await context.elicit("Enter your name:", response_type=str)
 
-            match result:
-                case AcceptedElicitation(data=name):
-                    return f"Hello {name}!"
-                case DeclinedElicitation():
-                    return "You declined"
-                case CancelledElicitation():
-                    return "Cancelled"
-                case _:
-                    return "Unknown result"
+            if isinstance(result, AcceptedElicitation):
+                return f"Hello {result.data}!"
+            if isinstance(result, DeclinedElicitation):
+                return "You declined"
+            if isinstance(result, CancelledElicitation):
+                return "Cancelled"
+            return "Unknown result"
 
         async def elicitation_handler(message, response_type, params, ctx):
             return ElicitResult(action="decline")
@@ -787,15 +783,13 @@ class TestPatternMatching:
         async def pattern_match_tool(context: Context) -> str:
             result = await context.elicit("Enter your name:", response_type=str)
 
-            match result:
-                case AcceptedElicitation(data=name):
-                    return f"Hello {name}!"
-                case DeclinedElicitation():
-                    return "You declined"
-                case CancelledElicitation():
-                    return "Cancelled"
-                case _:
-                    return "Unknown result"
+            if isinstance(result, AcceptedElicitation):
+                return f"Hello {result.data}!"
+            if isinstance(result, DeclinedElicitation):
+                return "You declined"
+            if isinstance(result, CancelledElicitation):
+                return "Cancelled"
+            return "Unknown result"
 
         async def elicitation_handler(message, response_type, params, ctx):
             return ElicitResult(action="cancel")

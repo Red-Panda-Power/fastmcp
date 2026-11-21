@@ -55,9 +55,8 @@ def test_identical_discovery_configuration_is_cached(discovery_document):
 def test_cached_configuration_expires_and_refetches(discovery_document):
     response = _response(discovery_document)
 
-    with (
-        patch("httpx2.get", return_value=response) as mock_get,
-        patch(
+    with patch("httpx2.get", return_value=response) as mock_get:
+        with patch(
             "fastmcp.server.auth.oidc_proxy.monotonic",
             side_effect=[
                 0.0,
@@ -65,18 +64,17 @@ def test_cached_configuration_expires_and_refetches(discovery_document):
                 _OIDC_DISCOVERY_CACHE_TTL_SECONDS + 1,
                 _OIDC_DISCOVERY_CACHE_TTL_SECONDS + 1,
             ],
-        ),
-    ):
-        OIDCConfiguration.get_oidc_configuration(
-            config_url=CONFIG_URL,
-            strict=True,
-            timeout_seconds=10,
-        )
-        OIDCConfiguration.get_oidc_configuration(
-            config_url=CONFIG_URL,
-            strict=True,
-            timeout_seconds=10,
-        )
+        ):
+            OIDCConfiguration.get_oidc_configuration(
+                config_url=CONFIG_URL,
+                strict=True,
+                timeout_seconds=10,
+            )
+            OIDCConfiguration.get_oidc_configuration(
+                config_url=CONFIG_URL,
+                strict=True,
+                timeout_seconds=10,
+            )
 
     assert mock_get.call_count == 2
 

@@ -507,18 +507,16 @@ async def async_echo(text: str) -> str:
         from fastmcp.cli.run import run_v1_server_async
 
         server = SDKServer("V1Server")
-        with (
-            patch.object(
-                SDKServer, "run_stdio_async", new_callable=AsyncMock
-            ) as stdio_mock,
-            patch.object(
+        with patch.object(
+            SDKServer, "run_stdio_async", new_callable=AsyncMock
+        ) as stdio_mock:
+            with patch.object(
                 SDKServer, "run_streamable_http_async", new_callable=AsyncMock
-            ) as http_mock,
-            patch.object(
-                SDKServer, "run_sse_async", new_callable=AsyncMock
-            ) as sse_mock,
-        ):
-            await run_v1_server_async(server, "0.0.0.0", 9000, "sse")
+            ) as http_mock:
+                with patch.object(
+                    SDKServer, "run_sse_async", new_callable=AsyncMock
+                ) as sse_mock:
+                    await run_v1_server_async(server, "0.0.0.0", 9000, "sse")
 
         sse_mock.assert_awaited_once_with(host="0.0.0.0", port=9000)
         http_mock.assert_not_awaited()
@@ -726,17 +724,17 @@ mcp = fastmcp.FastMCP("TestServer")
         config_file.write_text(json.dumps(config_data))
 
         # Mock the prepare method and server run
-        with (
-            patch.object(
-                FileSystemSource, "prepare", new_callable=AsyncMock
-            ) as prepare_mock,
-            patch("fastmcp.server.server.FastMCP.run_async", new_callable=AsyncMock),
-        ):
-            # Run the command
-            await run_command(str(config_file))
+        with patch.object(
+            FileSystemSource, "prepare", new_callable=AsyncMock
+        ) as prepare_mock:
+            with patch(
+                "fastmcp.server.server.FastMCP.run_async", new_callable=AsyncMock
+            ):
+                # Run the command
+                await run_command(str(config_file))
 
-            # Verify prepare was called
-            prepare_mock.assert_called_once()
+                # Verify prepare was called
+                prepare_mock.assert_called_once()
 
     async def test_run_command_skips_prepare_with_flag(self, tmp_path):
         """Test that run_command skips source.prepare() when skip_source=True."""
@@ -757,17 +755,17 @@ mcp = fastmcp.FastMCP("TestServer")
         config_file.write_text(json.dumps(config_data))
 
         # Mock the prepare method and server run
-        with (
-            patch.object(
-                FileSystemSource, "prepare", new_callable=AsyncMock
-            ) as prepare_mock,
-            patch("fastmcp.server.server.FastMCP.run_async", new_callable=AsyncMock),
-        ):
-            # Run the command with skip_source=True
-            await run_command(str(config_file), skip_source=True)
+        with patch.object(
+            FileSystemSource, "prepare", new_callable=AsyncMock
+        ) as prepare_mock:
+            with patch(
+                "fastmcp.server.server.FastMCP.run_async", new_callable=AsyncMock
+            ):
+                # Run the command with skip_source=True
+                await run_command(str(config_file), skip_source=True)
 
-            # Verify prepare was NOT called
-            prepare_mock.assert_not_called()
+                # Verify prepare was NOT called
+                prepare_mock.assert_not_called()
 
     async def test_filesystem_source_prepare_by_default(self, tmp_path):
         """Test that FileSystemSource is prepared when using direct file spec."""
@@ -786,17 +784,17 @@ mcp = fastmcp.FastMCP("TestServer")
 """)
 
         # Mock the prepare method and server run
-        with (
-            patch.object(
-                FileSystemSource, "prepare", new_callable=AsyncMock
-            ) as prepare_mock,
-            patch("fastmcp.server.server.FastMCP.run_async", new_callable=AsyncMock),
-        ):
-            # Run with direct file specification
-            await run_command(str(test_file))
+        with patch.object(
+            FileSystemSource, "prepare", new_callable=AsyncMock
+        ) as prepare_mock:
+            with patch(
+                "fastmcp.server.server.FastMCP.run_async", new_callable=AsyncMock
+            ):
+                # Run with direct file specification
+                await run_command(str(test_file))
 
-            # Verify prepare was called
-            prepare_mock.assert_called_once()
+                # Verify prepare was called
+                prepare_mock.assert_called_once()
 
     async def test_filesystem_source_skip_prepare_with_flag(self, tmp_path):
         """Test that FileSystemSource.prepare() is skipped with skip_source flag."""
@@ -815,17 +813,17 @@ mcp = fastmcp.FastMCP("TestServer")
 """)
 
         # Mock the prepare method and server run
-        with (
-            patch.object(
-                FileSystemSource, "prepare", new_callable=AsyncMock
-            ) as prepare_mock,
-            patch("fastmcp.server.server.FastMCP.run_async", new_callable=AsyncMock),
-        ):
-            # Run with direct file specification and skip_source=True
-            await run_command(str(test_file), skip_source=True)
+        with patch.object(
+            FileSystemSource, "prepare", new_callable=AsyncMock
+        ) as prepare_mock:
+            with patch(
+                "fastmcp.server.server.FastMCP.run_async", new_callable=AsyncMock
+            ):
+                # Run with direct file specification and skip_source=True
+                await run_command(str(test_file), skip_source=True)
 
-            # Verify prepare was NOT called
-            prepare_mock.assert_not_called()
+                # Verify prepare was NOT called
+                prepare_mock.assert_not_called()
 
 
 class TestReloadFunctionality:
@@ -931,13 +929,11 @@ class TestRunModuleCommand:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with (
-            patch(
-                "fastmcp.cli.run.subprocess.run", return_value=mock_result
-            ) as mock_run,
-            pytest.raises(SystemExit) as exc_info,
-        ):
-            run_module_command("my_package")
+        with patch(
+            "fastmcp.cli.run.subprocess.run", return_value=mock_result
+        ) as mock_run:
+            with pytest.raises(SystemExit) as exc_info:
+                run_module_command("my_package")
 
         assert exc_info.value.code == 0
         call_args = mock_run.call_args
@@ -950,13 +946,11 @@ class TestRunModuleCommand:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with (
-            patch(
-                "fastmcp.cli.run.subprocess.run", return_value=mock_result
-            ) as mock_run,
-            pytest.raises(SystemExit),
-        ):
-            run_module_command("my_package", extra_args=["--host", "0.0.0.0"])
+        with patch(
+            "fastmcp.cli.run.subprocess.run", return_value=mock_result
+        ) as mock_run:
+            with pytest.raises(SystemExit):
+                run_module_command("my_package", extra_args=["--host", "0.0.0.0"])
 
         cmd = mock_run.call_args[0][0]
         assert "--host" in cmd
@@ -970,13 +964,11 @@ class TestRunModuleCommand:
         def fake_builder(cmd: list[str]) -> list[str]:
             return ["uv", "run", *cmd]
 
-        with (
-            patch(
-                "fastmcp.cli.run.subprocess.run", return_value=mock_result
-            ) as mock_run,
-            pytest.raises(SystemExit),
-        ):
-            run_module_command("my_package", env_command_builder=fake_builder)
+        with patch(
+            "fastmcp.cli.run.subprocess.run", return_value=mock_result
+        ) as mock_run:
+            with pytest.raises(SystemExit):
+                run_module_command("my_package", env_command_builder=fake_builder)
 
         cmd = mock_run.call_args[0][0]
         assert cmd[0] == "uv"
@@ -988,14 +980,12 @@ class TestRunModuleCommand:
 
     def test_exits_with_subprocess_error_code(self):
         """Test that non-zero exit codes from the module are propagated."""
-        with (
-            patch(
-                "fastmcp.cli.run.subprocess.run",
-                side_effect=subprocess.CalledProcessError(42, ["python", "-m", "bad"]),
-            ),
-            pytest.raises(SystemExit) as exc_info,
+        with patch(
+            "fastmcp.cli.run.subprocess.run",
+            side_effect=subprocess.CalledProcessError(42, ["python", "-m", "bad"]),
         ):
-            run_module_command("bad")
+            with pytest.raises(SystemExit) as exc_info:
+                run_module_command("bad")
 
         assert exc_info.value.code == 42
 
@@ -1004,13 +994,11 @@ class TestRunModuleCommand:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with (
-            patch(
-                "fastmcp.cli.run.subprocess.run", return_value=mock_result
-            ) as mock_run,
-            pytest.raises(SystemExit),
-        ):
-            run_module_command("my_module", env_command_builder=None)
+        with patch(
+            "fastmcp.cli.run.subprocess.run", return_value=mock_result
+        ) as mock_run:
+            with pytest.raises(SystemExit):
+                run_module_command("my_module", env_command_builder=None)
 
         cmd = mock_run.call_args[0][0]
         assert cmd[0] == sys.executable
@@ -1033,18 +1021,16 @@ class TestRunModuleMode:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with (
-            patch("fastmcp.cli.run.subprocess.run", return_value=mock_result),
-            pytest.raises(SystemExit),
-            caplog.at_level("WARNING"),
-        ):
-            await run(
-                "my_module",
-                module=True,
-                transport="sse",
-                host="0.0.0.0",
-                port=8080,
-            )
+        with patch("fastmcp.cli.run.subprocess.run", return_value=mock_result):
+            with pytest.raises(SystemExit):
+                with caplog.at_level("WARNING"):
+                    await run(
+                        "my_module",
+                        module=True,
+                        transport="sse",
+                        host="0.0.0.0",
+                        port=8080,
+                    )
 
         assert any("ignored in module mode" in r.message for r in caplog.records)
 
@@ -1053,13 +1039,11 @@ class TestRunModuleMode:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with (
-            patch(
-                "fastmcp.cli.run.subprocess.run", return_value=mock_result
-            ) as mock_subprocess,
-            pytest.raises(SystemExit),
-        ):
-            await run("my_module", module=True)
+        with patch(
+            "fastmcp.cli.run.subprocess.run", return_value=mock_result
+        ) as mock_subprocess:
+            with pytest.raises(SystemExit):
+                await run("my_module", module=True)
 
         cmd = mock_subprocess.call_args[0][0]
         assert "-m" in cmd
@@ -1158,16 +1142,16 @@ class TestRunWithReloadWithServerArgs:
         mock_watch = MagicMock()
         mock_watch.__aiter__.return_value = iter([[("Change.modified", "server.py")]])
 
-        with (
-            patch(
-                "fastmcp.cli.run.asyncio.create_subprocess_exec",
-                side_effect=mock_create_subprocess,
-            ),
-            patch("fastmcp.cli.run.awatch", return_value=mock_watch),
-            patch("fastmcp.cli.run.asyncio.Event", return_value=shutdown_event),
-            caplog.at_level("INFO"),
+        with patch(
+            "fastmcp.cli.run.asyncio.create_subprocess_exec",
+            side_effect=mock_create_subprocess,
         ):
-            await run_with_reload(reload_cmd, reload_dirs=reload_dirs)
+            with patch("fastmcp.cli.run.awatch", return_value=mock_watch):
+                with patch(
+                    "fastmcp.cli.run.asyncio.Event", return_value=shutdown_event
+                ):
+                    with caplog.at_level("INFO"):
+                        await run_with_reload(reload_cmd, reload_dirs=reload_dirs)
 
         assert any("Detected changes" in record.message for record in caplog.records)
         assert call_count == 2, f"Restart logic was not triggered for {reload_cmd}"
@@ -1186,17 +1170,15 @@ class TestRunWithReloadWithServerArgs:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with (
-            patch(
-                "fastmcp.cli.cli.load_and_merge_config",
-                return_value=(mock_config, "server.py"),
-            ),
-            patch(
-                "fastmcp.cli.cli.subprocess.run", return_value=mock_result
-            ) as mock_run,
-            pytest.raises(SystemExit) as exc_info,
+        with patch(
+            "fastmcp.cli.cli.load_and_merge_config",
+            return_value=(mock_config, "server.py"),
         ):
-            await run("server.py", stateless=True)
+            with patch(
+                "fastmcp.cli.cli.subprocess.run", return_value=mock_result
+            ) as mock_run:
+                with pytest.raises(SystemExit) as exc_info:
+                    await run("server.py", stateless=True)
 
         assert exc_info.value.code == 0
         cmd = mock_run.call_args.args[0]
@@ -1223,25 +1205,23 @@ class TestRunWithReloadWithServerArgs:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        with (
-            patch(
-                "fastmcp.cli.cli.load_and_merge_config",
-                return_value=(mock_config, "server.py"),
-            ),
-            patch(
-                "fastmcp.cli.cli.subprocess.run", return_value=mock_result
-            ) as mock_run,
-            patch(
-                "fastmcp.cli.run.run_with_reload", new_callable=AsyncMock
-            ) as mock_reload,
+        with patch(
+            "fastmcp.cli.cli.load_and_merge_config",
+            return_value=(mock_config, "server.py"),
         ):
-            if reload:
-                await run("server.py", skip_source=True, reload=True)
-                cmd = mock_reload.call_args.args[0]
-            else:
-                with pytest.raises(SystemExit):
-                    await run("server.py", skip_source=True)
-                cmd = mock_run.call_args.args[0]
+            with patch(
+                "fastmcp.cli.cli.subprocess.run", return_value=mock_result
+            ) as mock_run:
+                with patch(
+                    "fastmcp.cli.run.run_with_reload", new_callable=AsyncMock
+                ) as mock_reload:
+                    if reload:
+                        await run("server.py", skip_source=True, reload=True)
+                        cmd = mock_reload.call_args.args[0]
+                    else:
+                        with pytest.raises(SystemExit):
+                            await run("server.py", skip_source=True)
+                        cmd = mock_run.call_args.args[0]
 
         assert cmd[:4] == ["uv", "run", "fastmcp", "run"]
         assert "--skip-source" in cmd
@@ -1261,18 +1241,16 @@ class TestInspectorModuleMode:
         mock_process = MagicMock()
         mock_process.returncode = 0
 
-        with (
-            patch(
-                "fastmcp.cli.cli.load_and_merge_config",
-                return_value=(mock_config, "my_module"),
-            ),
-            patch("fastmcp.cli.cli._get_npx_command", return_value="npx"),
-            patch(
-                "fastmcp.cli.cli.subprocess.run", return_value=mock_process
-            ) as mock_subprocess,
-            pytest.raises(SystemExit),
+        with patch(
+            "fastmcp.cli.cli.load_and_merge_config",
+            return_value=(mock_config, "my_module"),
         ):
-            await inspector("my_module", module=True)
+            with patch("fastmcp.cli.cli._get_npx_command", return_value="npx"):
+                with patch(
+                    "fastmcp.cli.cli.subprocess.run", return_value=mock_process
+                ) as mock_subprocess:
+                    with pytest.raises(SystemExit):
+                        await inspector("my_module", module=True)
 
         # load_server should NOT have been called in module mode
         mock_config.source.load_server.assert_not_called()
@@ -1300,17 +1278,15 @@ class TestInspectorServerLoading:
         mock_process = MagicMock()
         mock_process.returncode = 0
 
-        with (
-            patch("fastmcp.cli.cli._get_npx_command", return_value="npx"),
-            patch(
+        with patch("fastmcp.cli.cli._get_npx_command", return_value="npx"):
+            with patch(
                 "fastmcp.cli.cli.subprocess.run", return_value=mock_process
-            ) as mock_subprocess,
-            pytest.raises(SystemExit) as exc_info,
-        ):
-            await inspector(
-                str(server_file),
-                with_packages=["fastmcp_missing_dependency_for_test"],
-            )
+            ) as mock_subprocess:
+                with pytest.raises(SystemExit) as exc_info:
+                    await inspector(
+                        str(server_file),
+                        with_packages=["fastmcp_missing_dependency_for_test"],
+                    )
 
         assert exc_info.value.code == 0
         cmd = mock_subprocess.call_args.args[0]
@@ -1340,14 +1316,12 @@ class TestInspectorHttpDeployment:
     async def _run_inspector(self, config_file: Path, **kwargs) -> MagicMock:
         mock_process = MagicMock()
         mock_process.returncode = 0
-        with (
-            patch("fastmcp.cli.cli._get_npx_command", return_value="npx"),
-            patch(
+        with patch("fastmcp.cli.cli._get_npx_command", return_value="npx"):
+            with patch(
                 "fastmcp.cli.cli.subprocess.run", return_value=mock_process
-            ) as mock_subprocess,
-            pytest.raises(SystemExit),
-        ):
-            await inspector(str(config_file), **kwargs)
+            ) as mock_subprocess:
+                with pytest.raises(SystemExit):
+                    await inspector(str(config_file), **kwargs)
         return mock_subprocess
 
     async def test_server_runs_over_stdio(self, http_config: Path):
@@ -1504,29 +1478,33 @@ class TestRunDevApps:
         mock_make_dev_app = MagicMock(return_value=MagicMock())
         mock_webbrowser_open = MagicMock()
 
-        with (
-            patch(
-                "fastmcp.cli.apps_dev._start_user_server",
-                new_callable=AsyncMock,
-                return_value=mock_proc,
-            ),
-            patch(
+        with patch(
+            "fastmcp.cli.apps_dev._start_user_server",
+            new_callable=AsyncMock,
+            return_value=mock_proc,
+        ):
+            with patch(
                 "fastmcp.cli.apps_dev._fetch_app_bridge_bundle",
                 new_callable=AsyncMock,
                 return_value=("js_content", "{}"),
-            ),
-            patch(
-                "fastmcp.cli.apps_dev._wait_for_server",
-                new_callable=AsyncMock,
-                return_value=True,
-            ),
-            patch("fastmcp.cli.apps_dev._make_dev_app", mock_make_dev_app),
-            patch("fastmcp.cli.apps_dev.uvicorn", mock_uvicorn),
-            patch("fastmcp.cli.apps_dev.webbrowser.open", mock_webbrowser_open),
-            patch("fastmcp.cli.apps_dev.asyncio.sleep", new_callable=AsyncMock),
-            patch("socket.socket"),
-        ):
-            await apps("server.py", host=host)
+            ):
+                with patch(
+                    "fastmcp.cli.apps_dev._wait_for_server",
+                    new_callable=AsyncMock,
+                    return_value=True,
+                ):
+                    with patch("fastmcp.cli.apps_dev._make_dev_app", mock_make_dev_app):
+                        with patch("fastmcp.cli.apps_dev.uvicorn", mock_uvicorn):
+                            with patch(
+                                "fastmcp.cli.apps_dev.webbrowser.open",
+                                mock_webbrowser_open,
+                            ):
+                                with patch(
+                                    "fastmcp.cli.apps_dev.asyncio.sleep",
+                                    new_callable=AsyncMock,
+                                ):
+                                    with patch("socket.socket"):
+                                        await apps("server.py", host=host)
 
         make_dev_app_first_arg = mock_make_dev_app.call_args[0][0]
         assert expected_host in make_dev_app_first_arg
@@ -1570,29 +1548,33 @@ class TestRunDevApps:
         mock_make_dev_app = MagicMock(return_value=MagicMock())
         mock_webbrowser_open = MagicMock()
 
-        with (
-            patch(
-                "fastmcp.cli.apps_dev._start_user_server",
-                new_callable=AsyncMock,
-                return_value=mock_proc,
-            ),
-            patch(
+        with patch(
+            "fastmcp.cli.apps_dev._start_user_server",
+            new_callable=AsyncMock,
+            return_value=mock_proc,
+        ):
+            with patch(
                 "fastmcp.cli.apps_dev._fetch_app_bridge_bundle",
                 new_callable=AsyncMock,
                 return_value=("js_content", "{}"),
-            ),
-            patch(
-                "fastmcp.cli.apps_dev._wait_for_server",
-                new_callable=AsyncMock,
-                return_value=True,
-            ),
-            patch("fastmcp.cli.apps_dev._make_dev_app", mock_make_dev_app),
-            patch("fastmcp.cli.apps_dev.uvicorn", mock_uvicorn),
-            patch("fastmcp.cli.apps_dev.webbrowser.open", mock_webbrowser_open),
-            patch("fastmcp.cli.apps_dev.asyncio.sleep", new_callable=AsyncMock),
-            patch("socket.socket"),
-        ):
-            await apps("server.py", log_panel=log_panel)
+            ):
+                with patch(
+                    "fastmcp.cli.apps_dev._wait_for_server",
+                    new_callable=AsyncMock,
+                    return_value=True,
+                ):
+                    with patch("fastmcp.cli.apps_dev._make_dev_app", mock_make_dev_app):
+                        with patch("fastmcp.cli.apps_dev.uvicorn", mock_uvicorn):
+                            with patch(
+                                "fastmcp.cli.apps_dev.webbrowser.open",
+                                mock_webbrowser_open,
+                            ):
+                                with patch(
+                                    "fastmcp.cli.apps_dev.asyncio.sleep",
+                                    new_callable=AsyncMock,
+                                ):
+                                    with patch("socket.socket"):
+                                        await apps("server.py", log_panel=log_panel)
 
         # log_panel is the 5th positional argument to _make_dev_app
         actual_log_panel = mock_make_dev_app.call_args[0][4]

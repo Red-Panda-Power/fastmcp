@@ -199,22 +199,20 @@ class TestSetLoggingLevel:
         """setLevel from one client does not filter another client's logs."""
         setter_handler = LogHandler()
         other_handler = LogHandler()
-        async with (
-            Client(
-                fastmcp_server, mode="legacy", log_handler=setter_handler.handle_log
-            ) as setter,
-            Client(
+        async with Client(
+            fastmcp_server, mode="legacy", log_handler=setter_handler.handle_log
+        ) as setter:
+            async with Client(
                 fastmcp_server, mode="legacy", log_handler=other_handler.handle_log
-            ) as other,
-        ):
-            await setter.set_logging_level("error")
-            for client in (setter, other):
-                await client.call_tool(
-                    "echo_log", {"message": "info msg", "level": "info"}
-                )
-                await client.call_tool(
-                    "echo_log", {"message": "error msg", "level": "error"}
-                )
+            ) as other:
+                await setter.set_logging_level("error")
+                for client in (setter, other):
+                    await client.call_tool(
+                        "echo_log", {"message": "info msg", "level": "info"}
+                    )
+                    await client.call_tool(
+                        "echo_log", {"message": "error msg", "level": "error"}
+                    )
 
         assert [log.data["msg"] for log in setter_handler.logs] == ["error msg"]
         assert [log.data["msg"] for log in other_handler.logs] == [
@@ -264,19 +262,17 @@ class TestSetLoggingLevel:
         """A stateless server has no session to hold a level, so setLevel is not shared."""
         log_handler = LogHandler()
         async with asgi_server(fastmcp_server, stateless_http=True) as server:
-            async with (
-                server.client(mode="legacy") as setter,
-                server.client(
+            async with server.client(mode="legacy") as setter:
+                async with server.client(
                     mode=other_mode, log_handler=log_handler.handle_log
-                ) as other,
-            ):
-                await setter.set_logging_level("error")
-                await other.call_tool(
-                    "echo_log", {"message": "info msg", "level": "info"}
-                )
-                await other.call_tool(
-                    "echo_log", {"message": "error msg", "level": "error"}
-                )
+                ) as other:
+                    await setter.set_logging_level("error")
+                    await other.call_tool(
+                        "echo_log", {"message": "info msg", "level": "info"}
+                    )
+                    await other.call_tool(
+                        "echo_log", {"message": "error msg", "level": "error"}
+                    )
 
         assert [log.data["msg"] for log in log_handler.logs] == [
             "info msg",

@@ -275,27 +275,27 @@ async def main() -> None:
         ("proxy", "FastMCP proxy"),
     ):
         # The SDK's SSE reader logs a traceback when a check cancels a call on purpose.
-        with (
-            report.transport(label),
-            serve(transport) as server,
-            quiet("mcp.client.sse"),
-        ):
+        with report.transport(label):
+            with serve(transport) as server:
+                with quiet("mcp.client.sse"):
 
-            async def rejects_missing_token() -> None:
-                try:
-                    async with MCPToolset(server.url):
-                        pass
-                except Exception:
-                    return
-                raise AssertionError("connected without a bearer token")
+                    async def rejects_missing_token() -> None:
+                        try:
+                            async with MCPToolset(server.url):
+                                pass
+                        except Exception:
+                            return
+                        raise AssertionError("connected without a bearer token")
 
-            await report.check("rejects missing bearer token", rejects_missing_token)
-            await exercise(
-                report,
-                server.url,
-                headers=server.headers,
-                gaps=PROXY_GAPS if transport == "proxy" else None,
-            )
+                    await report.check(
+                        "rejects missing bearer token", rejects_missing_token
+                    )
+                    await exercise(
+                        report,
+                        server.url,
+                        headers=server.headers,
+                        gaps=PROXY_GAPS if transport == "proxy" else None,
+                    )
 
     report.finish()
 
