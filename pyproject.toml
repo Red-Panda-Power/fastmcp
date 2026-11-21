@@ -125,6 +125,7 @@ fastmcp-slim = { workspace = true }
 fastmcp-remote = { workspace = true }
 fastmcp-tasks = { workspace = true }
 mcp-types = { path = "vendor/python-sdk/mcp-types", editable = true }
+uv-dynamic-versioning = [{ path = "vendor/uv-dynamic-versioning", marker = "python_version < '3.9'" }]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

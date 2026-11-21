@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "uv-dynamic-versioning"
+version = "0.12.0"
+description = "Dynamic versioning based on VCS tags for uv/hatch projects"
+requires-python = ">=3.8,<4"
+license = { file = "LICENSE" }
+dependencies = ["dunamai~=1.25", "hatchling~=1.26", "jinja2~=3.0", "tomlkit~=0.13"]
+
+[project.entry-points.hatch]
+uv-dynamic-versioning = "uv_dynamic_versioning.hooks"
+
+[project.scripts]
+uv-dynamic-versioning = "uv_dynamic_versioning.cli:main"
+
+[dependency-groups]
+dev = ["gitpython>=3.1.40", "pytest>=8.3.3,<9"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/uv_dynamic_versioning"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 100

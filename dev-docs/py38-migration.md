@@ -37,7 +37,7 @@ Supporting the remaining features will require compatible backports or alternati
 
 FastAPI is currently declared in the root development group as `fastapi>=0.115.12`. On Windows with Python 3.8.20 and Pydantic 2.10.6, UV resolved FastAPI 0.124.4, Starlette 0.44.0, AnyIO 4.5.2, and HTTPX 0.28.1. The vendored type package's development tests exercise this combination through FastAPI's in-process HTTP client. The root FastMCP dependency currently requires `starlette>=1.0.1`, so that constraint also needs to change or be backported before the full Python 3.8 environment can resolve. Recheck the combination on the intended deployment platform.
 
-The current `uv-dynamic-versioning` build backend also has no installable non-yanked Python 3.8 release, so the workspace build process needs a compatible replacement or backport.
+The published `uv-dynamic-versioning` build plugin has no installable non-yanked Python 3.8 release. A Python 3.8 backport of version 0.12.0 is vendored under `vendor/uv-dynamic-versioning` and selected by the root UV configuration for builds using Python 3.8. UV has built all four workspace wheels with that interpreter and verified dynamic version and dependency metadata. Those wheels still declare Python 3.11 or newer and are not Python 3.8 installations; the dependency and source migration remains necessary.
 
 An independent `uv pip install --dry-run --no-deps` check on Windows tested 68 direct requirement strings from the root and workspace projects, including optional and development groups. Thirty of those constraints had no Python 3.8-compatible candidate:
 
