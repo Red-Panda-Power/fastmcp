@@ -1,5 +1,7 @@
 """Logging utilities for FastMCP."""
 
+from __future__ import annotations
+
 import contextlib
 import importlib.util
 import logging

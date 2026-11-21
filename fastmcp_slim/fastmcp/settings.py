@@ -3,7 +3,7 @@ from __future__ import annotations as _annotations
 import inspect
 import os
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
 from platformdirs import user_data_dir
 from pydantic import Field, SecretStr, field_validator
@@ -11,6 +11,7 @@ from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
 )
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8 compatibility
 
 from fastmcp.utilities.logging import get_logger
 
