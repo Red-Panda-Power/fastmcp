@@ -1,5 +1,7 @@
 """Tests for basic progress tracking operations."""
 
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock

@@ -4,6 +4,8 @@ The first tests only build pools and clients, which redis-py does lazily, so
 they need no Redis.  The last two authenticate against a real, standalone Redis.
 """
 
+from __future__ import annotations
+
 # pyright: reportPrivateUsage=false
 
 import socket
@@ -94,9 +96,8 @@ async def test_connections_sharing_a_provider_register_one_callback():
     """A Docket and its strike list share a provider, and a provider like
     redis-entraid's keeps only the newest callback, so they must share one."""
     provider = StreamingProvider()
-    async with (
-        RedisConnection("redis://localhost:6379/0", provider),
-        RedisConnection("redis://localhost:6379/0", provider),
+    async with RedisConnection("redis://localhost:6379/0", provider), RedisConnection(
+        "redis://localhost:6379/0", provider
     ):
         assert len(provider.callbacks) == 1
 

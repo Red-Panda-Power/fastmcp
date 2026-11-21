@@ -4,6 +4,8 @@ This module handles the lifecycle of Redis containers used in testing,
 including single-node Redis, Redis Cluster, and Valkey variants.
 """
 
+from __future__ import annotations
+
 import os
 import socket
 import sys
@@ -12,7 +14,9 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, Generator, Iterable, ParamSpec, TypeVar, cast
+from typing import Callable, Generator, Iterable, TypeVar, cast
+
+from typing_extensions import ParamSpec
 
 import docker.errors
 import redis.exceptions

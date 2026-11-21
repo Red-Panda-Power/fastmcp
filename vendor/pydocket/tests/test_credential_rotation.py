@@ -7,6 +7,8 @@ identity.  These need a real, standalone Redis: they read CLIENT LIST to see
 which user each connection is authenticated as.
 """
 
+from __future__ import annotations
+
 import asyncio
 import gc
 from contextlib import asynccontextmanager, suppress
@@ -105,10 +107,9 @@ async def test_a_rotation_reauthenticates_every_connection_sharing_the_provider(
     provider, and a token refresh must reach both of them."""
     old, new = users
     provider = RotatingProvider(*old)
-    async with (
-        RedisConnection(credential_less_url, provider) as first,
-        RedisConnection(credential_less_url, provider) as second,
-    ):
+    async with RedisConnection(credential_less_url, provider) as first, RedisConnection(
+        credential_less_url, provider
+    ) as second:
         async with first.client() as r:
             await r.exists("rotation")
         async with second.client() as r:
@@ -192,10 +193,9 @@ async def test_a_rotation_leaves_a_reading_subscriber_alone(
     provider = RotatingProvider(*old)
     # One statement for both, because coverage.py's sys.monitoring core reports
     # a false partial branch on the innermost of three nested with statements.
-    async with (
-        RedisConnection(credential_less_url, provider) as connection,
-        connection.pubsub() as pubsub,
-    ):
+    async with RedisConnection(
+        credential_less_url, provider
+    ) as connection, connection.pubsub() as pubsub:
         await pubsub.subscribe("rotation")
         async with reading(pubsub) as received:
             await wait_until(

@@ -1,5 +1,7 @@
 # pyright: reportUnknownVariableType=false
 
+from __future__ import annotations
+
 import asyncio
 from typing import cast
 
@@ -73,10 +75,9 @@ async def test_docket_memory_backend():
 
 async def test_multiple_memory_dockets():
     """Test that multiple in-memory dockets can coexist with separate data."""
-    async with (
-        Docket(name="docket-1", url="memory://") as docket1,
-        Docket(name="docket-2", url="memory://") as docket2,
-    ):
+    async with Docket(name="docket-1", url="memory://") as docket1, Docket(
+        name="docket-2", url="memory://"
+    ) as docket2:
         result1 = None
         result2 = None
 
@@ -232,10 +233,9 @@ async def test_different_memory_urls_are_isolated():
     async def task_for_server2(value: str) -> str: ...
 
     # Create two dockets with different memory:// URLs
-    async with (
-        Docket(name="test", url="memory://server1") as docket1,
-        Docket(name="test", url="memory://server2") as docket2,
-    ):
+    async with Docket(name="test", url="memory://server1") as docket1, Docket(
+        name="test", url="memory://server2"
+    ) as docket2:
         docket1.register(task_for_server1)
         docket2.register(task_for_server2)
 
@@ -267,10 +267,9 @@ async def test_different_memory_urls_are_isolated():
 
 async def test_memory_url_with_path_isolation():
     """Test that memory:// URLs with different paths are isolated."""
-    async with (
-        Docket(name="test", url="memory://localhost/db1") as docket1,
-        Docket(name="test", url="memory://localhost/db2") as docket2,
-    ):
+    async with Docket(name="test", url="memory://localhost/db1") as docket1, Docket(
+        name="test", url="memory://localhost/db2"
+    ) as docket2:
 
         async def dummy_task() -> None: ...
 

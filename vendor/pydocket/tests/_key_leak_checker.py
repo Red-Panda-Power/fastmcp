@@ -1,5 +1,7 @@
 """Key leak detection for preventing Redis memory leaks in tests."""
 
+from __future__ import annotations
+
 from fnmatch import fnmatch
 
 from docket import Docket

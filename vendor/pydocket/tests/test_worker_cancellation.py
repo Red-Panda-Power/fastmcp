@@ -8,6 +8,8 @@ lost the cancellation and ran forever.  These tests cancel at a range of
 event-loop tick offsets so at least one case lands inside that window.
 """
 
+from __future__ import annotations
+
 import asyncio
 
 import pytest

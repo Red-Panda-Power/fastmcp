@@ -1,5 +1,7 @@
 """Tests for result retrieval, waiting, TTL, and concurrent operations."""
 
+from __future__ import annotations
+
 import asyncio
 from contextlib import aclosing
 from datetime import datetime, timedelta, timezone
@@ -151,7 +153,7 @@ async def test_get_result_on_already_failed_task(docket: Docket, worker: Worker)
 async def first_state(execution: Execution) -> str:
     """Return the state in the first event that ``subscribe()`` yields."""
     async with aclosing(execution.subscribe()) as events:
-        event = await anext(events)
+        event = await events.__anext__()
     assert event["type"] == "state"
     return event["state"]
 

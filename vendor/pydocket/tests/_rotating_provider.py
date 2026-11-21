@@ -8,6 +8,8 @@ connections get, and pushes them to that one callback as an AUTH token whose
 "oid" claim is the username.
 """
 
+from __future__ import annotations
+
 from typing import Any, Callable
 
 from redis.auth.token import SimpleToken
