@@ -513,7 +513,7 @@ class TestLoggingMiddlewareIntegration:
 
         # Should have processing and failure logs
         assert log_text.splitlines()[-1] == snapshot(
-            "ERROR    fastmcp.middleware.logging:logging.py:122 event=request_error method=tools/call source=client duration_ms=0.02 error=Error calling tool 'operation_with_error': Operation failed intentionally"
+            "ERROR    fastmcp.middleware.logging:logging.py:124 event=request_error method=tools/call source=client duration_ms=0.02 error=Error calling tool 'operation_with_error': Operation failed intentionally"
         )
 
     async def test_logging_middleware_with_payloads(

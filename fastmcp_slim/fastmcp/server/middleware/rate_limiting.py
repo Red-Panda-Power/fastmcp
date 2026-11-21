@@ -1,5 +1,7 @@
 """Rate limiting middleware for protecting FastMCP servers from abuse."""
 
+from __future__ import annotations
+
 import inspect
 import time
 import warnings

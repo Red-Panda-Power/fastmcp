@@ -1,11 +1,13 @@
 """A middleware for response caching."""
 
+from __future__ import annotations
+
 import base64
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from logging import Logger
-from typing import Any, NotRequired, Self, TypedDict
+from typing import Any, List, TypedDict  # noqa: UP035
 
 import mcp_types
 import pydantic_core
@@ -18,7 +20,12 @@ from key_value.aio.wrappers.statistics.wrapper import (
     KVStoreCollectionStatistics,
 )
 from pydantic import Field
-from typing_extensions import TypeVar, override
+from typing_extensions import (  # noqa: UP035 - Python 3.8
+    NotRequired,
+    Self,
+    TypeVar,
+    override,
+)
 
 from fastmcp.prompts.base import (
     InputRequiredPromptResult,
@@ -330,19 +337,19 @@ class ResponseCachingMiddleware(Middleware):
 
         self._list_tools_cache: PydanticAdapter[list[Tool]] = PydanticAdapter(
             key_value=self._stats,
-            pydantic_model=list[Tool],
+            pydantic_model=List[Tool],  # noqa: UP006
             default_collection="tools/list",
         )
 
         self._list_resources_cache: PydanticAdapter[list[Resource]] = PydanticAdapter(
             key_value=self._stats,
-            pydantic_model=list[Resource],
+            pydantic_model=List[Resource],  # noqa: UP006
             default_collection="resources/list",
         )
 
         self._list_prompts_cache: PydanticAdapter[list[Prompt]] = PydanticAdapter(
             key_value=self._stats,
-            pydantic_model=list[Prompt],
+            pydantic_model=List[Prompt],  # noqa: UP006
             default_collection="prompts/list",
         )
 
