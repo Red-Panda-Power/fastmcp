@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "uncalled-for"
+version = "0.6.1"
+description = "Async dependency injection for Python functions"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+dependencies = [
+    "typing-extensions>=4.13.0",
+    "eval-type-backport>=0.4.0; python_version < '3.10'",
+]
+
+[project.urls]
+Repository = "https://github.com/chrisguidry/uncalled-for"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.3,<9",
+    "pytest-asyncio>=0.24.0",
+    "pytest-timeout>=2.4.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/uncalled_for"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+
+[tool.ruff.per-file-target-version]
+"tests/test_annotated_type_aliases.py" = "py312"

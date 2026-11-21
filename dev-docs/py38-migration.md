@@ -10,6 +10,8 @@ HTTPX2 and HTTPCore2 2.12.0 are vendored under `vendor/httpx2` and are used by t
 
 The SDK's Python 3.8 dependency set also uses local backports of `typing-inspection` 0.4.2 and `sse-starlette` 3.7.0. The SDK's runtime-only UV installation excludes pytest and Trio, while its development environment includes them for the test suite. These checks do not establish that the FastMCP workspace itself can yet be installed on Python 3.8.
 
+`uncalled-for` 0.6.1, the dependency injection engine, is vendored under `vendor/uncalled-for`. Its upstream tests run on Python 3.8 and 3.12, and the FastMCP dependency and shared-context tests pass with this copy on Python 3.12. The root project has not yet switched to this copy; its Python 3.8 integration remains to be verified as part of the workspace port.
+
 The `prefab-ui` dependency is now restricted to Python 3.10 and newer; MCP Apps UI is unavailable on Python 3.8. The dependency audit below records the original constraints before this change.
 
 ## Dependency audit
