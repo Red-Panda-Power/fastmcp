@@ -1,0 +1,398 @@
+"""Tests proving the Perpetual chain survives every plausible crash point.
+
+Once a Perpetual has been scheduled at least once, the chain continues as
+long as Redis is durable and a worker is eventually running. None of these
+tests configure ``Retry`` — the property holds without it.
+
+Two existing mechanisms work together to guarantee this:
+
+1. **Generation-counter supersession** (``runs:{key}`` hash, incremented on
+   every ``replace``): stale executions are rejected at ``claim()``, and
+   stale terminal writes are no-ops.
+2. **Consumer-group redelivery** (``XAUTOCLAIM`` after ``redelivery_timeout``):
+   any message whose handling didn't reach ``XACK`` is reclaimed by a healthy
+   consumer.
+
+The two structural recovery cases the tests below exercise:
+
+- **Pre-``on_complete`` failure** (no successor yet scheduled) — redelivery
+  brings the original message back, the task body re-runs, ``on_complete``
+  eventually succeeds, chain continues.
+- **Post-``on_complete`` failure** (successor already in Redis with a higher
+  generation) — redelivery brings the original back, ``claim()`` sees it
+  superseded, the message is ACKed cleanly, the successor runs as scheduled.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime, timedelta, timezone
+from typing import Any, Awaitable, Callable
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from redis.exceptions import ConnectionError
+
+from docket import Docket, Perpetual, Worker
+from docket.dependencies import TaskOutcome
+from docket.execution import Execution, TaskFunction
+
+
+async def test_chain_survives_worker_death_during_task_body(docket: Docket):
+    """A worker that dies before a Perpetual's task body runs is recovered via
+    XAUTOCLAIM redelivery: a fresh worker reclaims the message and the chain
+    proceeds normally."""
+    executions: list[int] = []
+
+    async def perpetual_task(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ):
+        executions.append(1)
+
+    await docket.add(perpetual_task, key="perpetual")()
+
+    async with Worker(
+        docket, redelivery_timeout=timedelta(milliseconds=200)
+    ) as worker_a:
+        worker_a._execute = AsyncMock(side_effect=Exception("simulated crash"))  # pyright: ignore[reportPrivateUsage]
+        with pytest.raises(ExceptionGroup) as exc_info:
+            await worker_a.run_until_finished()
+        assert any("simulated crash" in str(e) for e in exc_info.value.exceptions)
+        assert executions == []  # body never ran on worker_a
+
+    await asyncio.sleep(0.25)  # > redelivery_timeout
+
+    async with Worker(
+        docket, redelivery_timeout=timedelta(milliseconds=200)
+    ) as worker_b:
+        await worker_b.run_at_most({"perpetual": 3})
+        assert len(executions) >= 3  # chain ran on worker_b after redelivery
+
+
+def flaky_on_complete(
+    failures: int,
+) -> Callable[[Perpetual, Execution, TaskOutcome], Awaitable[bool]]:
+    """Build an ``on_complete`` that loses Redis on its first ``failures`` calls
+    and then behaves normally, the shape of a Redis outage that ends."""
+    original_on_complete = Perpetual.on_complete
+    attempts = {"count": 0}
+
+    async def on_complete(
+        self: Perpetual, execution: Execution, outcome: TaskOutcome
+    ) -> bool:
+        attempts["count"] += 1
+        if attempts["count"] <= failures:
+            raise ConnectionError("simulated Redis blip during on_complete")
+        return await original_on_complete(self, execution, outcome)
+
+    return on_complete
+
+
+async def test_chain_survives_on_complete_failure_in_success_path(docket: Docket):
+    """When ``Perpetual.on_complete`` raises after a successful task body
+    (and the in-``_execute`` recovery's repeat call also fails — simulating a
+    Redis outage long enough to defeat the in-place recovery), the worker
+    treats it as Redis trouble: it waits, reconnects, and keeps going. The
+    message stays in the consumer-group pending list; the redelivery sweep
+    reclaims it via XAUTOCLAIM, the body runs again, ``on_complete`` now
+    succeeds, the chain continues on the same worker."""
+    executions: list[int] = []
+
+    async def perpetual_task(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ):
+        executions.append(1)
+
+    await docket.add(perpetual_task, key="perpetual")()
+
+    async with Worker(
+        docket,
+        redelivery_timeout=timedelta(milliseconds=200),
+        reconnection_delay=timedelta(milliseconds=50),
+    ) as worker:
+        with patch.object(Perpetual, "on_complete", flaky_on_complete(failures=2)):
+            await worker.run_at_most({"perpetual": 3})
+
+    assert len(executions) >= 3  # body ran again after redelivery, chain continued
+
+
+async def test_chain_survives_on_complete_failure_in_failure_path_no_retry(
+    docket: Docket,
+):
+    """When the task body raises (no ``Retry`` configured) and
+    ``Perpetual.on_complete`` raises while being called from the
+    failure-handling branch, the worker waits and reconnects. Redelivery
+    saves the chain: the sweep reclaims the message, the body raises again,
+    ``on_complete`` runs from the failure path with Redis back, and the chain
+    continues.
+
+    This directly refutes the claim that ``Retry`` is needed for reliability:
+    a Perpetual whose body fails AND whose ``on_complete`` fails still
+    survives every iteration without ``Retry``."""
+    executions: list[int] = []
+
+    async def perpetual_task(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ):
+        executions.append(1)
+        raise ValueError("simulated body failure")
+
+    await docket.add(perpetual_task, key="perpetual")()
+
+    async with Worker(
+        docket,
+        redelivery_timeout=timedelta(milliseconds=200),
+        reconnection_delay=timedelta(milliseconds=50),
+    ) as worker:
+        with patch.object(Perpetual, "on_complete", flaky_on_complete(failures=1)):
+            await worker.run_at_most({"perpetual": 3})
+
+    assert len(executions) >= 3  # chain continued despite repeated body failures
+
+
+async def test_chain_survives_replace_failure_inside_on_complete(docket: Docket):
+    """A more targeted failure than patching ``on_complete`` itself: simulate
+    a Redis outage on the ``Docket._replace`` call that ``Perpetual.on_complete``
+    makes to schedule the next run. ``replace`` fails for both the success-path
+    ``on_complete`` and the in-place recovery's repeat call, so the worker
+    waits and reconnects; redelivery brings the message back; with Redis back,
+    ``replace`` works and the chain continues."""
+    executions: list[int] = []
+
+    async def perpetual_task(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ):
+        executions.append(1)
+
+    await docket.add(perpetual_task, key="perpetual")()
+
+    original_replace = Docket._replace  # pyright: ignore[reportPrivateUsage]
+    attempts = {"count": 0}
+
+    def flaky_replace(
+        self: Docket,
+        function: TaskFunction | str,
+        when: datetime,
+        key: str,
+        expected_generation: int = 0,
+    ) -> Callable[..., Awaitable[Execution]]:
+        attempts["count"] += 1
+        if attempts["count"] <= 2:
+            raise ConnectionError("simulated Redis blip during docket.replace")
+        return original_replace(self, function, when, key, expected_generation)
+
+    async with Worker(
+        docket,
+        redelivery_timeout=timedelta(milliseconds=200),
+        reconnection_delay=timedelta(milliseconds=50),
+    ) as worker:
+        with patch.object(Docket, "_replace", flaky_replace):
+            await worker.run_at_most({"perpetual": 3})
+
+    assert len(executions) >= 3
+
+
+async def test_chain_survives_mark_as_completed_failure_via_in_execute_recovery(
+    docket: Docket,
+):
+    """When ``mark_as_completed`` raises after ``on_complete`` already scheduled
+    the successor, the existing ``except Exception`` block in ``_execute``
+    catches it and re-runs the completion handler, which idempotently rewrites
+    the successor via ``replace=True``. The worker does NOT die; the chain
+    continues in place. This demonstrates that in-place recovery in ``_execute``
+    is also a layer of defense, separate from redelivery."""
+    executions: list[int] = []
+
+    async def perpetual_task(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ):
+        executions.append(1)
+
+    await docket.add(perpetual_task, key="perpetual")()
+
+    original = Execution.mark_as_completed
+    failed_once = False
+
+    async def flaky_mark_as_completed(
+        self: Execution, *args: Any, **kwargs: Any
+    ) -> None:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise ConnectionError("simulated Redis blip during mark_as_completed")
+        return await original(self, *args, **kwargs)
+
+    async with Worker(docket, redelivery_timeout=timedelta(milliseconds=200)) as worker:
+        with patch.object(Execution, "mark_as_completed", flaky_mark_as_completed):
+            await worker.run_at_most({"perpetual": 3})
+        assert failed_once is True
+        assert len(executions) >= 3  # in-place recovery kept the chain going
+
+
+async def test_chain_survives_terminal_failure_after_on_complete_via_supersession(
+    docket: Docket,
+):
+    """Worker dies AFTER ``on_complete`` already scheduled the successor:
+    the terminal write raises in the success path, the in-place recovery's
+    terminal write also raises, and the worker exits. The successor is
+    already in Redis with an incremented generation, so when redelivery brings
+    the original back to a fresh worker, ``claim()`` sees it superseded and
+    ACKs cleanly without re-running the body. The successor then runs as
+    scheduled and the chain continues. We use ``RuntimeError`` (not
+    ``ConnectionError``) because ``Worker._run`` reconnects on
+    ``ConnectionError`` and would mask the worker death."""
+    executions: list[int] = []
+
+    async def perpetual_task(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ):
+        executions.append(1)
+        if len(executions) == 1:
+            # On a slow runner, a successor due 20 ms out is already due when
+            # this run ends, and worker_a runs it before it crashes.  A second
+            # keeps it out of the stream until worker_a has crashed.
+            perpetual.after(timedelta(seconds=1))
+
+    await docket.add(perpetual_task, key="perpetual")()
+
+    async def crashing_mark_as_terminal(
+        self: Execution, *args: Any, **kwargs: Any
+    ) -> None:
+        raise RuntimeError("simulated blip in the terminal write")
+
+    async with Worker(
+        docket,
+        redelivery_timeout=timedelta(milliseconds=200),
+        # Slow scheduler so the successor doesn't get pulled into the stream
+        # before the worker has a chance to crash from this iteration.
+        scheduling_resolution=timedelta(seconds=5),
+    ) as worker_a:
+        with patch.object(Execution, "_mark_as_terminal", crashing_mark_as_terminal):
+            with pytest.raises((ExceptionGroup, RuntimeError)):
+                await worker_a.run_until_finished()
+        assert len(executions) == 1  # body ran once before worker_a died
+
+    await asyncio.sleep(0.25)
+
+    async with Worker(
+        docket, redelivery_timeout=timedelta(milliseconds=200)
+    ) as worker_b:
+        await worker_b.run_at_most({"perpetual": 3})
+        # Worker_b reclaims the original via XAUTOCLAIM, sees claim() return
+        # SUPERSEDED (generation was incremented when worker_a's on_complete ran),
+        # ACKs without re-running the body. The successor that on_complete already
+        # scheduled then runs. Chain continues.
+        assert len(executions) >= 3
+
+
+async def test_perpetual_without_retry_survives_repeated_body_failures(
+    docket: Docket, worker: Worker
+):
+    """A Perpetual whose body raises every iteration still gets perpetuated
+    via the failure-path call to ``on_complete`` (no ``Retry`` involved).
+    This is the most basic refutation of "needs Retry": the chain runs as
+    many times as ``run_at_most`` permits, every iteration failing."""
+    executions: list[int] = []
+
+    async def always_fails(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ):
+        executions.append(1)
+        raise ValueError("body always fails")
+
+    await docket.add(always_fails, key="perpetual")()
+
+    await worker.run_at_most({"perpetual": 5})
+
+    assert len(executions) == 5
+
+
+# Cancellation paths
+#
+# The seven tests above cover every Redis touchpoint between "worker reads
+# message" and "message XACKed".  The three tests below cover the parallel
+# question of how a Perpetual ends *intentionally*.  They pin down the
+# ``asyncio.CancelledError`` semantics that the failure-injection tests don't
+# exercise: when a cancel reaches the body, the chain stops cleanly, no
+# successor is scheduled, and the message is ACKed.
+
+
+async def test_docket_cancel_during_running_perpetual_body_stops_the_chain(
+    docket: Docket, worker: Worker
+):
+    """``docket.cancel(key)`` on a running Perpetual cancels the body via
+    ``asyncio.CancelledError``; the worker's ``except asyncio.CancelledError:``
+    branch marks the execution cancelled and the message is ACKed.  No
+    successor is scheduled, so ``run_until_finished`` returns once the cancel
+    is processed.  This pins down "explicit cancel ends the chain" for the
+    ``CancelledError`` path."""
+    started = asyncio.Event()
+    started_count = 0
+    body_completed = False
+
+    async def perpetual_body(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ) -> None:
+        nonlocal started_count, body_completed
+        started_count += 1
+        started.set()
+        await asyncio.sleep(60)
+        body_completed = True  # pragma: no cover - cancelled before reaching here
+
+    execution = await docket.add(perpetual_body, key="perpetual")()
+    worker_task = asyncio.create_task(worker.run_until_finished())
+
+    await asyncio.wait_for(started.wait(), timeout=5.0)
+    await docket.cancel(execution.key)
+    await asyncio.wait_for(worker_task, timeout=5.0)
+
+    assert started_count == 1
+    assert body_completed is False
+
+
+async def test_docket_cancel_on_scheduled_perpetual_stops_the_chain(
+    docket: Docket, worker: Worker
+):
+    """Cancelling a Perpetual that is scheduled but not yet running removes it
+    from the queue — the body never runs and no successor is ever scheduled.
+    This path doesn't go through ``CancelledError`` at all (the message is
+    gone before the worker would have read it); it's the calmer parallel to
+    the running-body case above."""
+    started_count = 0
+
+    async def perpetual_body(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ) -> None:
+        nonlocal started_count
+        started_count += 1  # pragma: no cover - cancelled before any iteration
+
+    future = datetime.now(timezone.utc) + timedelta(seconds=60)
+    execution = await docket.add(perpetual_body, when=future, key="perpetual")()
+    await docket.cancel(execution.key)
+    await worker.run_until_finished()
+
+    assert started_count == 0
+
+
+async def test_cancelled_error_in_perpetual_body_stops_the_chain(
+    docket: Docket, worker: Worker
+):
+    """A Perpetual body that raises ``asyncio.CancelledError`` itself, with no
+    ``docket.cancel()``, ends cancelled, and its chain stops, because the
+    worker is not shutting down.  Locking this in keeps a future change to
+    the cancellation handler from quietly altering the contract."""
+    started_count = 0
+
+    async def perpetual_body(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=20)),
+    ) -> None:
+        nonlocal started_count
+        started_count += 1
+        raise asyncio.CancelledError()
+
+    await docket.add(perpetual_body, key="perpetual")()
+
+    await worker.run_at_most({"perpetual": 5})
+
+    assert started_count == 1

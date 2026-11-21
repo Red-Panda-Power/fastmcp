@@ -1,0 +1,477 @@
+"""Tests for the concurrency-limit waiter stream (admission-blocked tasks are
+re-XADD'd into a per-concurrency-key waiter stream and woken when capacity
+frees up, rather than polling via the future queue).
+"""
+
+import asyncio
+from datetime import datetime, timezone
+
+from docket import (
+    ConcurrencyLimit,
+    Docket,
+    Worker,
+)
+from docket._redis import confirm_subscriptions
+
+from tests.concurrency_limits.waiters import wait_for_xlen
+
+
+async def test_blocked_task_parks_on_waiter_stream(docket: Docket, worker: Worker):
+    """A task that can't acquire a slot is XADD'd onto the waiter stream with
+    its full message payload -- no separate parked hash, no entry in the
+    scheduler's future queue.
+    """
+    started = asyncio.Event()
+    hold = asyncio.Event()
+
+    async def holder(
+        customer_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        started.set()
+        await hold.wait()
+
+    await docket.add(holder)(customer_id=1)
+    await docket.add(holder)(customer_id=1)
+
+    worker_task = asyncio.create_task(worker.run_until_finished())
+    await started.wait()
+
+    waiters_stream = f"{docket.prefix}:concurrency:customer_id:1:waiters"
+    await wait_for_xlen(docket, waiters_stream, 1)
+
+    async with docket.redis() as redis:
+        entries = await redis.xrange(waiters_stream, "-", "+")
+        assert len(entries) == 1
+        fields = entries[0][1]
+        assert fields[b"function"] == b"holder"
+        # The waiter task itself is not in the future queue.  The only
+        # queue entries are the safeguard backstops scheduled by the
+        # ConcurrencyLimit dependency (`__safeguard__:<task_key>`).
+        queue_keys = [k.decode() for k in await redis.zrange(docket.queue_key, 0, -1)]
+        assert all(k.startswith("__safeguard__:") for k in queue_keys), queue_keys
+
+    hold.set()
+    await worker_task
+
+
+async def test_release_wakes_oldest_waiter_first(docket: Docket, worker: Worker):
+    """Waiters are woken in FIFO order -- stream XADD IDs are monotonic."""
+    order: list[int] = []
+    holder_entered = asyncio.Event()
+    release_holder = asyncio.Event()
+
+    async def task(
+        customer_id: int,
+        task_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        if task_id == 0:
+            holder_entered.set()
+            await release_holder.wait()
+        order.append(task_id)
+
+    # Seed the slot holder first
+    await docket.add(task)(customer_id=1, task_id=0)
+    worker_task = asyncio.create_task(worker.run_until_finished())
+    await holder_entered.wait()
+
+    # Enqueue waiters one at a time so their park order is strict
+    waiters_stream = f"{docket.prefix}:concurrency:customer_id:1:waiters"
+    for tid in (1, 2, 3):
+        await docket.add(task)(customer_id=1, task_id=tid)
+        await wait_for_xlen(docket, waiters_stream, tid)
+
+    release_holder.set()
+    await worker_task
+
+    assert order == [0, 1, 2, 3]
+
+
+async def test_blocked_task_makes_no_polling_retries(docket: Docket, worker: Worker):
+    """The blocked task should park exactly once and run exactly once -- no
+    polling loop through the scheduler queue.  We assert this by confirming
+    its generation counter reaches exactly the value produced by a single
+    park + wake cycle (add=1, park=2, wake=3)."""
+    holder_entered = asyncio.Event()
+    release_holder = asyncio.Event()
+    generations_seen: list[int] = []
+
+    async def watcher(
+        customer_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        holder_entered.set()
+        await release_holder.wait()
+
+    async def blocked(
+        customer_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        runs_key = f"{docket.prefix}:runs:{blocked_key}"
+        async with docket.redis() as redis:
+            gen: bytes | None = await redis.hget(runs_key, "generation")
+        generations_seen.append(int(gen) if gen else -1)
+
+    # Add the slot holder first and wait until it's actually inside the
+    # function body before adding ``blocked``.  Otherwise the worker can
+    # pick up both messages in one read and ``blocked`` may win the race
+    # for the single slot -- running directly without ever parking.
+    await docket.add(watcher)(customer_id=1)
+    worker_task = asyncio.create_task(worker.run_until_finished())
+    await holder_entered.wait()
+
+    blocked_exec = await docket.add(blocked)(customer_id=1)
+    blocked_key = blocked_exec.key
+
+    # Wait for the blocked task to actually park on the waiter stream
+    # before releasing the holder.
+    waiters_stream = f"{docket.prefix}:concurrency:customer_id:1:waiters"
+    await wait_for_xlen(docket, waiters_stream, 1)
+
+    release_holder.set()
+    await worker_task
+
+    # add=1, park=2, wake=3.  Polling reschedule would bump further.
+    assert generations_seen == [3], generations_seen
+
+
+async def test_safeguard_wakes_waiter_when_holder_died_without_releasing(
+    docket: Docket,
+):
+    """The degenerate case: a concurrency slot is held by a worker that
+    crashed without releasing, AND no new tasks are arriving to trigger
+    the normal acquire-path scavenge.  The per-park safeguard task that
+    ConcurrencyLimit schedules at park-time must fire, scavenge the stale
+    slot, and wake the parked waiter.
+
+    A real running holder won't work here -- its lease-renewal loop would
+    overwrite any stale timestamp we forge.  Instead we seed the slot with
+    a fake holder that has a fresh timestamp so the waiter parks legitimately,
+    then later flip the timestamp to 0 (no live renewer to overwrite).
+    """
+    from datetime import timedelta
+
+    ran_event = asyncio.Event()
+
+    async def waiter(
+        customer_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        ran_event.set()
+
+    slots_key = f"{docket.prefix}:concurrency:customer_id:1"
+    waiters_stream = f"{slots_key}:waiters"
+
+    # Pre-occupy the slot with a fresh timestamp so the acquire-path's
+    # stale-scavenge can't see it as recoverable.
+    async with docket.redis() as redis:
+        fresh = datetime.now(timezone.utc).timestamp()
+        await redis.zadd(slots_key, {"fake-dead-holder": fresh})
+
+    # Short redelivery_timeout so the per-park safeguard fires inside the
+    # test window without slowing the suite down.
+    async with Worker(docket, redelivery_timeout=timedelta(milliseconds=200)) as worker:
+        await docket.add(waiter)(customer_id=1)
+
+        runner = asyncio.create_task(worker.run_forever())
+
+        # Waiter parks because the (live-looking) fake slot is full.
+        await wait_for_xlen(docket, waiters_stream, 1)
+
+        # Now forge a stale-holder state.  No lease renewer is touching
+        # this slot, so the timestamp stays at 0 until the safeguard
+        # scavenges it.
+        async with docket.redis() as redis:
+            await redis.zadd(slots_key, {"fake-dead-holder": 0.0})
+
+        # The safeguard fires ~200ms after the park, scavenges the stale
+        # slot, and the waiter is forwarded back to the main stream and
+        # runs.
+        await asyncio.wait_for(ran_event.wait(), timeout=5.0)
+
+        runner.cancel()
+        # Drain the cancelled run_forever() task; gather absorbs the
+        # CancelledError so we don't leave it as an "unawaited" warning.
+        await asyncio.gather(runner, return_exceptions=True)
+
+    async with docket.redis() as redis:
+        assert await redis.xlen(waiters_stream) == 0
+
+
+async def test_cancel_of_parked_task_prevents_wake_and_run(
+    docket: Docket, worker: Worker
+):
+    """Cancelling a concurrency-blocked task should remove it from the waiter
+    stream so the next slot release does not revive and run it.  Regression
+    guard: the previous queue-based reschedule path removed cancelled tasks
+    from the queue naturally; the stream-based park path needs an explicit
+    XDEL inside the cancel script."""
+    blocked_ran = False
+    holder_entered = asyncio.Event()
+    release_holder = asyncio.Event()
+
+    async def holder(
+        customer_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        holder_entered.set()
+        await release_holder.wait()
+
+    async def blocked(  # pragma: no cover -- test asserts this never executes
+        customer_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        nonlocal blocked_ran
+        blocked_ran = True
+
+    # Add the slot holder first and wait until it's actually inside the
+    # function body before adding ``blocked``.  Otherwise the worker can
+    # pick up both messages in one read and ``blocked`` may win the race
+    # for the single slot -- running directly without ever parking.
+    await docket.add(holder)(customer_id=1)
+    worker_task = asyncio.create_task(worker.run_until_finished())
+    await holder_entered.wait()
+
+    blocked_exec = await docket.add(blocked)(customer_id=1)
+
+    # Make sure `blocked` is actually parked on the waiter stream
+    waiters_stream = f"{docket.prefix}:concurrency:customer_id:1:waiters"
+    await wait_for_xlen(docket, waiters_stream, 1)
+
+    # Cancel the parked task; release the holder; verify blocked never ran
+    await docket.cancel(blocked_exec.key)
+    release_holder.set()
+    await worker_task
+
+    assert not blocked_ran, "cancelled parked task was revived and ran"
+
+    async with docket.redis() as redis:
+        runs_key = f"{docket.prefix}:runs:{blocked_exec.key}"
+        state = await redis.hget(runs_key, "state")
+        assert state == b"cancelled", state
+        # Waiter stream should be fully drained
+        assert await redis.xlen(waiters_stream) == 0
+        # The safeguard task this waiter scheduled at park time should also
+        # be cleaned up so it doesn't sit in the future queue.
+        safeguard_key = f"__safeguard__:{blocked_exec.key}"
+        queue_keys = [k.decode() for k in await redis.zrange(docket.queue_key, 0, -1)]
+        assert safeguard_key not in queue_keys, queue_keys
+
+
+async def test_cancel_of_parked_task_removes_waiter_entry_before_release(
+    docket: Docket, worker: Worker
+):
+    """The cancel subscriber removes a cancelled task's waiter entry while
+    the holder still has the slot.  No release runs before the check, so
+    only the subscriber could have removed the entry."""
+    holder_entered = asyncio.Event()
+    release_holder = asyncio.Event()
+
+    async def holder(
+        customer_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        holder_entered.set()
+        # The worker's shutdown waits for this task.  The timeout ends it if
+        # the test fails before it sets release_holder.
+        await asyncio.wait_for(release_holder.wait(), timeout=10)
+
+    await docket.add(holder)(customer_id=1)
+    worker_task = asyncio.create_task(worker.run_until_finished())
+    await asyncio.wait_for(holder_entered.wait(), timeout=5)
+
+    parked = await docket.add(holder)(customer_id=1)
+    waiters_stream = f"{docket.prefix}:concurrency:customer_id:1:waiters"
+    await wait_for_xlen(docket, waiters_stream, 1)
+
+    await docket.cancel(parked.key)
+    await wait_for_xlen(docket, waiters_stream, 0)
+
+    release_holder.set()
+    await asyncio.wait_for(worker_task, timeout=5)
+
+
+async def test_cancel_cleanup_script_drains_waiter_entry(docket: Docket):
+    """Directly exercise the ``_cancel_cleanup`` wrapper.
+
+    The wrapper is normally invoked from
+    ``ConcurrencyLimit._cleanup_cancelled_waiter`` when a parked task is
+    cancelled.  Driving the script directly tests it without a worker.
+    """
+    from docket.dependencies._concurrency import (
+        _cancel_cleanup,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    waiter_stream = f"{docket.prefix}:concurrency:cleanup-direct:waiters"
+    task_key = "cleanup-direct"
+    runs_key = f"{docket.prefix}:runs:{task_key}"
+    progress_key = f"{docket.prefix}:progress:{task_key}"
+
+    async with docket.redis() as redis:
+        entry_id = await redis.xadd(waiter_stream, {b"key": task_key.encode()})
+        await redis.hset(runs_key, "waiter_stream", waiter_stream)
+        await redis.hset(runs_key, "waiter_entry_id", entry_id.decode())
+        await redis.hset(progress_key, "current", "0")
+
+        assert await redis.xlen(waiter_stream) == 1
+        assert await redis.exists(progress_key) == 1
+
+        await _cancel_cleanup(
+            redis,
+            waiters_stream=waiter_stream,
+            progress_key=progress_key,
+            runs_key=runs_key,
+            waiter_entry_id=entry_id.decode(),
+        )
+
+        assert await redis.xlen(waiter_stream) == 0
+        assert await redis.exists(progress_key) == 0
+        assert await redis.hget(runs_key, "waiter_stream") is None
+        assert await redis.hget(runs_key, "waiter_entry_id") is None
+
+
+async def test_admission_blocked_handled_does_not_publish_failed_event(
+    docket: Docket, worker: Worker
+) -> None:
+    """A task parked by ``ConcurrencyLimit`` (``AdmissionBlocked(handled=True)``)
+    must NOT trigger the worker's safety-net ``mark_as_failed`` path.
+
+    The safety-net check at the end of ``process_completed_tasks`` only
+    fires when ``execution._acked`` is False, and the ``handled=True``
+    branch ``continue``s past it.  If anyone ever refactors that branch
+    away or stops short-circuiting, a parked task would observably emit
+    ``state=failed`` on its state channel even though the runs hash still
+    says ``scheduled``.  This test locks in the implicit invariant:
+    no ``failed`` event is ever published for a parked-but-not-yet-run
+    task whose ``handle_failure`` was a no-op admission denial.
+    """
+    import contextlib
+    import json
+
+    from tests.conftest import wait_for_event
+
+    holder_started = asyncio.Event()
+    holder_may_finish = asyncio.Event()
+    contender_key = "admission-blocked-no-fail"
+
+    # Subscribe to the contender's state channel BEFORE we add it, so the
+    # park-time ``scheduled`` event and any (regression) ``failed`` event
+    # are both captured.
+    state_events: list[dict[str, object]] = []
+    ready = asyncio.Event()
+
+    async def collector() -> None:
+        async with docket._pubsub() as pubsub:  # pyright: ignore[reportPrivateUsage]
+            await pubsub.subscribe(docket.key(f"state:{contender_key}"))
+            await confirm_subscriptions(pubsub, 1)
+            ready.set()
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue  # pragma: no cover
+                data = message["data"]
+                payload = data.decode() if isinstance(data, bytes) else data
+                state_events.append(json.loads(payload))
+
+    collector_task = asyncio.create_task(collector())
+    await ready.wait()
+
+    async def the_task(
+        marker: str,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(max_concurrent=1),
+    ) -> None:
+        if marker == "holder":
+            holder_started.set()
+            await holder_may_finish.wait()
+
+    docket.register(the_task)
+
+    await docket.add(the_task, key="holder")("holder")
+    worker_task = asyncio.create_task(worker.run_until_finished())
+    await asyncio.wait_for(holder_started.wait(), timeout=5)
+
+    # Park the contender while the holder owns the only slot.
+    await docket.add(the_task, key=contender_key)("contender")
+
+    # Wait for ``_acquire_or_park``'s scheduled event -- that's how we
+    # know the contender has actually parked and the runs hash is
+    # settled.  No magic-number wait.
+    await wait_for_event(
+        state_events,
+        lambda m: m.get("state") == "scheduled",
+        description="contender's park scheduled event",
+    )
+
+    # While parked, the runs hash must say ``scheduled`` -- not ``failed``.
+    # This is the at-rest truth a regression would corrupt by overwriting
+    # via mark_as_failed.
+    async with docket.redis() as redis:
+        runs_state = await redis.hget(docket.key(f"runs:{contender_key}"), "state")
+    assert runs_state == b"scheduled", (
+        f"parked task's runs hash state must be 'scheduled' (the "
+        f"AdmissionBlocked.handled=True path must not have triggered "
+        f"the worker's safety-net mark_as_failed); got: {runs_state!r}"
+    )
+
+    holder_may_finish.set()
+    await asyncio.wait_for(worker_task, timeout=10)
+    # Wait for the contender's terminal completed event -- proves the
+    # full wake-and-run path executed, which means ``process_completed_tasks``
+    # would already have fired the safety net by now if it was going to.
+    await wait_for_event(
+        state_events,
+        lambda m: m.get("state") == "completed",
+        description="contender's terminal completed event",
+    )
+    collector_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await collector_task
+
+    # No failed event should ever have hit the contender's state channel.
+    failed_events = [e for e in state_events if e.get("state") == "failed"]
+    assert not failed_events, (
+        f"AdmissionBlocked(handled=True) must not produce any state=failed "
+        f"events on the parked task's channel; got: {failed_events!r}"
+    )
+
+
+async def test_many_contending_tasks_all_run_exactly_once(docket: Docket):
+    """Stress test: N tasks contending for 1 slot all eventually run, each
+    exactly once, without duplicates or drops.  The structural correctness
+    of the wake-on-release loop matters more than wall-clock timing (which
+    varies wildly on CI runners)."""
+    ran: list[int] = []
+
+    async def serial_task(
+        customer_id: int,
+        task_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ):
+        ran.append(task_id)
+        await asyncio.sleep(0.01)
+
+    n_tasks = 8
+    for i in range(n_tasks):
+        await docket.add(serial_task)(customer_id=1, task_id=i)
+
+    async with Worker(docket, concurrency=4) as worker:
+        await worker.run_until_finished()
+        assert sorted(ran) == list(range(n_tasks)), ran
