@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timezone
 from email.utils import format_datetime
@@ -27,14 +29,23 @@ from typesafe_sdk._core.errors import parse_retry_after
 
 @pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan")])
 def test_retry_policy_invalid_timeout(timeout: float) -> None:
-    with pytest.raises(TypeSafeError, match="timeout must be a positive, finite number of seconds"):
+    with pytest.raises(
+        TypeSafeError, match="timeout must be a positive, finite number of seconds"
+    ):
         RetryPolicy(timeout=timeout)
 
 
 @pytest.mark.parametrize("resource", ["models", "system_one"])
 @pytest.mark.parametrize(
     "timeout,duration,delay,attempts",
-    [(None, 1.0, 0.5, 3), (30.0, 10.0, 5.0, 2), (2.5, 0.75, 0.5, 2), (2.0, 1.0, 0.0, 2), (1.0, 0.0, 1.0, 1), (1.0, 0.0, 60.0, 1)],
+    [
+        (None, 1.0, 0.5, 3),
+        (30.0, 10.0, 5.0, 2),
+        (2.5, 0.75, 0.5, 2),
+        (2.0, 1.0, 0.0, 2),
+        (1.0, 0.0, 1.0, 1),
+        (1.0, 0.0, 60.0, 1),
+    ],
 )
 async def test_retry_policy_timeout_budget(
     clients: ClientFactory,
@@ -62,7 +73,11 @@ async def test_retry_policy_timeout_budget(
         nonlocal now
         now += duration
         requests.append(request)
-        return httpx2.Response(429, json={"message": f"attempt {len(requests)}"}, headers={"Retry-After": str(delay)})
+        return httpx2.Response(
+            429,
+            json={"message": f"attempt {len(requests)}"},
+            headers={"Retry-After": str(delay)},
+        )
 
     client = clients(handler, retry=RetryPolicy(timeout=timeout))
     if isinstance(client, AsyncTypeSafeClient):
@@ -91,7 +106,9 @@ async def test_retry_policy_timeout_budget(
 
 
 @pytest.mark.parametrize("resource", ["models", "system_one"])
-async def test_retry_policy_timeout_override(clients: ClientFactory, monkeypatch: pytest.MonkeyPatch, resource: str) -> None:
+async def test_retry_policy_timeout_override(
+    clients: ClientFactory, monkeypatch: pytest.MonkeyPatch, resource: str
+) -> None:
     now = 100.0
     attempts = 0
     monkeypatch.setattr("tenacity.time", SimpleNamespace(monotonic=lambda: now))
@@ -110,9 +127,16 @@ async def test_retry_policy_timeout_override(clients: ClientFactory, monkeypatch
         if resource == "models":
             await models(client, retry=retry)
         else:
-            await system_one(client, state="x", questions={"q": Noul(instructions="?")}, retry=retry)
+            await system_one(
+                client, state="x", questions={"q": Noul(instructions="?")}, retry=retry
+            )
 
-    for policy, expected in [(None, 2), (RetryPolicy(timeout=1.0), 1), (RetryPolicy(timeout=None), 3), (None, 2)]:
+    for policy, expected in [
+        (None, 2),
+        (RetryPolicy(timeout=1.0), 1),
+        (RetryPolicy(timeout=None), 3),
+        (None, 2),
+    ]:
         attempts = 0
         with pytest.raises(TypeSafeRateLimitError):
             await call(policy)
@@ -120,24 +144,50 @@ async def test_retry_policy_timeout_override(clients: ClientFactory, monkeypatch
 
 
 @pytest.mark.parametrize(
-    "status,attempts", [(408, 3), (429, 3), (500, 3), (503, 3), (599, 3), (400, 1), (401, 1), (403, 1), (404, 1), (409, 1), (422, 1), (302, 1)]
+    "status,attempts",
+    [
+        (408, 3),
+        (429, 3),
+        (500, 3),
+        (503, 3),
+        (599, 3),
+        (400, 1),
+        (401, 1),
+        (403, 1),
+        (404, 1),
+        (409, 1),
+        (422, 1),
+        (302, 1),
+    ],
 )
-async def test_default_retry_statuses(clients: ClientFactory, status: int, attempts: int) -> None:
+async def test_default_retry_statuses(
+    clients: ClientFactory, status: int, attempts: int
+) -> None:
     requests: list[httpx2.Request] = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
-        return httpx2.Response(status, json={"message": "failed"}, headers={"retry-after-ms": "0"})
+        return httpx2.Response(
+            status, json={"message": "failed"}, headers={"retry-after-ms": "0"}
+        )
 
     with pytest.raises(TypeSafeAPIError) as caught:
         await models(clients(handler, retries=True))
     assert caught.value.status == status
     assert len(requests) == attempts
-    assert [request.headers.get("x-typesafe-retry-count") for request in requests] == [None, "1", "2"][:attempts]
+    assert [request.headers.get("x-typesafe-retry-count") for request in requests] == [
+        None,
+        "1",
+        "2",
+    ][:attempts]
 
 
-@pytest.mark.parametrize("kind", [httpx2.ConnectError, httpx2.ReadTimeout, httpx2.ReadError])
-async def test_connection_retry_recovers(clients: ClientFactory, kind: type[httpx2.RequestError]) -> None:
+@pytest.mark.parametrize(
+    "kind", [httpx2.ConnectError, httpx2.ReadTimeout, httpx2.ReadError]
+)
+async def test_connection_retry_recovers(
+    clients: ClientFactory, kind: type[httpx2.RequestError]
+) -> None:
     attempts = 0
     delays: list[float] = []
 
@@ -172,7 +222,9 @@ async def test_connection_retry_recovers(clients: ClientFactory, kind: type[http
         ({"Retry-After": "60"}, 60.0),
     ],
 )
-async def test_server_delay_through_tenacity(clients: ClientFactory, headers: dict[str, str], delay: float) -> None:
+async def test_server_delay_through_tenacity(
+    clients: ClientFactory, headers: dict[str, str], delay: float
+) -> None:
     attempts = 0
     delays: list[float] = []
 
@@ -182,7 +234,11 @@ async def test_server_delay_through_tenacity(clients: ClientFactory, headers: di
     def handler(request: httpx2.Request) -> httpx2.Response:
         nonlocal attempts
         attempts += 1
-        return httpx2.Response(429, json={}, headers=headers) if attempts == 1 else httpx2.Response(200, json={"models": []})
+        return (
+            httpx2.Response(429, json={}, headers=headers)
+            if attempts == 1
+            else httpx2.Response(200, json={"models": []})
+        )
 
     client = clients(handler, retry=RetryPolicy(timeout=None))
     if isinstance(client, AsyncTypeSafeClient):
@@ -212,30 +268,49 @@ def test_parse_retry_after(headers: dict[str, str], expected: float | None) -> N
 
 def test_backoff_dates_cap_and_jitter(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("time.time", lambda: 1_000_000.0)
-    future = format_datetime(datetime.fromtimestamp(1_000_010, timezone.utc), usegmt=True)
+    future = format_datetime(
+        datetime.fromtimestamp(1_000_010, timezone.utc), usegmt=True
+    )
     past = format_datetime(datetime.fromtimestamp(999_990, timezone.utc), usegmt=True)
     assert parse_retry_after(httpx2.Headers({"Retry-After": future})) == 10_000
     assert parse_retry_after(httpx2.Headers({"Retry-After": past})) == 0
     wait = RetryPolicy()._wait
     state = RetryCallState(RetryPolicy()._build_tenacity(), None, (), {})
     monkeypatch.setattr("random.random", lambda: 0.0)
-    for attempt, expected in [(1, 0.5), (2, 1.0), (3, 2.0), (4, 4.0), (5, 5.0), (20, 5.0)]:
+    for attempt, expected in [
+        (1, 0.5),
+        (2, 1.0),
+        (3, 2.0),
+        (4, 4.0),
+        (5, 5.0),
+        (20, 5.0),
+    ]:
         state.attempt_number = attempt
         assert wait(state) == expected
     monkeypatch.setattr("random.random", lambda: 1.0)
     state.attempt_number = 1
     assert wait(state) == 0.375
-    for header, expected in [({"Retry-After": "61"}, 61), ({"retry-after-ms": "60001"}, 60.001), ({"Retry-After": future}, 10)]:
+    for header, expected in [
+        ({"Retry-After": "61"}, 61),
+        ({"retry-after-ms": "60001"}, 60.001),
+        ({"Retry-After": future}, 10),
+    ]:
         error = TypeSafeRateLimitError(429, {}, httpx2.Headers(header))
         state.set_exception((type(error), error, None))
-        assert wait(state) == expected  # Server-requested delays are always honored, however long.
-    error = TypeSafeRateLimitError(429, {}, httpx2.Headers({"Retry-After": "bad"}))  # Unparseable headers fall back to backoff.
+        assert (
+            wait(state) == expected
+        )  # Server-requested delays are always honored, however long.
+    error = TypeSafeRateLimitError(
+        429, {}, httpx2.Headers({"Retry-After": "bad"})
+    )  # Unparseable headers fall back to backoff.
     state.set_exception((type(error), error, None))
     assert wait(state) == 0.375
 
 
 @pytest.mark.parametrize("client_attempts,call_attempts", [(1, 3), (3, 1)])
-async def test_system_one_retry_override(clients: ClientFactory, client_attempts: int, call_attempts: int) -> None:
+async def test_system_one_retry_override(
+    clients: ClientFactory, client_attempts: int, call_attempts: int
+) -> None:
     requests: list[httpx2.Request] = []
     client_policy = RetryPolicy(max_retries=client_attempts - 1)
     call_policy = RetryPolicy(max_retries=call_attempts - 1, http_statuses={409})
@@ -243,7 +318,9 @@ async def test_system_one_retry_override(clients: ClientFactory, client_attempts
     def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
         status = 409 if request.headers["x-call"] == "override" else 429
-        return httpx2.Response(status, json={"message": "failed"}, headers={"retry-after-ms": "0"})
+        return httpx2.Response(
+            status, json={"message": "failed"}, headers={"retry-after-ms": "0"}
+        )
 
     client = clients(handler, retry=client_policy)
     calls = [
@@ -261,7 +338,9 @@ async def test_system_one_retry_override(clients: ClientFactory, client_attempts
                 extra_headers={"x-call": name},
                 retry=retry,
             )
-        assert [request.headers.get("x-typesafe-retry-count") for request in requests] == [None, *(str(index) for index in range(1, attempts))]
+        assert [
+            request.headers.get("x-typesafe-retry-count") for request in requests
+        ] == [None, *(str(index) for index in range(1, attempts))]
 
 
 async def test_async_concurrent_retry_state() -> None:
@@ -272,10 +351,22 @@ async def test_async_concurrent_retry_state() -> None:
         calls = attempts.setdefault(key, [])
         calls.append(request.headers.get("x-typesafe-retry-count"))
         await asyncio.sleep(0)
-        return httpx2.Response(429, headers={"retry-after-ms": "0"}) if len(calls) == 1 else httpx2.Response(200, json={"models": []})
+        return (
+            httpx2.Response(429, headers={"retry-after-ms": "0"})
+            if len(calls) == 1
+            else httpx2.Response(200, json={"models": []})
+        )
 
-    async with AsyncTypeSafeClient(api_key="test", http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))) as client:
-        responses = await asyncio.gather(*(client.models.list(extra_headers={"x-call": str(index)}) for index in range(4)))
+    async with AsyncTypeSafeClient(
+        api_key="test",
+        http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)),
+    ) as client:
+        responses = await asyncio.gather(
+            *(
+                client.models.list(extra_headers={"x-call": str(index)})
+                for index in range(4)
+            )
+        )
         assert [response.models for response in responses] == [(), (), (), ()]
     assert all(value == [None, "1"] for value in attempts.values())
 
@@ -302,11 +393,19 @@ async def test_system_one_retry_recovers_with_overrides(
         if len(requests) == 1:
             raise httpx2.ReadTimeout("timed out", request=request)
         elif len(requests) == 2:
-            return httpx2.Response(429, json={"message": "slow down"}, headers={"retry-after-ms": "125"})
+            return httpx2.Response(
+                429, json={"message": "slow down"}, headers={"retry-after-ms": "125"}
+            )
         return httpx2.Response(200, json=RESULT)
 
     headers = {"x-call": "override", "authorization": "must-not-win"}
-    client = clients(handler, model="client-model", timeout=7.0, headers={"x-default": "kept"}, retries=True)
+    client = clients(
+        handler,
+        model="client-model",
+        timeout=7.0,
+        headers={"x-default": "kept"},
+        retries=True,
+    )
     if isinstance(client, AsyncTypeSafeClient):
         client._retry = client._retry.copy(sleep=sleep)
     else:
@@ -334,7 +433,11 @@ async def test_system_one_retry_recovers_with_overrides(
         assert request.headers["authorization"] == "Bearer test-key"
         assert request.headers["x-default"] == "kept"
         assert request.headers["x-call"] == "override"
-    assert [request.headers.get("x-typesafe-retry-count") for request in requests] == [None, "1", "2"]
+    assert [request.headers.get("x-typesafe-retry-count") for request in requests] == [
+        None,
+        "1",
+        "2",
+    ]
     assert 0.375 <= delays[0] <= 0.5
     assert delays[1] == 0.125
     assert headers == {"x-call": "override", "authorization": "must-not-win"}
@@ -354,7 +457,9 @@ async def test_concurrent_system_one_overrides() -> None:
         calls = attempts.setdefault(key, [])
         calls.append(request)
         await asyncio.sleep(0)
-        return httpx2.Response(429, json={"message": "retry"}, headers={"retry-after-ms": "0"})
+        return httpx2.Response(
+            429, json={"message": "retry"}, headers={"retry-after-ms": "0"}
+        )
 
     async with AsyncTypeSafeClient(
         api_key="test",
@@ -371,24 +476,41 @@ async def test_concurrent_system_one_overrides() -> None:
                     model=name,
                     extra_headers={"x-call": name},
                     timeout=timeout,
-                    retry=None if retries is None else RetryPolicy(max_retries=retries - 1),
+                    retry=None
+                    if retries is None
+                    else RetryPolicy(max_retries=retries - 1),
                 )
 
-        await asyncio.gather(call("one", 1, 1.0), call("three", 3, 3.0), call("default", None, 2.0))
+        await asyncio.gather(
+            call("one", 1, 1.0), call("three", 3, 3.0), call("default", None, 2.0)
+        )
     for name, count in (("one", 1), ("three", 3), ("default", 2)):
         requests = attempts[name]
         assert len(requests) == count
-        assert [request.headers.get("x-typesafe-retry-count") for request in requests] == [
+        assert [
+            request.headers.get("x-typesafe-retry-count") for request in requests
+        ] == [
             None,
             *(str(index) for index in range(1, count)),
         ]
-        assert all(msgspec.json.decode(request.content)["model"] == name for request in requests)
-        assert all(msgspec.json.decode(request.content)["state"] == name for request in requests)
-        assert all(request.extensions["timeout"] == httpx2.Timeout(float(count)).as_dict() for request in requests)
+        assert all(
+            msgspec.json.decode(request.content)["model"] == name
+            for request in requests
+        )
+        assert all(
+            msgspec.json.decode(request.content)["state"] == name
+            for request in requests
+        )
+        assert all(
+            request.extensions["timeout"] == httpx2.Timeout(float(count)).as_dict()
+            for request in requests
+        )
 
 
 @pytest.mark.parametrize("kind", [httpx2.ReadTimeout, httpx2.ConnectError])
-async def test_exhausted_transport_retry(clients: ClientFactory, kind: type[httpx2.RequestError]) -> None:
+async def test_exhausted_transport_retry(
+    clients: ClientFactory, kind: type[httpx2.RequestError]
+) -> None:
     attempts = 0
     timeout = httpx2.Timeout(2.0, read=4.0)
 
@@ -415,7 +537,9 @@ async def test_exhausted_transport_retry(clients: ClientFactory, kind: type[http
         assert type(caught.value) is TypeSafeAPIConnectionError
 
 
-async def test_exhausted_retry_preserves_final_http_error(clients: ClientFactory) -> None:
+async def test_exhausted_retry_preserves_final_http_error(
+    clients: ClientFactory,
+) -> None:
     attempts = 0
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -424,11 +548,18 @@ async def test_exhausted_retry_preserves_final_http_error(clients: ClientFactory
         return httpx2.Response(
             [429, 500, 503][attempts - 1],
             json={"message": f"attempt {attempts}"},
-            headers={"x-typesafe-request-id": f"request-{attempts}", "retry-after-ms": "0"},
+            headers={
+                "x-typesafe-request-id": f"request-{attempts}",
+                "retry-after-ms": "0",
+            },
         )
 
     with pytest.raises(TypeSafeAPIError) as caught:
-        await system_one(clients(handler, retries=True), state="x", questions={"q": Noul(instructions="?")})
+        await system_one(
+            clients(handler, retries=True),
+            state="x",
+            questions={"q": Noul(instructions="?")},
+        )
     assert attempts == 3
     assert caught.value.status == 503
     assert caught.value.body == {"message": "attempt 3"}
@@ -445,7 +576,9 @@ async def test_cancel_pending_retry() -> None:
 
     async with AsyncTypeSafeClient(
         api_key="test",
-        http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(lambda request: httpx2.Response(429))),
+        http_client=httpx2.AsyncClient(
+            transport=httpx2.MockTransport(lambda request: httpx2.Response(429))
+        ),
     ) as client:
         client.models._retry = client.models._retry.copy(sleep=sleep)
         task = asyncio.create_task(client.models.list())
@@ -456,12 +589,16 @@ async def test_cancel_pending_retry() -> None:
 
 
 @pytest.mark.parametrize("max_retries,attempts", [(0, 1), (1, 2), (4, 5)])
-async def test_retry_policy_max_retries(clients: ClientFactory, max_retries: int, attempts: int) -> None:
+async def test_retry_policy_max_retries(
+    clients: ClientFactory, max_retries: int, attempts: int
+) -> None:
     requests: list[httpx2.Request] = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
-        return httpx2.Response(429, json={"message": "slow"}, headers={"retry-after-ms": "0"})
+        return httpx2.Response(
+            429, json={"message": "slow"}, headers={"retry-after-ms": "0"}
+        )
 
     with pytest.raises(TypeSafeRateLimitError):
         await models(clients(handler, retry=RetryPolicy(max_retries=max_retries)))
@@ -469,12 +606,16 @@ async def test_retry_policy_max_retries(clients: ClientFactory, max_retries: int
 
 
 @pytest.mark.parametrize("status,attempts", [(409, 3), (500, 1)])
-async def test_retry_policy_custom_statuses(clients: ClientFactory, status: int, attempts: int) -> None:
+async def test_retry_policy_custom_statuses(
+    clients: ClientFactory, status: int, attempts: int
+) -> None:
     requests: list[httpx2.Request] = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
-        return httpx2.Response(status, json={"message": "x"}, headers={"retry-after-ms": "0"})
+        return httpx2.Response(
+            status, json={"message": "x"}, headers={"retry-after-ms": "0"}
+        )
 
     with pytest.raises(TypeSafeAPIError):
         await models(clients(handler, retry=RetryPolicy(http_statuses={409})))
@@ -497,20 +638,30 @@ async def test_retry_policy_per_call_override(clients: ClientFactory) -> None:
 @pytest.mark.parametrize(
     "policy",
     [
-        RetryPolicy(max_retries=1, predicate=lambda error: isinstance(error, TypeSafeAPIError) and error.status == 404),
+        RetryPolicy(
+            max_retries=1,
+            predicate=lambda error: isinstance(error, TypeSafeAPIError)
+            and error.status == 404,
+        ),
         RetryPolicy(max_retries=1, exceptions={TypeSafeAPIError}),
     ],
 )
-async def test_retry_policy_exceptions_and_predicate(clients: ClientFactory, policy: RetryPolicy) -> None:
+async def test_retry_policy_exceptions_and_predicate(
+    clients: ClientFactory, policy: RetryPolicy
+) -> None:
     requests: list[httpx2.Request] = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
-        return httpx2.Response(404, json={"message": "gone"}, headers={"retry-after-ms": "0"})
+        return httpx2.Response(
+            404, json={"message": "gone"}, headers={"retry-after-ms": "0"}
+        )
 
     with pytest.raises(TypeSafeAPIError):
         await models(clients(handler, retry=policy))
-    assert len(requests) == 2  # A 404 is not retried by default; the predicate and extra exceptions opt in.
+    assert (
+        len(requests) == 2
+    )  # A 404 is not retried by default; the predicate and extra exceptions opt in.
 
 
 def test_retry_policy_wait_options(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -521,4 +672,6 @@ def test_retry_policy_wait_options(monkeypatch: pytest.MonkeyPatch) -> None:
     state.attempt_number = 1
     assert RetryPolicy()._wait(state) == 5.0
     assert RetryPolicy(respect_retry_after=False)._wait(state) == 0.5
-    assert RetryPolicy(backoff_initial=0.2, respect_retry_after=False)._wait(state) == 0.2
+    assert (
+        RetryPolicy(backoff_initial=0.2, respect_retry_after=False)._wait(state) == 0.2
+    )

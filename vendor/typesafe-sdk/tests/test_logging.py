@@ -84,7 +84,9 @@ async def test_logger_level_controls_output(
     records = [record for record in caplog.records if record.name == "typesafe_sdk"]
     assert {record.levelno for record in records} == expected
     if logging.INFO in expected:
-        summaries = [record.getMessage() for record in records if record.levelno == logging.INFO]
+        summaries = [
+            record.getMessage() for record in records if record.levelno == logging.INFO
+        ]
         assert len(summaries) == 1
         assert "GET" in summaries[0]
     if logging.DEBUG not in expected:
@@ -101,7 +103,9 @@ async def test_logger_level_controls_output(
         ("", logging.NOTSET),
     ],
 )
-def test_setup_logging_from_env(monkeypatch: pytest.MonkeyPatch, value: str, expected: int) -> None:
+def test_setup_logging_from_env(
+    monkeypatch: pytest.MonkeyPatch, value: str, expected: int
+) -> None:
     original = logger.level
     try:
         logger.setLevel(logging.NOTSET)

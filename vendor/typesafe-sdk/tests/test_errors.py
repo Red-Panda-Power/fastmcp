@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import httpx2
 import pytest
 
@@ -51,12 +53,18 @@ def test_message_override(error_type: type[TypeSafeAPIError], message: str) -> N
         (b"42", "400 42"),
         (b"not JSON: \xff", "400 not JSON: \ufffd"),
         pytest.param(b"x" * 201, "400 " + "x" * 201, id="long-plain-message"),
-        pytest.param(b'{"unknown":"' + b"x" * 201 + b'"}', '400 {"unknown":"' + "x" * 188 + "…", id="long-unstructured-body"),
+        pytest.param(
+            b'{"unknown":"' + b"x" * 201 + b'"}',
+            '400 {"unknown":"' + "x" * 188 + "…",
+            id="long-unstructured-body",
+        ),
         (b'{"error":"","message":"ignored"}', '400 {"error":"","message":"ignored"}'),
         (b'{"detail":[null,42,{"msg":4}]}', '400 {"detail":[null,42,{"msg":4}]}'),
     ],
 )
-async def test_error_body_edge_cases(clients: ClientFactory, body: bytes, message: str) -> None:
+async def test_error_body_edge_cases(
+    clients: ClientFactory, body: bytes, message: str
+) -> None:
     with pytest.raises(TypeSafeAPIError) as caught:
         await models(clients(lambda request: httpx2.Response(400, content=body)))
     assert str(caught.value) == message

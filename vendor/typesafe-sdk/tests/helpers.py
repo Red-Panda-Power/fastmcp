@@ -1,9 +1,19 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 
 import httpx2
 from typing_extensions import override
 
-from typesafe_sdk import AsyncTypeSafeClient, JSONValue, ModelMetadata, Questions, RetryPolicy, SystemOneResponse, TypeSafeClient
+from typesafe_sdk import (
+    AsyncTypeSafeClient,
+    JSONValue,
+    ModelMetadata,
+    Questions,
+    RetryPolicy,
+    SystemOneResponse,
+    TypeSafeClient,
+)
 
 
 class TrackingTransport(httpx2.MockTransport):
@@ -27,9 +37,15 @@ async def models(
     extra_headers: Mapping[str, str] | None = None,
 ) -> tuple[ModelMetadata, ...]:
     if isinstance(client, AsyncTypeSafeClient):
-        return (await client.models.list(retry=retry, timeout=timeout, extra_headers=extra_headers)).models
+        return (
+            await client.models.list(
+                retry=retry, timeout=timeout, extra_headers=extra_headers
+            )
+        ).models
     else:
-        return client.models.list(retry=retry, timeout=timeout, extra_headers=extra_headers).models
+        return client.models.list(
+            retry=retry, timeout=timeout, extra_headers=extra_headers
+        ).models
 
 
 async def system_one(
@@ -45,9 +61,21 @@ async def system_one(
 ) -> SystemOneResponse:
     if isinstance(client, AsyncTypeSafeClient):
         return await client.system_one(
-            state, questions, model=model, extra_body=extra_body, retry=retry, timeout=timeout, extra_headers=extra_headers
+            state,
+            questions,
+            model=model,
+            extra_body=extra_body,
+            retry=retry,
+            timeout=timeout,
+            extra_headers=extra_headers,
         )
     else:
         return client.system_one(
-            state, questions, model=model, extra_body=extra_body, retry=retry, timeout=timeout, extra_headers=extra_headers
+            state,
+            questions,
+            model=model,
+            extra_body=extra_body,
+            retry=retry,
+            timeout=timeout,
+            extra_headers=extra_headers,
         )

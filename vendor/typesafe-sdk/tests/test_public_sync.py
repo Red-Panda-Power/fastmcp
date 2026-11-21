@@ -1,5 +1,7 @@
 """Test snapshot filtering and release retries."""
 
+from __future__ import annotations
+
 import base64
 import importlib
 import os
@@ -15,7 +17,8 @@ SCRIPTS = Path(__file__).resolve().parents[1] / ".github/scripts"
 INCLUDES = "pyproject.toml\nsrc/\ndocs/changelog.md\n.github/workflows/publish.yml\n"
 
 pytestmark = pytest.mark.skipif(
-    not (SCRIPTS / "sync_public.py").is_file(), reason="Public sync tooling is only available in the dev repository"
+    not (SCRIPTS / "sync_public.py").is_file(),
+    reason="Public sync tooling is only available in the dev repository",
 )
 
 
@@ -40,11 +43,21 @@ def commit(repo: Path, message: str = "private work") -> None:
 
 
 def set_version(repo: Path, version: str) -> None:
-    write(repo, "pyproject.toml", f'[project]\nname = "typesafe-sdk"\nversion = "{version}"\n')
-    write(repo, "docs/changelog.md", f"## v{version} (2026-09-11)\n\nReviewed release notes.\n")
+    write(
+        repo,
+        "pyproject.toml",
+        f'[project]\nname = "typesafe-sdk"\nversion = "{version}"\n',
+    )
+    write(
+        repo,
+        "docs/changelog.md",
+        f"## v{version} (2026-09-11)\n\nReviewed release notes.\n",
+    )
 
 
-def run_script(source: Path, script: str, *args: str) -> subprocess.CompletedProcess[str]:
+def run_script(
+    source: Path, script: str, *args: str
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(  # noqa: S603 - Repository-owned script with explicit fixture paths.
         [sys.executable, str(SCRIPTS / script), *args],
         cwd=source,
@@ -58,7 +71,11 @@ def run_script(source: Path, script: str, *args: str) -> subprocess.CompletedPro
 
 @pytest.fixture
 def repos(tmp_path: Path) -> tuple[Path, Path, Path]:
-    source, destination, remote = tmp_path / "dev", tmp_path / "public", tmp_path / "remote.git"
+    source, destination, remote = (
+        tmp_path / "dev",
+        tmp_path / "public",
+        tmp_path / "remote.git",
+    )
     for repo in [source, destination]:
         repo.mkdir()
         git(repo, "init", "-q", "--initial-branch=main")
@@ -79,12 +96,16 @@ def repos(tmp_path: Path) -> tuple[Path, Path, Path]:
     return source, destination, remote
 
 
-def sync(source: Path, destination: Path, tag: str = "v42.0.0") -> subprocess.CompletedProcess[str]:
+def sync(
+    source: Path, destination: Path, tag: str = "v42.0.0"
+) -> subprocess.CompletedProcess[str]:
     return run_script(source, "sync_public.py", str(destination), tag, "--dry-run")
 
 
 @pytest.fixture
-def signer(repos: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+def signer(
+    repos: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> ModuleType:
     """Emulate GitHub's Git object API in the bare remote; use real Git for fetch/push."""
     _, destination, remote = repos
     monkeypatch.syspath_prepend(str(SCRIPTS))
@@ -108,15 +129,29 @@ def signer(repos: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> M
         if endpoint == "trees":
             git(remote, "read-tree", "--empty")
             for entry in payload["tree"]:
-                sha = blob(entry["content"].encode("utf-8")) if "content" in entry else entry["sha"]
-                git(remote, "update-index", "--add", "--cacheinfo", entry["mode"], sha, entry["path"])
+                sha = (
+                    blob(entry["content"].encode("utf-8"))
+                    if "content" in entry
+                    else entry["sha"]
+                )
+                git(
+                    remote,
+                    "update-index",
+                    "--add",
+                    "--cacheinfo",
+                    entry["mode"],
+                    sha,
+                    entry["path"],
+                )
             return {"sha": git(remote, "write-tree")}
         assert endpoint == "commits"
         # GitHub only signs when author, committer, and signature are omitted.
         assert set(payload) == {"message", "tree", "parents"}
         # The API creates the release commit directly, without an interim local commit.
         head = module.Repo(destination).head
-        assert (head.commit.hexsha if head.is_valid() else None) == (payload["parents"][0] if payload["parents"] else None)
+        assert (head.commit.hexsha if head.is_valid() else None) == (
+            payload["parents"][0] if payload["parents"] else None
+        )
         parents = [arg for parent in payload["parents"] for arg in ["-p", parent]]
         sha = git(
             remote,
@@ -137,7 +172,9 @@ def signer(repos: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> M
 
 
 @pytest.mark.parametrize("with_history", [False, True])
-def test_sign_snapshot_and_push(repos: tuple[Path, Path, Path], signer: ModuleType, with_history: bool) -> None:
+def test_sign_snapshot_and_push(
+    repos: tuple[Path, Path, Path], signer: ModuleType, with_history: bool
+) -> None:
     source, destination, remote = repos
     if with_history:
         write(destination, "obsolete.txt", "delete me")
@@ -154,7 +191,9 @@ def test_sign_snapshot_and_push(repos: tuple[Path, Path, Path], signer: ModuleTy
 
     signed = git(destination, "rev-parse", "HEAD")
     assert git(destination, "log", "-1", "--format=%P") == parent
-    assert git(destination, "rev-list", "--count", "HEAD") == ("2" if with_history else "1")
+    assert git(destination, "rev-list", "--count", "HEAD") == (
+        "2" if with_history else "1"
+    )
     assert git(destination, "log", "-1", "--format=%s") == "Release v42.0.0"
     assert (destination / "src/run.sh").read_text() == "#!/bin/sh\necho 'héllo'\n"
     assert (destination / "src/run.sh").stat().st_mode & 0o777 == 0o755
@@ -163,7 +202,9 @@ def test_sign_snapshot_and_push(repos: tuple[Path, Path, Path], signer: ModuleTy
     assert not (destination / ".dagger").exists()
     assert git(destination, "rev-parse", "v42.0.0") == signed
     assert git(destination, "status", "--porcelain") == ""
-    assert git(remote, "for-each-ref", "--format=%(refname)") == ("refs/heads/main" if with_history else "")
+    assert git(remote, "for-each-ref", "--format=%(refname)") == (
+        "refs/heads/main" if with_history else ""
+    )
     if with_history:
         assert git(remote, "show-ref", "--head") == remote_refs
     result = run_script(source, "push_public.py", str(destination), "v42.0.0")
@@ -203,7 +244,9 @@ def test_signing_failure_keeps_refs(
     assert git(remote, "show-ref", "--head") == remote_refs
 
 
-def test_dry_run_skips_github(repos: tuple[Path, Path, Path], signer: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dry_run_skips_github(
+    repos: tuple[Path, Path, Path], signer: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
     source, destination, remote = repos
 
     def fail(endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -225,14 +268,25 @@ def test_snapshot_and_push_retries(repos: tuple[Path, Path, Path]) -> None:
     assert result.returncode == 0, result.stderr
     assert git(destination, "rev-list", "--count", "HEAD") == "1"
     assert git(destination, "log", "-1", "--format=%s") == "Release v42.0.0"
-    assert (destination / "src/typesafe_sdk/__init__.py").read_text() == "# public source\n"
+    assert (
+        destination / "src/typesafe_sdk/__init__.py"
+    ).read_text() == "# public source\n"
     assert not any(
-        (destination / path).exists() for path in [".dagger", "RELEASING.md", ".releaseinclude", "src/untracked.py", ".github/workflows/CI.yml"]
+        (destination / path).exists()
+        for path in [
+            ".dagger",
+            "RELEASING.md",
+            ".releaseinclude",
+            "src/untracked.py",
+            ".github/workflows/CI.yml",
+        ]
     )
     head = git(destination, "rev-parse", "HEAD")
     assert git(destination, "rev-parse", "v42.0.0") == head
     assert sync(source, destination).returncode == 0
-    dry_run = run_script(source, "push_public.py", str(destination), "v42.0.0", "--dry-run")
+    dry_run = run_script(
+        source, "push_public.py", str(destination), "v42.0.0", "--dry-run"
+    )
     assert dry_run.returncode == 0, dry_run.stderr
     assert git(remote, "for-each-ref", "--format=%(refname)") == ""
     for _ in range(2):
@@ -243,7 +297,9 @@ def test_snapshot_and_push_retries(repos: tuple[Path, Path, Path]) -> None:
     assert git(remote, "branch", "--list") == "* main"
 
 
-def test_existing_history_deletions_and_immutable_tags(repos: tuple[Path, Path, Path]) -> None:
+def test_existing_history_deletions_and_immutable_tags(
+    repos: tuple[Path, Path, Path],
+) -> None:
     source, destination, _ = repos
     write(destination, "old-private-config", "previously committed infrastructure")
     commit(destination, "existing destination history")
@@ -271,14 +327,20 @@ def test_existing_history_deletions_and_immutable_tags(repos: tuple[Path, Path, 
     assert git(destination, "rev-parse", "main") == newest
 
 
-@pytest.mark.parametrize("include", ["../private", ".git/config", "src/*", ".releaseinclude", "/src", "missing-file"])
+@pytest.mark.parametrize(
+    "include",
+    ["../private", ".git/config", "src/*", ".releaseinclude", "/src", "missing-file"],
+)
 def test_invalid_includes(repos: tuple[Path, Path, Path], include: str) -> None:
     source, destination, _ = repos
     write(source, ".releaseinclude", INCLUDES + include + "\n")
     commit(source)
     result = sync(source, destination)
     assert result.returncode != 0
-    assert "Invalid public include" in result.stderr or "matches no committed files" in result.stderr
+    assert (
+        "Invalid public include" in result.stderr
+        or "matches no committed files" in result.stderr
+    )
     assert git(destination, "tag", "--list") == ""
 
 
@@ -303,10 +365,15 @@ def test_version_mismatch(repos: tuple[Path, Path, Path]) -> None:
     assert "does not match package version" in result.stderr
 
 
-def test_atomic_push_rejects_concurrent_update(repos: tuple[Path, Path, Path], signer: ModuleType) -> None:
+def test_atomic_push_rejects_concurrent_update(
+    repos: tuple[Path, Path, Path], signer: ModuleType
+) -> None:
     source, destination, remote = repos
     assert sync(source, destination).returncode == 0
-    assert run_script(source, "push_public.py", str(destination), "v42.0.0").returncode == 0
+    assert (
+        run_script(source, "push_public.py", str(destination), "v42.0.0").returncode
+        == 0
+    )
     set_version(source, "42.0.1")
     commit(source)
     assert signer.sync_public(source, destination, "v42.0.1", dry_run=False)

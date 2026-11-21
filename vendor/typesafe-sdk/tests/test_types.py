@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import get_args, get_origin, get_type_hints
 
 import httpx2
@@ -6,7 +8,15 @@ import pytest
 
 from tests.conftest import ClientFactory
 from tests.helpers import system_one
-from typesafe_sdk import AsyncTypeSafeClient, Choice, JSONValue, Noul, Questions, Score, TypeSafeClient
+from typesafe_sdk import (
+    AsyncTypeSafeClient,
+    Choice,
+    JSONValue,
+    Noul,
+    Questions,
+    Score,
+    TypeSafeClient,
+)
 
 
 def test_json_value_and_state_exclude_top_level_none() -> None:
@@ -32,14 +42,30 @@ async def test_array_inputs(clients: ClientFactory, raw: bool) -> None:
     questions: Questions
     if raw:
         questions = {
-            "yes": {"type": "noul", "instructions": instructions, "criteria": {"true": description, "false": None}},
-            "label": {"type": "choice", "instructions": instructions, "criteria": {"a": description, "b": None}},
-            "rating": {"type": "score", "instructions": instructions, "criteria": {0: description}},
+            "yes": {
+                "type": "noul",
+                "instructions": instructions,
+                "criteria": {"true": description, "false": None},
+            },
+            "label": {
+                "type": "choice",
+                "instructions": instructions,
+                "criteria": {"a": description, "b": None},
+            },
+            "rating": {
+                "type": "score",
+                "instructions": instructions,
+                "criteria": {0: description},
+            },
         }
     else:
         questions = {
-            "yes": Noul(instructions=instructions, criteria={"true": description, "false": None}),
-            "label": Choice(instructions=instructions, criteria={"a": description, "b": None}),
+            "yes": Noul(
+                instructions=instructions, criteria={"true": description, "false": None}
+            ),
+            "label": Choice(
+                instructions=instructions, criteria={"a": description, "b": None}
+            ),
             "rating": Score(instructions=instructions, criteria={0: description}),
         }
 
@@ -47,16 +73,32 @@ async def test_array_inputs(clients: ClientFactory, raw: bool) -> None:
         body = msgspec.json.decode(request.content)
         assert body["state"] == state
         assert body["questions"] == {
-            "yes": {"type": "noul", "instructions": instructions, "criteria": {"true": description, "false": None}},
-            "label": {"type": "choice", "instructions": instructions, "criteria": {"a": description, "b": None}},
-            "rating": {"type": "score", "instructions": instructions, "criteria": [description]},
+            "yes": {
+                "type": "noul",
+                "instructions": instructions,
+                "criteria": {"true": description, "false": None},
+            },
+            "label": {
+                "type": "choice",
+                "instructions": instructions,
+                "criteria": {"a": description, "b": None},
+            },
+            "rating": {
+                "type": "score",
+                "instructions": instructions,
+                "criteria": [description],
+            },
         }
-        return httpx2.Response(200, json={"model": "jev-latest", "usage": {}, "answers": {}})
+        return httpx2.Response(
+            200, json={"model": "jev-latest", "usage": {}, "answers": {}}
+        )
 
     await system_one(clients(handler), state=state, questions=questions)
 
 
-async def test_raw_optional_fields_preserve_explicit_null(clients: ClientFactory) -> None:
+async def test_raw_optional_fields_preserve_explicit_null(
+    clients: ClientFactory,
+) -> None:
     questions: Questions = {
         "yes": {"type": "noul", "instructions": None, "criteria": None},
         "label": {"type": "choice", "instructions": None, "criteria": {"a": None}},
@@ -65,29 +107,50 @@ async def test_raw_optional_fields_preserve_explicit_null(clients: ClientFactory
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         assert msgspec.json.decode(request.content)["questions"] == questions
-        return httpx2.Response(200, json={"model": "jev-latest", "usage": {}, "answers": {}})
+        return httpx2.Response(
+            200, json={"model": "jev-latest", "usage": {}, "answers": {}}
+        )
 
     await system_one(clients(handler), state="x", questions=questions)
 
 
 async def test_explicitly_nullable_json_values(clients: ClientFactory) -> None:
-    state: dict[str, JSONValue | None] = {"missing": None, "items": [None, {"nested": None}]}
+    state: dict[str, JSONValue | None] = {
+        "missing": None,
+        "items": [None, {"nested": None}],
+    }
     instructions: dict[str, JSONValue | None] = {"text": "Classify", "extra": None}
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         body = msgspec.json.decode(request.content)
         assert body["state"] == state
         assert body["questions"] == {
-            "yes": {"type": "noul", "instructions": instructions, "criteria": {"true": {"extra": None}}},
-            "label": {"type": "choice", "instructions": instructions, "criteria": {"a": None, "b": {"extra": None}}},
-            "rating": {"type": "score", "instructions": instructions, "criteria": [{"extra": None}]},
+            "yes": {
+                "type": "noul",
+                "instructions": instructions,
+                "criteria": {"true": {"extra": None}},
+            },
+            "label": {
+                "type": "choice",
+                "instructions": instructions,
+                "criteria": {"a": None, "b": {"extra": None}},
+            },
+            "rating": {
+                "type": "score",
+                "instructions": instructions,
+                "criteria": [{"extra": None}],
+            },
         }
-        return httpx2.Response(200, json={"model": "jev-latest", "usage": {}, "answers": {}})
+        return httpx2.Response(
+            200, json={"model": "jev-latest", "usage": {}, "answers": {}}
+        )
 
     client = clients(handler)
     questions = {
         "yes": Noul(instructions=instructions, criteria={"true": {"extra": None}}),
-        "label": Choice(instructions=instructions, criteria={"a": None, "b": {"extra": None}}),
+        "label": Choice(
+            instructions=instructions, criteria={"a": None, "b": {"extra": None}}
+        ),
         "rating": Score(instructions=instructions, criteria=[{"extra": None}]),
     }
     if isinstance(client, AsyncTypeSafeClient):

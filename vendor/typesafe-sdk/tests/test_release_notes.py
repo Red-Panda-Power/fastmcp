@@ -8,7 +8,9 @@ import pytest
 SCRIPT = Path(__file__).resolve().parents[1] / ".github/scripts/release_notes.py"
 
 
-def run_release_notes(tmp_path: Path, changelog: str, tag: str = "v1.2.3", version: str = "1.2.3") -> subprocess.CompletedProcess[str]:
+def run_release_notes(
+    tmp_path: Path, changelog: str, tag: str = "v1.2.3", version: str = "1.2.3"
+) -> subprocess.CompletedProcess[str]:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs/changelog.md").write_text(changelog)
     return subprocess.run(  # noqa: S603 - Fixed interpreter and repository-owned script.
@@ -51,12 +53,19 @@ def test_release_notes(tmp_path: Path, unreleased: str) -> None:
         ("## v1.2.3 (2026-09-09)\nNotes.\n" * 2, "v1.2.3", "1.2.3", "found 2"),
         ("## v1.2.3 (2026-09-09)\n\n", "v1.2.3", "1.2.3", "Empty release notes"),
         ("## v1.2.3 (2026-02-30)\nNotes.\n", "v1.2.3", "1.2.3", "ValueError"),
-        ("## v1.2.3 (tomorrow)\nNotes.\n", "v1.2.3", "1.2.3", "Invalid release heading"),
+        (
+            "## v1.2.3 (tomorrow)\nNotes.\n",
+            "v1.2.3",
+            "1.2.3",
+            "Invalid release heading",
+        ),
         ("", "v1.2.3", "1.2.4", "does not match package version"),
         ("", "v1.2", "1.2", "vX.Y.Z format"),
     ],
 )
-def test_invalid_release_notes(tmp_path: Path, changelog: str, tag: str, version: str, error: str) -> None:
+def test_invalid_release_notes(
+    tmp_path: Path, changelog: str, tag: str, version: str, error: str
+) -> None:
     result = run_release_notes(tmp_path, changelog, tag, version)
     assert result.returncode != 0
     assert error in result.stderr

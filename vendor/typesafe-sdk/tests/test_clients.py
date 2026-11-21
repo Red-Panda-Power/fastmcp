@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from importlib.metadata import version
-from typing import Any, cast
+from typing import Any, Dict, cast
 
 import httpx2
 import msgspec
@@ -43,7 +45,12 @@ RESULT = {
     "usage": {"input_tokens": 12, "output_tokens": 3},
     "answers": {
         "spam": {"type": "noul", "noul": 0.98},
-        "tone": {"type": "choice", "choice": "friendly", "confidence": 0.9, "probabilities": {"friendly": 0.9, "hostile": 0.1}},
+        "tone": {
+            "type": "choice",
+            "choice": "friendly",
+            "confidence": 0.9,
+            "probabilities": {"friendly": 0.9, "hostile": 0.1},
+        },
         "quality": {
             "type": "score",
             "score": 1.7,
@@ -58,9 +65,12 @@ CARD = {"name": "jev-latest", "description": "Fast model", "release_date": "2026
 
 @pytest.mark.parametrize("score_map", [False, True])
 @pytest.mark.parametrize("question_form", ["dataclass", "raw", "mixed"])
-async def test_round_trip(clients: ClientFactory, score_map: bool, question_form: str) -> None:
+async def test_round_trip(
+    clients: ClientFactory, score_map: bool, question_form: str
+) -> None:
     criteria: (
-        dict[int, str | dict[str, JSONValue | None] | list[JSONValue | None]] | list[str | dict[str, JSONValue | None] | list[JSONValue | None]]
+        dict[int, str | dict[str, JSONValue | None] | list[JSONValue | None]]
+        | list[str | dict[str, JSONValue | None] | list[JSONValue | None]]
     )
     if score_map:
         criteria = {2: "great", 0: "bad", 1: "ok"}
@@ -68,7 +78,11 @@ async def test_round_trip(clients: ClientFactory, score_map: bool, question_form
         criteria = ["bad", "ok", "great"]
     raw: dict[str, QuestionModel] = {
         "spam": {"type": "noul", "instructions": "Spam?"},
-        "tone": {"type": "choice", "instructions": "Tone?", "criteria": {"friendly": None, "hostile": None}},
+        "tone": {
+            "type": "choice",
+            "instructions": "Tone?",
+            "criteria": {"friendly": None, "hostile": None},
+        },
         "quality": {"type": "score", "instructions": "Quality?", "criteria": criteria},
     }
     questions: Questions
@@ -76,8 +90,12 @@ async def test_round_trip(clients: ClientFactory, score_map: bool, question_form
         questions = raw
     else:
         questions = {
-            "spam": Noul(instructions="Spam?") if question_form == "dataclass" else raw["spam"],
-            "tone": Choice(instructions="Tone?", criteria={"friendly": None, "hostile": None}),
+            "spam": Noul(instructions="Spam?")
+            if question_form == "dataclass"
+            else raw["spam"],
+            "tone": Choice(
+                instructions="Tone?", criteria={"friendly": None, "hostile": None}
+            ),
             "quality": Score(instructions="Quality?", criteria=criteria),
         }
     expected: dict[str, JSONValue | None] = {
@@ -85,8 +103,16 @@ async def test_round_trip(clients: ClientFactory, score_map: bool, question_form
         "model": "jev-latest",
         "questions": {
             "spam": {"type": "noul", "instructions": "Spam?"},
-            "tone": {"type": "choice", "instructions": "Tone?", "criteria": {"friendly": None, "hostile": None}},
-            "quality": {"type": "score", "instructions": "Quality?", "criteria": ["bad", "ok", "great"]},
+            "tone": {
+                "type": "choice",
+                "instructions": "Tone?",
+                "criteria": {"friendly": None, "hostile": None},
+            },
+            "quality": {
+                "type": "score",
+                "instructions": "Quality?",
+                "criteria": ["bad", "ok", "great"],
+            },
         },
     }
 
@@ -105,9 +131,9 @@ async def test_round_trip(clients: ClientFactory, score_map: bool, question_form
     assert "nouls" not in result.__dict__
     assert "choices" not in result.__dict__
     assert "scores" not in result.__dict__
-    assert_type(result.nouls, dict[str, NoulAnswer])
-    assert_type(result.choices, dict[str, ChoiceAnswer])
-    assert_type(result.scores, dict[str, ScoreAnswer])
+    assert_type(result.nouls, Dict[str, NoulAnswer])
+    assert_type(result.choices, Dict[str, ChoiceAnswer])
+    assert_type(result.scores, Dict[str, ScoreAnswer])
     assert result.nouls is result.nouls
     assert result.choices is result.choices
     assert result.scores is result.scores
@@ -169,7 +195,12 @@ async def test_unserializable_request_body_raises(clients: ClientFactory) -> Non
 
 async def test_raw_question_passthrough(clients: ClientFactory) -> None:
     questions: Questions = {
-        "q": {"type": "noul", "instructions": "Spam?", "weight": 3, "nested": {"k": None}},
+        "q": {
+            "type": "noul",
+            "instructions": "Spam?",
+            "weight": 3,
+            "nested": {"k": None},
+        },
         "choice": {"type": "choice", "criteria": {"a": None}, "weight": 2},
         "score": {"type": "score", "criteria": ["good"], "weight": 1},
     }
@@ -190,9 +221,13 @@ async def test_raw_question_passthrough(clients: ClientFactory) -> None:
         Choice(criteria=cast(Any, ["invalid", "shape"])),
     ],
 )
-async def test_question_schema_validation_is_left_to_api(clients: ClientFactory, question: Any) -> None:
+async def test_question_schema_validation_is_left_to_api(
+    clients: ClientFactory, question: Any
+) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
-        assert msgspec.json.decode(request.content)["questions"]["q"] == msgspec.to_builtins(question)
+        assert msgspec.json.decode(request.content)["questions"][
+            "q"
+        ] == msgspec.to_builtins(question)
         return httpx2.Response(422, json={"detail": "Invalid question"})
 
     with pytest.raises(TypeSafeUnprocessableEntityError, match="Invalid question"):
@@ -205,8 +240,16 @@ async def test_rich_descriptions(clients: ClientFactory) -> None:
         "state": "a ticket",
         "model": "custom",
         "questions": {
-            "duplicate": {"type": "noul", "instructions": {"question": "Duplicate?"}, "criteria": {"true": criteria}},
-            "team": {"type": "choice", "instructions": "Team?", "criteria": {"billing": criteria, "other": None}},
+            "duplicate": {
+                "type": "noul",
+                "instructions": {"question": "Duplicate?"},
+                "criteria": {"true": criteria},
+            },
+            "team": {
+                "type": "choice",
+                "instructions": "Team?",
+                "criteria": {"billing": criteria, "other": None},
+            },
             "risk": {"type": "score", "instructions": "Risk?", "criteria": [criteria]},
         },
     }
@@ -219,7 +262,13 @@ async def test_rich_descriptions(clients: ClientFactory) -> None:
                 "model": "custom",
                 "usage": {"input_tokens": 1, "output_tokens": 1},
                 "answers": {
-                    "risk": {"type": "score", "score": 0, "confidence": 1, "legend": {"0": criteria}, "probabilities": {"0": 1}},
+                    "risk": {
+                        "type": "score",
+                        "score": 0,
+                        "confidence": 1,
+                        "legend": {"0": criteria},
+                        "probabilities": {"0": 1},
+                    },
                 },
             },
         )
@@ -232,13 +281,21 @@ async def test_rich_descriptions(clients: ClientFactory) -> None:
             "duplicate": {
                 "type": "noul",
                 "instructions": {"question": "Duplicate?"},
-                "criteria": {"true": {"summary": "duplicated", "examples": ["charged twice"]}},
+                "criteria": {
+                    "true": {"summary": "duplicated", "examples": ["charged twice"]}
+                },
             },
             "team": Choice(
                 instructions="Team?",
-                criteria={"billing": {"summary": "duplicated", "examples": ["charged twice"]}, "other": None},
+                criteria={
+                    "billing": {"summary": "duplicated", "examples": ["charged twice"]},
+                    "other": None,
+                },
             ),
-            "risk": Score(instructions="Risk?", criteria=[{"summary": "duplicated", "examples": ["charged twice"]}]),
+            "risk": Score(
+                instructions="Risk?",
+                criteria=[{"summary": "duplicated", "examples": ["charged twice"]}],
+            ),
         },
     )
     assert result.scores["risk"].legend[0] == criteria
@@ -256,15 +313,25 @@ async def test_models_shape(clients: ClientFactory) -> None:
 
 async def test_models_ignore_unknown_fields(clients: ClientFactory) -> None:
     card = {**CARD, "context_window": 128000, "pricing": None}
-    client = clients(lambda request: httpx2.Response(200, content=msgspec.json.encode({"models": [card]})))
-    response = await client.models.list() if isinstance(client, AsyncTypeSafeClient) else client.models.list()
+    client = clients(
+        lambda request: httpx2.Response(
+            200, content=msgspec.json.encode({"models": [card]})
+        )
+    )
+    response = (
+        await client.models.list()
+        if isinstance(client, AsyncTypeSafeClient)
+        else client.models.list()
+    )
     [model] = response.models
     assert model.name == "jev-latest"
     # Unmodeled fields are dropped from the card but remain available via the raw response.
     assert response.raw_http_response.json()["models"][0]["context_window"] == 128000
 
 
-@pytest.mark.parametrize("body", [None, {}, {"models": "bad"}, {"models": [{"name": "x"}]}])
+@pytest.mark.parametrize(
+    "body", [None, {}, {"models": "bad"}, {"models": [{"name": "x"}]}]
+)
 async def test_invalid_models_response(clients: ClientFactory, body: object) -> None:
     with pytest.raises(TypeSafeAPIResponseValidationError):
         await models(clients(lambda request: httpx2.Response(200, json=body)))
@@ -276,12 +343,20 @@ async def test_invalid_models_response(clients: ClientFactory, body: object) -> 
         ({}, "At least one question"),
         ({"rating": Score(instructions="?", criteria=[])}, '"rating" has no criteria'),
         ({"rating": Score(instructions="?", criteria={})}, '"rating" has no criteria'),
-        ({"rating": Score(instructions="?", criteria={0: "bad", 2: "good"})}, '"rating".*no gaps'),
+        (
+            {"rating": Score(instructions="?", criteria={0: "bad", 2: "good"})},
+            '"rating".*no gaps',
+        ),
         ({"rating": Score(instructions="?", criteria={1: "bad"})}, '"rating".*no gaps'),
-        ({"rating": Score(instructions="?", criteria={-1: "bad"})}, '"rating".*non-negative integers'),
+        (
+            {"rating": Score(instructions="?", criteria={-1: "bad"})},
+            '"rating".*non-negative integers',
+        ),
     ],
 )
-async def test_validation_before_network(clients: ClientFactory, questions: Any, match: str) -> None:
+async def test_validation_before_network(
+    clients: ClientFactory, questions: Any, match: str
+) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         pytest.fail("Invalid questions reached the network")
 
@@ -305,11 +380,22 @@ async def test_validation_before_network(clients: ClientFactory, questions: Any,
         (302, TypeSafeAPIError),
     ],
 )
-async def test_error_mapping(clients: ClientFactory, status: int, error: type[TypeSafeAPIError]) -> None:
+async def test_error_mapping(
+    clients: ClientFactory, status: int, error: type[TypeSafeAPIError]
+) -> None:
     body = {"detail": {"message": "Server explanation"}}
     with pytest.raises(error) as caught:
         await models(
-            clients(lambda request: httpx2.Response(status, json=body, headers={"x-typesafe-request-id": "req_123", "retry-after-ms": "125"}))
+            clients(
+                lambda request: httpx2.Response(
+                    status,
+                    json=body,
+                    headers={
+                        "x-typesafe-request-id": "req_123",
+                        "retry-after-ms": "125",
+                    },
+                )
+            )
         )
     assert type(caught.value) is error
     assert caught.value.status == status
@@ -330,14 +416,25 @@ async def test_error_mapping(clients: ClientFactory, status: int, error: type[Ty
         ({"detail": "detail"}, "detail"),
         ({"detail": {"message": "nested detail"}}, "nested detail"),
         (
-            {"detail": [{"loc": ["body", "questions", "q", "score", "criteria", 0], "msg": "Invalid"}, {"msg": "Missing"}, {}]},
+            {
+                "detail": [
+                    {
+                        "loc": ["body", "questions", "q", "score", "criteria", 0],
+                        "msg": "Invalid",
+                    },
+                    {"msg": "Missing"},
+                    {},
+                ]
+            },
             "questions.q.score.criteria.0: Invalid; Missing",
         ),
         ("plain text", "plain text"),
         ({"unexpected": True}, '{"unexpected":true}'),
     ],
 )
-async def test_error_messages(clients: ClientFactory, body: object, message: str) -> None:
+async def test_error_messages(
+    clients: ClientFactory, body: object, message: str
+) -> None:
     content = body.encode() if isinstance(body, str) else msgspec.json.encode(body)
     with pytest.raises(TypeSafeAPIError, match="400") as caught:
         await models(clients(lambda request: httpx2.Response(400, content=content)))
@@ -354,7 +451,11 @@ async def test_error_messages(clients: ClientFactory, body: object, message: str
         (httpx2.ReadTimeout, TypeSafeAPITimeoutError),
     ],
 )
-async def test_transport_errors(clients: ClientFactory, transport_error: type[httpx2.RequestError], sdk_error: type[TypeSafeError]) -> None:
+async def test_transport_errors(
+    clients: ClientFactory,
+    transport_error: type[httpx2.RequestError],
+    sdk_error: type[TypeSafeError],
+) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         raise transport_error("failed", request=request)
 
@@ -365,8 +466,12 @@ async def test_transport_errors(clients: ClientFactory, transport_error: type[ht
         assert caught.value.timeout == 1.25
 
 
-@pytest.mark.parametrize("timeout", [None, 2.0, httpx2.Timeout(3.0, read=9.0), httpx2.Timeout(None)])
-async def test_system_one_timeout_override(clients: ClientFactory, timeout: float | httpx2.Timeout | None) -> None:
+@pytest.mark.parametrize(
+    "timeout", [None, 2.0, httpx2.Timeout(3.0, read=9.0), httpx2.Timeout(None)]
+)
+async def test_system_one_timeout_override(
+    clients: ClientFactory, timeout: float | httpx2.Timeout | None
+) -> None:
     requests: list[httpx2.Request] = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -374,14 +479,18 @@ async def test_system_one_timeout_override(clients: ClientFactory, timeout: floa
         return httpx2.Response(200, json=RESULT)
 
     client = clients(handler, timeout=7.0)
-    await system_one(client, state="hello", questions={"q": Noul(instructions="?")}, timeout=timeout)
+    await system_one(
+        client, state="hello", questions={"q": Noul(instructions="?")}, timeout=timeout
+    )
     await system_one(client, state="hello", questions={"q": Noul(instructions="?")})
     expected = httpx2.Timeout(7.0 if timeout is None else timeout).as_dict()
     assert requests[0].extensions["timeout"] == expected
     assert requests[1].extensions["timeout"] == httpx2.Timeout(7.0).as_dict()
 
 
-async def test_headers_timeout_and_logging(clients: ClientFactory, caplog: pytest.LogCaptureFixture) -> None:
+async def test_headers_timeout_and_logging(
+    clients: ClientFactory, caplog: pytest.LogCaptureFixture
+) -> None:
     protected = {
         "authorization": "injected-secret",
         "accept": "text/plain",
@@ -394,31 +503,62 @@ async def test_headers_timeout_and_logging(clients: ClientFactory, caplog: pytes
         assert str(request.url) == "https://example.test/prefix/v1/systemone"
         assert request.headers["authorization"] == "Bearer test-key"
         assert request.headers["accept"] == "application/json"
-        assert request.headers["user-agent"] == f"typesafe-sdk/{version('typesafe-sdk')}"
+        assert (
+            request.headers["user-agent"] == f"typesafe-sdk/{version('typesafe-sdk')}"
+        )
         assert request.headers["x-typesafe-sdk"] == request.headers["user-agent"]
         assert request.headers["x-typesafe-runtime"].startswith("python/")
         assert "x-typesafe-retry-count" not in request.headers
         assert request.headers["x-team"] == "call"
         assert request.headers["x-default"] == "kept"
         assert request.headers["content-type"] == "application/json"
-        assert request.extensions["timeout"] == {"connect": 2.0, "read": 2.0, "write": 2.0, "pool": 2.0}
-        return httpx2.Response(200, json=RESULT, headers={"set-cookie": "response-secret", "x-typesafe-request-id": "req_log"})
+        assert request.extensions["timeout"] == {
+            "connect": 2.0,
+            "read": 2.0,
+            "write": 2.0,
+            "pool": 2.0,
+        }
+        return httpx2.Response(
+            200,
+            json=RESULT,
+            headers={
+                "set-cookie": "response-secret",
+                "x-typesafe-request-id": "req_log",
+            },
+        )
 
     with caplog.at_level(logging.DEBUG, logger="typesafe_sdk"):
         client = clients(
             handler,
             base_url="https://example.test/prefix///",
             timeout=7,
-            headers={**protected, "X-Team": "default", "X-Default": "kept", "X-API-Key": "key-secret", "cookie": "cookie-secret"},
+            headers={
+                **protected,
+                "X-Team": "default",
+                "X-Default": "kept",
+                "X-API-Key": "key-secret",
+                "cookie": "cookie-secret",
+            },
         )
         await system_one(
             client,
             state="hello",
             questions={"q": {"type": "noul", "instructions": "?"}},
             timeout=2.0,
-            extra_headers={**protected, "x-team": "call", "x-typesafe-retry-count": "99", "content-type": "wrong"},
+            extra_headers={
+                **protected,
+                "x-team": "call",
+                "x-typesafe-retry-count": "99",
+                "content-type": "wrong",
+            },
         )
-    for secret in ("test-key", "injected-secret", "key-secret", "cookie-secret", "response-secret"):
+    for secret in (
+        "test-key",
+        "injected-secret",
+        "key-secret",
+        "cookie-secret",
+        "response-secret",
+    ):
         assert secret not in caplog.text
     assert "req_log" in caplog.text
     assert "hello" in caplog.text
@@ -442,7 +582,9 @@ async def test_http_client_settings(clients: ClientFactory) -> None:
         assert request.headers["x-call"] == "call"
         if request.method == "POST":
             assert request.headers["content-type"] == "application/json"
-        return httpx2.Response(200, json=RESULT if request.method == "POST" else {"models": []})
+        return httpx2.Response(
+            200, json=RESULT if request.method == "POST" else {"models": []}
+        )
 
     headers = {
         "authorization": "wrong",
@@ -474,10 +616,19 @@ async def test_http_client_settings(clients: ClientFactory) -> None:
     )
     original_headers = httpx2.Headers(http_client.headers)
     original_base_url = http_client.base_url
-    client = clients(handler, http_client=http_client, headers={"x-sdk-default": "sdk", "x-call": "sdk"})
+    client = clients(
+        handler,
+        http_client=http_client,
+        headers={"x-sdk-default": "sdk", "x-call": "sdk"},
+    )
     assert client._http_client is http_client
     assert await models(client, extra_headers={"x-call": "call"}) == ()
-    await system_one(client, state="x", questions={"q": Noul(instructions="?")}, extra_headers={"x-call": "call"})
+    await system_one(
+        client,
+        state="x",
+        questions={"q": Noul(instructions="?")},
+        extra_headers={"x-call": "call"},
+    )
     assert [request.method for request in requests] == ["GET", "POST"]
     assert http_client.headers == original_headers
     assert http_client.base_url == original_base_url
@@ -485,7 +636,9 @@ async def test_http_client_settings(clients: ClientFactory) -> None:
 
 @pytest.mark.parametrize("use_context", [False, True])
 @pytest.mark.parametrize("supply_http_client", [False, True])
-async def test_supplied_network_resources_closed(clients: ClientFactory, use_context: bool, supply_http_client: bool) -> None:
+async def test_supplied_network_resources_closed(
+    clients: ClientFactory, use_context: bool, supply_http_client: bool
+) -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         assert str(request.url) == "https://api.typesafe.ai/v1/models"
         assert request.headers["authorization"] == "Bearer test-key"
@@ -493,7 +646,11 @@ async def test_supplied_network_resources_closed(clients: ClientFactory, use_con
 
     transport = TrackingTransport(handler)
     if supply_http_client:
-        http_client = httpx2.AsyncClient(transport=transport) if clients.async_mode else httpx2.Client(transport=transport)
+        http_client = (
+            httpx2.AsyncClient(transport=transport)
+            if clients.async_mode
+            else httpx2.Client(transport=transport)
+        )
         client = clients(handler, http_client=http_client)
         assert client._http_client is http_client
     else:
@@ -534,14 +691,20 @@ async def test_owned_http_client_closed() -> None:
 
 
 @pytest.mark.parametrize("kind", [ValueError, asyncio.CancelledError])
-async def test_exceptional_context_closes_http_client(clients: ClientFactory, kind: type[BaseException]) -> None:
+async def test_exceptional_context_closes_http_client(
+    clients: ClientFactory, kind: type[BaseException]
+) -> None:
     failure = kind("original failure")
 
     def handler(request: httpx2.Request) -> httpx2.Response:
         raise failure
 
     transport = TrackingTransport(handler)
-    http_client = httpx2.AsyncClient(transport=transport) if clients.async_mode else httpx2.Client(transport=transport)
+    http_client = (
+        httpx2.AsyncClient(transport=transport)
+        if clients.async_mode
+        else httpx2.Client(transport=transport)
+    )
     client = clients(handler, http_client=http_client)
     assert client._http_client is http_client
     with pytest.raises(kind) as caught:  # noqa: PT012 - Exercise context-manager cleanup while propagating the exception.
@@ -566,7 +729,9 @@ async def test_task_cancellation_closes_context() -> None:
         raise AssertionError("Cancelled request returned")
 
     transport = TrackingTransport(handler)
-    client = AsyncTypeSafeClient(api_key="test", http_client=httpx2.AsyncClient(transport=transport))
+    client = AsyncTypeSafeClient(
+        api_key="test", http_client=httpx2.AsyncClient(transport=transport)
+    )
 
     async def run() -> None:
         async with client:
@@ -591,7 +756,10 @@ async def test_cancellation_propagates() -> None:
         attempts += 1
         raise asyncio.CancelledError
 
-    async with AsyncTypeSafeClient(api_key="test", http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))) as client:
+    async with AsyncTypeSafeClient(
+        api_key="test",
+        http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)),
+    ) as client:
         with pytest.raises(asyncio.CancelledError):
             await client.models.list()
     assert attempts == 1

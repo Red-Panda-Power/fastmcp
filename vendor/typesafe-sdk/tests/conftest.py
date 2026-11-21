@@ -1,13 +1,21 @@
+from __future__ import annotations
+
 import os
 from collections.abc import AsyncIterator, Callable, Mapping
+from typing import Union
 
 import httpx2
 import pytest
 
 from typesafe_sdk import AsyncTypeSafeClient, RetryPolicy, TypeSafeClient
-from typesafe_sdk.constants import API_KEY_ENV, BASE_URL_ENV, DEFAULT_MODEL_ENV, LOG_LEVEL_ENV
+from typesafe_sdk.constants import (
+    API_KEY_ENV,
+    BASE_URL_ENV,
+    DEFAULT_MODEL_ENV,
+    LOG_LEVEL_ENV,
+)
 
-Client = TypeSafeClient | AsyncTypeSafeClient
+Client = Union[TypeSafeClient, AsyncTypeSafeClient]
 
 
 class ClientFactory:
@@ -91,7 +99,9 @@ def live_api_key() -> str:
 
 
 @pytest.fixture(params=["sync", "async"])
-async def live_client(request: pytest.FixtureRequest, live_api_key: str) -> AsyncIterator[Client]:
+async def live_client(
+    request: pytest.FixtureRequest, live_api_key: str
+) -> AsyncIterator[Client]:
     if request.param == "async":
         async with AsyncTypeSafeClient(api_key=live_api_key, timeout=120) as client:
             yield client

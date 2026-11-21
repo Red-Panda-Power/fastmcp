@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from functools import cached_property
 from types import TracebackType
+from typing import Mapping, Optional, Type, Union
 
 import httpx2
 from typing_extensions import Self
@@ -12,7 +12,7 @@ from typing_extensions import Self
 from typesafe_sdk._core.client.sync.models import Models
 from typesafe_sdk._core.config import Config
 from typesafe_sdk._core.endpoints import prepare_system_one
-from typesafe_sdk._core.json_types import JSONValue
+from typesafe_sdk._core.json_types import JSONMapping, JSONState
 from typesafe_sdk._core.question_types import Question
 from typesafe_sdk._core.response_types import SystemOneResponse
 from typesafe_sdk._core.retry import RetryPolicy, build_tenacity
@@ -23,14 +23,14 @@ class TypeSafeClient:
     def __init__(
         self,
         *,
-        api_key: str | None = None,
-        model: str | None = None,
-        retry: RetryPolicy | None = None,
-        timeout: float | httpx2.Timeout | None = None,
-        headers: Mapping[str, str] | None = None,
-        transport: httpx2.BaseTransport | None = None,
-        http_client: httpx2.Client | None = None,
-        base_url: str | None = None,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        retry: Optional[RetryPolicy] = None,
+        timeout: Optional[Union[float, httpx2.Timeout]] = None,
+        headers: Optional[Mapping[str, str]] = None,
+        transport: Optional[httpx2.BaseTransport] = None,
+        http_client: Optional[httpx2.Client] = None,
+        base_url: Optional[str] = None,
     ) -> None:
         """Create an HTTP client for [TypeSafe AI API](https://typesafe.ai).
 
@@ -103,14 +103,14 @@ class TypeSafeClient:
 
     def system_one(
         self,
-        state: str | dict[str, JSONValue | None] | list[JSONValue | None],
+        state: JSONState,
         questions: Mapping[str, Question],
         *,
-        model: str | None = None,
-        retry: RetryPolicy | None = None,
-        timeout: float | httpx2.Timeout | None = None,
-        extra_headers: Mapping[str, str] | None = None,
-        extra_body: Mapping[str, JSONValue | None] | None = None,
+        model: Optional[str] = None,
+        retry: Optional[RetryPolicy] = None,
+        timeout: Optional[Union[float, httpx2.Timeout]] = None,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_body: Optional[JSONMapping] = None,
     ) -> SystemOneResponse:
         """Answer named questions about text or structured state.
 
@@ -186,7 +186,7 @@ class TypeSafeClient:
         )
 
     def _request(
-        self, request: Request[ResponseT], *, retry: RetryPolicy | None = None
+        self, request: Request[ResponseT], *, retry: Optional[RetryPolicy] = None
     ) -> ResponseT:
         return send(self._http_client, self._retry, request, retry)
 
@@ -200,9 +200,9 @@ class TypeSafeClient:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
     ) -> None:
         """Close the client context."""
         self.close()
