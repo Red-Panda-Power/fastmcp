@@ -5,11 +5,13 @@ from typing import Any, cast
 import httpx2
 import pytest
 from pydantic import SecretStr
+from starlette.applications import Starlette
+from starlette.testclient import TestClient
 
 from fastmcp.server.auth.oidc_proxy import OIDCConfiguration
 from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
 from fastmcp.server.auth.providers.jwt import RSAKeyPair
-from fastmcp.server.auth.providers.workos import WorkOSTokenVerifier
+from fastmcp.server.auth.providers.workos import AuthKitProvider, WorkOSTokenVerifier
 
 
 @pytest.mark.asyncio
@@ -54,3 +56,31 @@ def test_py38_auth_runtime_types_load_without_changing_key_pair_api():
         RSAKeyPair(private_key=SecretStr("private"), public_key="public").public_key
         == "public"
     )
+
+
+@pytest.mark.parametrize(
+    ("authkit_domain", "expected_issuer"),
+    [
+        ("https://test.authkit.app", "https://test.authkit.app"),
+        (
+            "https://EXAMPLE.COM?tenant=x#fragment",
+            "https://example.com?tenant=x#fragment",
+        ),
+    ],
+)
+def test_authkit_metadata_preserves_empty_path_after_url_canonicalization(
+    authkit_domain, expected_issuer
+):
+    """Pydantic 2.10 must not add a slash or bypass URL normalization."""
+
+    provider = AuthKitProvider(
+        authkit_domain=authkit_domain,
+        base_url="http://127.0.0.1:8000",
+    )
+    app = Starlette(routes=provider.get_routes("/mcp"))
+
+    with TestClient(app) as client:
+        response = client.get("/.well-known/oauth-protected-resource/mcp")
+
+    assert response.status_code == 200
+    assert response.json()["authorization_servers"] == [expected_issuer]
