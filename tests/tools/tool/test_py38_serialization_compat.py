@@ -1,6 +1,6 @@
 """Tool-result alias behavior shared by the Python 3.8 and current stacks."""
 
-# ruff: noqa: UP006, UP035
+# ruff: noqa: UP006, UP007, UP035
 
 from __future__ import annotations
 
@@ -9,12 +9,20 @@ import json
 import sys
 import threading
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, Dict, List, Tuple, Union, cast
 
 import pydantic_core
 import pytest
-from pydantic import BaseModel, ConfigDict, Field, model_serializer, with_config
-from typing_extensions import Annotated
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    model_serializer,
+    model_validator,
+    with_config,
+)
+from typing_extensions import Annotated, TypedDict
 
 import fastmcp.tools.base as tool_base
 from fastmcp.tools.base import _serialize_to_jsonable
@@ -23,6 +31,10 @@ from fastmcp.utilities.types import get_cached_typeadapter
 
 class DefaultModel(BaseModel):
     value: str = Field(serialization_alias="defaultValue")
+
+
+class FrozenDefaultModel(DefaultModel):
+    model_config = ConfigDict(frozen=True)
 
 
 class AliasModel(BaseModel):
@@ -52,6 +64,23 @@ class AnyPayloadModel(BaseModel):
 class RecursiveAnyModel(BaseModel):
     children: List[RecursiveAnyModel] = Field(default_factory=list)
     payload: Any = None
+
+
+class AnyTypedDict(TypedDict):
+    item: Any
+
+
+class SecretModel(BaseModel):
+    secret: str
+
+
+class BeforeModel(BaseModel):
+    value: str = Field(serialization_alias="renamed")
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize(cls, data):
+        return data
 
 
 @with_config(ConfigDict(serialize_by_alias=True))
@@ -138,6 +167,61 @@ def test_any_nested_containers_serialize_custom_models_once():
         },
     }
     assert calls == {"count": 1}
+
+
+def test_any_dispatches_mixed_model_serializers_by_runtime_class():
+    calls = {"a": 0, "b": 0}
+
+    class SerializerA(BaseModel):
+        value: str
+
+        @model_serializer
+        def serialize(self) -> dict[str, str]:
+            calls["a"] += 1
+            return {"a": self.value}
+
+    class SerializerB(BaseModel):
+        value: str
+
+        @model_serializer
+        def serialize(self) -> dict[str, str]:
+            calls["b"] += 1
+            return {"b": self.value}
+
+    assert _serialize_to_jsonable(
+        [SerializerA(value="a"), SerializerB(value="b")], List[Any]
+    ) == [{"a": "a"}, {"b": "b"}]
+    assert calls == {"a": 1, "b": 1}
+
+
+def test_any_keeps_a_user_plain_serializer_in_control():
+    annotation = Annotated[
+        Any,
+        PlainSerializer(lambda value: "redacted", return_type=str),
+    ]
+
+    assert _serialize_to_jsonable(SecretModel(secret="do-not-show"), annotation) == (
+        "redacted"
+    )
+
+
+def test_any_in_tuple_typed_dict_and_union_preserves_default_alias_policy():
+    value = DefaultModel(value="x")
+
+    assert _serialize_to_jsonable((value,), Tuple[Any, ...]) == [{"value": "x"}]
+    assert _serialize_to_jsonable({"item": value}, AnyTypedDict) == {
+        "item": {"value": "x"}
+    }
+    assert _serialize_to_jsonable({"item": value}, Union[Dict[str, Any], str]) == {
+        "item": {"value": "x"}
+    }
+    assert _serialize_to_jsonable({FrozenDefaultModel(value="x")}, Any) == [
+        {"value": "x"}
+    ]
+
+
+def test_before_model_validator_does_not_restore_default_aliases():
+    assert _serialize_to_jsonable(BeforeModel(value="x"), BeforeModel) == {"value": "x"}
 
 
 def test_model_field_annotated_any_uses_nested_model_alias_policy():

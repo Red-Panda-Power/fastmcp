@@ -5,11 +5,17 @@ import json
 import math
 import sys
 from collections.abc import Callable
+from contextvars import ContextVar
 from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Dict,
+    FrozenSet,
+    List,
+    Set,
+    Tuple,
 )
 
 import mcp_types
@@ -77,6 +83,9 @@ _CONTENT_OR_MEDIA_TYPES = (*_CONTENT_BLOCK_TYPES, Audio, Image, File)
 _JSONABLE_ADAPTER = get_cached_typeadapter(Any)
 _DUMP_JSON_SUPPORTS_FALLBACK = (
     "fallback" in inspect.signature(_JSONABLE_ADAPTER.dump_json).parameters
+)
+_RUNTIME_ANY_VALUE_IDS = ContextVar(
+    "fastmcp_runtime_any_value_ids", default=frozenset()
 )
 
 
@@ -157,6 +166,30 @@ def _model_serializes_by_alias(model_type: type[Any]) -> bool:
     return config.get("serialize_by_alias") is True
 
 
+def _remove_model_field_aliases(schema: Any, visited: set[int]) -> None:
+    """Remove aliases from one model's fields without changing child models."""
+    if isinstance(schema, dict):
+        schema_id = id(schema)
+        if schema_id in visited:
+            return
+        visited.add(schema_id)
+
+        if schema.get("type") in {"model", "dataclass"}:
+            return
+        if schema.get("type") in {"model-fields", "dataclass-args"}:
+            fields = schema.get("fields", {})
+            field_values = fields.values() if isinstance(fields, dict) else fields
+            for field in field_values:
+                if isinstance(field, dict):
+                    field.pop("serialization_alias", None)
+
+        for value in schema.values():
+            _remove_model_field_aliases(value, visited)
+    elif isinstance(schema, (list, tuple)):
+        for value in schema:
+            _remove_model_field_aliases(value, visited)
+
+
 def _remove_serialization_aliases(schema: Any, visited: set[int]) -> None:
     """Remove aliases for models that do not explicitly opt into them.
 
@@ -180,16 +213,7 @@ def _remove_serialization_aliases(schema: Any, visited: set[int]) -> None:
             and isinstance(model_type, type)
             and not _model_serializes_by_alias(model_type)
         ):
-            fields_schema = schema.get("schema", {})
-            fields = fields_schema.get("fields", {})
-            if isinstance(fields, dict):
-                for field in fields.values():
-                    if isinstance(field, dict):
-                        field.pop("serialization_alias", None)
-            elif isinstance(fields, list):
-                for field in fields:
-                    if isinstance(field, dict):
-                        field.pop("serialization_alias", None)
+            _remove_model_field_aliases(schema.get("schema"), set())
 
         for value in schema.values():
             _remove_serialization_aliases(value, visited)
@@ -262,6 +286,84 @@ def _is_model_value(value: Any) -> bool:
     )
 
 
+def _serialize_runtime_any_value(value: Any) -> Any:
+    """Serialize a model or container reached through an uncustomized ``Any``.
+
+    Pydantic Core's union serializer does not type-dispatch model serializers,
+    so a union of two model schemas can call the first model's serializer for
+    every value. Building a schema for the actual runtime class avoids that
+    ambiguity and keeps each model serializer to one invocation.
+    """
+    if _is_model_value(value):
+        annotation = type(value)
+    elif isinstance(value, list):
+        annotation = List[Any]
+    elif isinstance(value, tuple):
+        annotation = Tuple[Any, ...]
+    elif isinstance(value, set):
+        annotation = Set[Any]
+    elif isinstance(value, frozenset):
+        annotation = FrozenSet[Any]
+    elif isinstance(value, dict):
+        annotation = Dict[Any, Any]
+    else:
+        return value
+
+    active_value_ids = _RUNTIME_ANY_VALUE_IDS.get()
+    value_id = id(value)
+    if value_id in active_value_ids:
+        raise ValueError("Circular reference detected while serializing an Any value")
+
+    token = _RUNTIME_ANY_VALUE_IDS.set(active_value_ids.union({value_id}))
+    try:
+        serializer = _get_dynamic_json_serializer(annotation, value)
+        return json.loads(serializer.to_json(value))
+    finally:
+        _RUNTIME_ANY_VALUE_IDS.reset(token)
+
+
+def _specialize_model_fields(
+    schema: Any,
+    instances: list[Any],
+    active_value_ids: set[int],
+    definitions: dict[str, dict[str, Any]],
+) -> None:
+    """Follow model wrappers until the model's field schemas are available."""
+    while isinstance(schema, dict):
+        schema_type = schema.get("type")
+        if schema_type in {"model-fields", "dataclass-args"}:
+            fields = schema.get("fields", {})
+            field_items = (
+                fields.items()
+                if isinstance(fields, dict)
+                else ((field.get("name"), field) for field in fields)
+            )
+            for name, field in field_items:
+                if not isinstance(name, str) or not isinstance(field, dict):
+                    continue
+                _specialize_any_schema(
+                    field.get("schema"),
+                    [
+                        getattr(instance, name)
+                        for instance in instances
+                        if hasattr(instance, name)
+                    ],
+                    active_value_ids,
+                    definitions,
+                )
+            return
+        if schema_type in {
+            "function-after",
+            "function-before",
+            "function-wrap",
+            "lax-or-strict",
+            "default",
+        }:
+            schema = schema.get("schema") or schema.get("lax_schema")
+        else:
+            return
+
+
 def _specialize_any_schema(
     schema: Any,
     values: list[Any],
@@ -271,9 +373,10 @@ def _specialize_any_schema(
     """Replace Python 3.8 ``Any`` nodes with schemas for their runtime models.
 
     Pydantic Core 2.27 dispatches an ``Any`` value directly to the model's
-    built-in serializer, which unconditionally uses aliases. Substituting the
-    concrete model schema before the single serialization pass preserves the
-    model's custom serializer while applying its explicit alias policy.
+    built-in serializer, which unconditionally uses aliases. An uncustomized
+    ``Any`` node receives a runtime type-dispatching serializer instead. Nodes
+    with their own serializer are intentionally left unchanged: a user
+    serializer has priority over this compatibility adaptation.
     """
     if not isinstance(schema, dict) or not values:
         return
@@ -285,58 +388,19 @@ def _specialize_any_schema(
 
     schema_type = schema.get("type")
     if schema_type == "any":
-        model_values = [value for value in values if _is_model_value(value)]
-        models: dict[type[Any], list[Any]] = {}
-        for value in model_values:
-            models.setdefault(type(value), []).append(value)
-
-        choices = []
-        for model_type, model_instances in models.items():
-            model_schema = _copy_core_schema(
-                get_cached_typeadapter(model_type).core_schema
-            )
-            _remove_serialization_aliases(model_schema, set())
-            _specialize_any_schema(
-                model_schema, model_instances, active_value_ids, definitions
-            )
-            choices.append(model_schema)
-
-        sequence_values = [
-            value
-            for value in values
-            if isinstance(value, (list, tuple, set, frozenset))
-        ]
-        if sequence_values:
-            sequence_schema: dict[str, Any] = {
-                "type": "list",
-                "items_schema": {"type": "any"},
-            }
-            _specialize_any_schema(
-                sequence_schema, sequence_values, active_value_ids, definitions
-            )
-            choices.append(sequence_schema)
-
-        mapping_values = [value for value in values if isinstance(value, dict)]
-        if mapping_values:
-            mapping_schema: dict[str, Any] = {
-                "type": "dict",
-                "keys_schema": {"type": "any"},
-                "values_schema": {"type": "any"},
-            }
-            _specialize_any_schema(
-                mapping_schema, mapping_values, active_value_ids, definitions
-            )
-            choices.append(mapping_schema)
-
-        known_values = len(model_values) + len(sequence_values) + len(mapping_values)
-        if not choices:
+        if schema.get("serialization") is not None:
             return
-        if len(choices) == 1 and known_values == len(values):
-            schema.clear()
-            schema.update(choices[0])
-        else:
-            schema.clear()
-            schema.update({"type": "union", "choices": [*choices, {"type": "any"}]})
+        if any(
+            _is_model_value(value)
+            or isinstance(value, (list, tuple, set, frozenset, dict))
+            for value in values
+        ):
+            schema["serialization"] = {
+                "type": "function-plain",
+                "function": _serialize_runtime_any_value,
+                "return_schema": {"type": "any"},
+                "when_used": "json",
+            }
         return
 
     if schema_type in {"model-field", "default"}:
@@ -351,7 +415,38 @@ def _specialize_any_schema(
             _specialize_any_schema(definition, values, active_value_ids, definitions)
         return
 
-    if schema_type == "list":
+    if schema_type in {
+        "function-after",
+        "function-before",
+        "function-wrap",
+        "lax-or-strict",
+    }:
+        _specialize_any_schema(
+            schema.get("schema") or schema.get("lax_schema"),
+            values,
+            active_value_ids,
+            definitions,
+        )
+        return
+
+    if schema_type == "json-or-python":
+        _specialize_any_schema(
+            schema.get("python_schema"), values, active_value_ids, definitions
+        )
+        return
+
+    if schema_type == "chain":
+        for step in schema.get("steps", []):
+            _specialize_any_schema(step, values, active_value_ids, definitions)
+        return
+
+    if schema_type == "union":
+        for choice in schema.get("choices", []):
+            choice_schema = choice[0] if isinstance(choice, tuple) else choice
+            _specialize_any_schema(choice_schema, values, active_value_ids, definitions)
+        return
+
+    if schema_type in {"list", "set", "frozenset"}:
         container_ids = {
             id(value)
             for value in values
@@ -373,6 +468,51 @@ def _specialize_any_schema(
         )
         return
 
+    if schema_type == "tuple-variable":
+        items = [item for value in values if isinstance(value, tuple) for item in value]
+        _specialize_any_schema(
+            schema.get("items_schema"), items, active_value_ids, definitions
+        )
+        return
+
+    if schema_type == "tuple":
+        tuple_values = [value for value in values if isinstance(value, tuple)]
+        item_schemas = schema.get("items_schema", [])
+        variadic_item_index = schema.get("variadic_item_index")
+        if isinstance(variadic_item_index, int) and variadic_item_index < len(
+            item_schemas
+        ):
+            _specialize_any_schema(
+                item_schemas[variadic_item_index],
+                [
+                    item
+                    for value in tuple_values
+                    for item in value[variadic_item_index:]
+                ],
+                active_value_ids,
+                definitions,
+            )
+            return
+        for index, item_schema in enumerate(item_schemas):
+            _specialize_any_schema(
+                item_schema,
+                [value[index] for value in tuple_values if len(value) > index],
+                active_value_ids,
+                definitions,
+            )
+        return
+
+    if schema_type == "tuple-positional":
+        tuple_values = [value for value in values if isinstance(value, tuple)]
+        for index, item_schema in enumerate(schema.get("items_schema", [])):
+            _specialize_any_schema(
+                item_schema,
+                [value[index] for value in tuple_values if len(value) > index],
+                active_value_ids,
+                definitions,
+            )
+        return
+
     if schema_type == "dict":
         container_ids = {id(value) for value in values if isinstance(value, dict)}
         if active_value_ids.intersection(container_ids):
@@ -390,6 +530,25 @@ def _specialize_any_schema(
         )
         return
 
+    if schema_type == "typed-dict":
+        fields = schema.get("fields", {})
+        if not isinstance(fields, dict):
+            return
+        for name, field in fields.items():
+            if not isinstance(name, str) or not isinstance(field, dict):
+                continue
+            _specialize_any_schema(
+                field.get("schema"),
+                [
+                    value[name]
+                    for value in values
+                    if isinstance(value, dict) and name in value
+                ],
+                active_value_ids,
+                definitions,
+            )
+        return
+
     if schema_type in {"model", "dataclass"}:
         model_type = schema.get("cls")
         instances = [
@@ -402,23 +561,9 @@ def _specialize_any_schema(
             # See the corresponding list handling above.
             return
         active_value_ids = active_value_ids.union(instance_ids)
-        fields_schema = schema.get("schema", {}).get("fields", {})
-        field_items = (
-            fields_schema.items()
-            if isinstance(fields_schema, dict)
-            else ((field.get("name"), field) for field in fields_schema)
+        _specialize_model_fields(
+            schema.get("schema"), instances, active_value_ids, definitions
         )
-        for name, field in field_items:
-            if not isinstance(name, str) or not isinstance(field, dict):
-                continue
-            field_values = [
-                getattr(instance, name)
-                for instance in instances
-                if hasattr(instance, name)
-            ]
-            _specialize_any_schema(
-                field.get("schema"), field_values, active_value_ids, definitions
-            )
         return
 
     if schema_type == "nullable":
