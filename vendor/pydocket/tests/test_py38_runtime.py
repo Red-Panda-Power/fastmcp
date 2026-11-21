@@ -42,6 +42,19 @@ async def test_cancel_task_supports_python_38_task_cancel() -> None:
     assert task.cancelled()
 
 
+async def test_worker_entrypoint_finishes_without_tasks() -> None:
+    await asyncio.wait_for(
+        Worker.run(
+            docket_name="py38-entrypoint",
+            url="memory://",
+            tasks=[],
+            schedule_automatic_tasks=False,
+            until_finished=True,
+        ),
+        timeout=10,
+    )
+
+
 async def test_memory_worker_run_forever_cancels_cleanly() -> None:
     async with Docket(name="py38-cancellation", url="memory://") as docket:
         async with Worker(docket, concurrency=1) as worker:

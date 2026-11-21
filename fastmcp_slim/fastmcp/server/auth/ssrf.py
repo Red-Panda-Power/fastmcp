@@ -26,6 +26,7 @@ import ipaddress
 import os
 import socket
 from collections.abc import Mapping
+from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -443,7 +444,7 @@ async def ssrf_safe_fetch_response(
             ),
             timeout=overall_timeout,
         )
-    except TimeoutError as exc:
+    except asyncio.TimeoutError as exc:  # noqa: UP041 - Python 3.8
         raise SSRFFetchError(f"Overall timeout exceeded: {url}") from exc
 
 
@@ -488,26 +489,29 @@ async def _ssrf_safe_fetch_response(
 
         try:
             # Use httpx with streaming to enforce size limit during download
-            async with (
-                httpx2.AsyncClient(
-                    timeout=httpx2.Timeout(timeout),
-                    follow_redirects=False,
-                    verify=True,
-                    # Default (pinned) mode has no proxy_url and keeps trust_env's
-                    # normal default (True). Proxy-trust mode sets an explicit
-                    # proxy_url and turns trust_env off, so httpx2 has no environment
-                    # -based routing decision left to make — see validate_url() above
-                    # for why that matters.
-                    proxy=target.proxy_url,
-                    trust_env=target.proxy_url is None,
-                ) as client,
-                client.stream(
-                    "GET",
-                    target.url,
-                    headers=headers,
-                    extensions=extensions,
-                ) as response,
-            ):
+            async with AsyncExitStack() as stack:
+                client = await stack.enter_async_context(
+                    httpx2.AsyncClient(
+                        timeout=httpx2.Timeout(timeout),
+                        follow_redirects=False,
+                        verify=True,
+                        # Default (pinned) mode has no proxy_url and keeps trust_env's
+                        # normal default (True). Proxy-trust mode sets an explicit
+                        # proxy_url and turns trust_env off, so httpx2 has no environment
+                        # -based routing decision left to make — see validate_url() above
+                        # for why that matters.
+                        proxy=target.proxy_url,
+                        trust_env=target.proxy_url is None,
+                    )
+                )
+                response = await stack.enter_async_context(
+                    client.stream(
+                        "GET",
+                        target.url,
+                        headers=headers,
+                        extensions=extensions,
+                    )
+                )
                 if response.status_code not in expected_statuses:
                     raise SSRFFetchError(f"HTTP {response.status_code} fetching {url}")
 

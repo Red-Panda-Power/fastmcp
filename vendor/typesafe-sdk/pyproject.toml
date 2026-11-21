@@ -69,8 +69,8 @@ testpaths = ["compat_tests"]
 markers = ["integration: live API tests requiring TYPESAFE_API_KEY"]
 
 [tool.uv.sources]
-httpx2 = { path = "../httpx2/httpx2" }
-httpcore2 = { path = "../httpx2/httpcore2" }
+httpx2 = { path = "../httpx2/httpx2", editable = true }
+httpcore2 = { path = "../httpx2/httpcore2", editable = true }
 
 [tool.ruff]
 target-version = "py38"

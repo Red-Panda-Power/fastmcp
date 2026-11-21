@@ -1,10 +1,13 @@
 """Regex-based search transform."""
 
+from __future__ import annotations
+
 import time
 from collections.abc import Sequence
-from typing import Annotated, Any
+from typing import Any
 
 from pydantic_core import SchemaError, SchemaValidator, ValidationError, core_schema
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.server.context import Context
 from fastmcp.server.transforms.search.base import (

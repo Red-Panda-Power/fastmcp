@@ -11,9 +11,10 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 from pydantic import BaseModel, Field, field_validator
+from typing_extensions import TypeAlias  # noqa: UP035 - Python 3.8
 
 from fastmcp.utilities.logging import get_logger
 from fastmcp.utilities.mcp_server_config.v1.environments.uv import UVEnvironment

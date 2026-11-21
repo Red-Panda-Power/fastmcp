@@ -8,7 +8,7 @@ import os
 import signal
 import socket
 import time
-from contextlib import AsyncExitStack, contextmanager
+from contextlib import AsyncExitStack, ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from types import TracebackType
@@ -410,10 +410,9 @@ class Worker:
             module = importlib.import_module(module_name)
             dependencies = getattr(module, member_name)
 
-        with (
-            healthcheck_server(port=healthcheck_port),
-            metrics_server(port=metrics_port),
-        ):
+        with ExitStack() as stack:
+            stack.enter_context(healthcheck_server(port=healthcheck_port))
+            stack.enter_context(metrics_server(port=metrics_port))
             async with Docket(
                 name=docket_name,
                 url=url,

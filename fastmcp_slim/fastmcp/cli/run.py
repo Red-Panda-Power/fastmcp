@@ -1,5 +1,7 @@
 """FastMCP run command implementation with enhanced type hints."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import json
@@ -357,19 +359,18 @@ async def run_v1_server_async(
         # `settings.log_level` to uvicorn, so update the setting the SDK reads.
         server.settings.log_level = log_level
 
-    match transport:
-        case "stdio":
-            await server.run_stdio_async()
-        case "http" | "streamable-http" | None:
-            if path is not None:
-                bind_kwargs["streamable_http_path"] = path
-            if stateless:
-                bind_kwargs["stateless_http"] = True
-            await server.run_streamable_http_async(**bind_kwargs)
-        case "sse":
-            if path is not None:
-                bind_kwargs["sse_path"] = path
-            await server.run_sse_async(**bind_kwargs)
+    if transport == "stdio":
+        await server.run_stdio_async()
+    elif transport in ("http", "streamable-http", None):
+        if path is not None:
+            bind_kwargs["streamable_http_path"] = path
+        if stateless:
+            bind_kwargs["stateless_http"] = True
+        await server.run_streamable_http_async(**bind_kwargs)
+    elif transport == "sse":
+        if path is not None:
+            bind_kwargs["sse_path"] = path
+        await server.run_sse_async(**bind_kwargs)
 
 
 def _watch_filter(_change: Change, path: str) -> bool:
@@ -397,7 +398,7 @@ async def _terminate_process(process: asyncio.subprocess.Process) -> None:
         try:
             await asyncio.wait_for(process.wait(), timeout=3.0)
             return
-        except TimeoutError:
+        except asyncio.TimeoutError:  # noqa: UP041 - Python 3.8
             pass
 
         # Force kill the entire process group

@@ -11,7 +11,7 @@ executed.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Generator, Sequence
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import ExitStack, asynccontextmanager, contextmanager
 from typing import TYPE_CHECKING, Any
 
 from pydantic import AnyUrl
@@ -89,15 +89,16 @@ class FastMCPProviderTool(Tool):
         # Pass exact version so child executes the correct version
         version = VersionSpec(eq=self.version) if self.version else None
 
-        with (
-            _delegate_extension_interceptors(self._server),
-            delegate_span(
-                self._original_name or "",
-                "FastMCPProvider",
-                self._original_name or "",
-                method="tools/call",
-            ),
-        ):
+        with ExitStack() as stack:
+            stack.enter_context(_delegate_extension_interceptors(self._server))
+            stack.enter_context(
+                delegate_span(
+                    self._original_name or "",
+                    "FastMCPProvider",
+                    self._original_name or "",
+                    method="tools/call",
+                )
+            )
             return await self._server.call_tool(
                 self._original_name,
                 arguments,

@@ -1,5 +1,7 @@
 """FastMCP CLI tools using Cyclopts."""
 
+from __future__ import annotations
+
 import importlib.metadata
 import importlib.util
 import json
@@ -9,7 +11,7 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Literal
 
 import cyclopts
 import pyperclip
@@ -17,6 +19,7 @@ from cyclopts import Parameter
 from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 import fastmcp
 from fastmcp.cli import run as run_module

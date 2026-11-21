@@ -476,11 +476,13 @@ async def asgi_client(
                 assert result.data == "Hello, World!"
         ```
     """
-    async with (
-        asgi_server(server, transport=transport, path=path) as running_server,
-        running_server.client(headers=headers, auth=auth, **client_kwargs) as client,
-    ):
-        yield client
+    async with asgi_server(  # noqa: SIM117 - Python 3.8
+        server, transport=transport, path=path
+    ) as running_server:
+        async with running_server.client(
+            headers=headers, auth=auth, **client_kwargs
+        ) as client:
+            yield client
 
 
 class HeadlessOAuth(OAuth):

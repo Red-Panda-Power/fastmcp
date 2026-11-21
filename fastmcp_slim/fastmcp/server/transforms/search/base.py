@@ -27,10 +27,15 @@ Example::
     mcp.add_transform(RegexSearchTransform())
 """
 
+from __future__ import annotations
+
 import json
+import typing
 from abc import abstractmethod
-from collections.abc import Awaitable, Callable, Sequence
-from typing import Annotated, Any
+from collections.abc import Awaitable, Sequence
+from typing import Any
+
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.exceptions import NotFoundError
 from fastmcp.server.context import Context
@@ -67,7 +72,13 @@ def serialize_tools_for_output_json(tools: Sequence[Tool]) -> list[dict[str, Any
     ]
 
 
-SearchResultSerializer = Callable[[Sequence[Tool]], Any | Awaitable[Any]]
+_Callable = typing.Callable
+_Sequence = typing.Sequence
+_Awaitable = typing.Awaitable
+SearchResultSerializer = _Callable[
+    [_Sequence[Tool]],
+    typing.Union[Any, _Awaitable[Any]],  # noqa: UP007 - Python 3.8
+]
 
 
 async def _invoke_serializer(

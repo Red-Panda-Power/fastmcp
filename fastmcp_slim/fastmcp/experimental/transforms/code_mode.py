@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import asyncio
 import importlib
 import json
 import sys
-from collections.abc import Awaitable, Callable, Sequence
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Protocol
+import typing
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Protocol
+
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 if TYPE_CHECKING:
     from pydantic_monty import ResourceLimits
@@ -30,13 +35,17 @@ from fastmcp.utilities.versions import VersionSpec
 # Type aliases
 # ---------------------------------------------------------------------------
 
-GetToolCatalog = Callable[[Context], Awaitable[Sequence[Tool]]]
+_Callable = typing.Callable
+_Awaitable = typing.Awaitable
+_Sequence = typing.Sequence
+
+GetToolCatalog = _Callable[[Context], _Awaitable[_Sequence[Tool]]]
 """Async callable that returns the auth-filtered tool catalog."""
 
-SearchFn = Callable[[Sequence[Tool], str], Awaitable[Sequence[Tool]]]
+SearchFn = _Callable[[_Sequence[Tool], str], _Awaitable[_Sequence[Tool]]]
 """Async callable that searches a tool sequence by query string."""
 
-DiscoveryToolFactory = Callable[[GetToolCatalog], Tool]
+DiscoveryToolFactory = _Callable[[GetToolCatalog], Tool]
 """Factory that receives catalog access and returns a synthetic Tool."""
 
 
@@ -164,7 +173,7 @@ class _UnsetType:
 _UNSET = _UnsetType()
 
 
-_DEFAULT_LIMITS: "ResourceLimits" = {
+_DEFAULT_LIMITS: ResourceLimits = {
     "max_feed_duration_secs": 30.0,
     "max_memory": 100_000_000,  # 100 MB
 }
@@ -200,7 +209,7 @@ class MontySandboxProvider:
     def __init__(
         self,
         *,
-        limits: "ResourceLimits | None | _UnsetType" = _UNSET,
+        limits: ResourceLimits | None | _UnsetType = _UNSET,
     ) -> None:
         # Copy the baseline so each provider owns its dict — `limits` is a
         # mutable public attribute, and sharing the module-level object would
@@ -302,15 +311,13 @@ class MontySandboxProvider:
         Isolated so the cancellation handling in `run()` can be exercised
         without a live `pydantic-monty` runtime.
         """
-        async with (
-            pydantic_monty.AsyncMonty() as pool,
-            pool.checkout(limits=self.limits) as session,
-        ):
-            return await session.feed_run(
-                code,
-                inputs=inputs,
-                external_lookup=external_functions,
-            )
+        async with pydantic_monty.AsyncMonty() as pool:  # noqa: SIM117 - Python 3.8
+            async with pool.checkout(limits=self.limits) as session:
+                return await session.feed_run(
+                    code,
+                    inputs=inputs,
+                    external_lookup=external_functions,
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -761,7 +768,7 @@ class CodeMode(CatalogTransform):
                 return await run
             try:
                 return await asyncio.wait_for(run, timeout)
-            except TimeoutError as exc:
+            except asyncio.TimeoutError as exc:  # noqa: UP041 - Python 3.8
                 raise ToolError(
                     f"Execution exceeded the wall-clock limit of {timeout} seconds."
                 ) from exc

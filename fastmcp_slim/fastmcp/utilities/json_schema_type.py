@@ -69,19 +69,18 @@ from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from types import MappingProxyType
 from typing import (
-    Annotated,
     Any,
     ForwardRef,
     Generic,
     Literal,
-    NotRequired,
     TypeVar,
     Union,
     cast,
-    get_args,
-    get_type_hints,
     overload,
 )
+from typing import Dict as _LegacyDict  # noqa: UP035 - Python 3.8
+from typing import List as _LegacyList  # noqa: UP035 - Python 3.8
+from typing import Tuple as _LegacyTuple  # noqa: UP035 - Python 3.8
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -105,9 +104,21 @@ from pydantic import (
 from pydantic.fields import FieldInfo
 from pydantic_core import SchemaError as _PydanticSchemaError
 from pydantic_core import core_schema
-from typing_extensions import TypedDict
+from typing_extensions import (  # noqa: UP035 - Python 3.8
+    Annotated,
+    NotRequired,
+    TypedDict,
+    get_args,
+    get_type_hints,
+)
+
+from fastmcp.utilities._dataclasses import dataclass as compatible_dataclass
 
 __all__ = ["JSONSchema", "json_schema_to_type"]
+
+_RuntimeDict: Any = dict if sys.version_info >= (3, 9) else _LegacyDict  # noqa: UP006 - Python 3.8
+_RuntimeList: Any = list if sys.version_info >= (3, 9) else _LegacyList  # noqa: UP006 - Python 3.8
+_RuntimeTuple: Any = tuple if sys.version_info >= (3, 9) else _LegacyTuple  # noqa: UP006 - Python 3.8
 
 
 def _check_nesting(schema: Any) -> None:
@@ -925,7 +936,7 @@ def _create_prefix_items_type(
 
     # The source type carries the position types so recursive references in
     # them are resolved; validation and the JSON schema come from build_schema.
-    source = tuple[tuple[prefix_types], item_type]  # ty:ignore[invalid-type-form]
+    source = _RuntimeTuple[_RuntimeTuple[prefix_types], item_type]
     return Annotated[source, GetPydanticSchema(build_schema, build_json_schema)]
 
 
@@ -948,7 +959,7 @@ def _create_array_type(
         positional_types = tuple(
             _schema_to_type(s, schemas, resolving_refs) for s in prefix_items
         )
-        base = tuple[positional_types]  # type: ignore[valid-type]  # ty:ignore[invalid-type-form]
+        base = _RuntimeTuple[positional_types]
     elif isinstance(prefix_items, list):
         prefix_types = tuple(
             _schema_to_type(s, schemas, resolving_refs) for s in prefix_items
@@ -966,11 +977,11 @@ def _create_array_type(
         # Handle positional item schemas
         item_types = [_schema_to_type(s, schemas, resolving_refs) for s in items]
         combined = Union[tuple(item_types)]  # noqa: UP007
-        base = list[combined]  # type: ignore[valid-type]  # ty:ignore[invalid-type-form]
+        base = _RuntimeList[combined]
     else:
         # Handle single item schema
         item_type = _schema_to_type(items, schemas, resolving_refs)
-        base = list[item_type]  # type: ignore[valid-type]  # ty:ignore[invalid-type-form]
+        base = _RuntimeList[item_type]
 
     constraints = {
         k: v
@@ -1024,12 +1035,12 @@ def _object_schema_to_type(
 
     if not has_properties and additional_props:
         if additional_props is True:
-            return dict[str, Any]
+            return _RuntimeDict[str, Any]
         value_type = _schema_to_type(additional_props, schemas, resolving_refs)
-        return cast(type[Any], dict[str, value_type])  # type: ignore[valid-type]  # ty:ignore[invalid-type-form]
+        return cast("type[Any]", _RuntimeDict[str, value_type])
 
     if not has_properties and not additional_props:
-        return dict[str, Any]
+        return _RuntimeDict[str, Any]
 
     if has_properties and (
         additional_props is True or isinstance(additional_props, Mapping)
@@ -1282,7 +1293,10 @@ def safe_create_model(
                 default = Field(default=default, alias=prop_name)
         fields[field_name] = (annotation, default)
     if extra_value_type is not None:
-        fields["__pydantic_extra__"] = (dict[str, extra_value_type], Field(init=False))
+        fields["__pydantic_extra__"] = (
+            _RuntimeDict[str, extra_value_type],
+            Field(init=False),
+        )
     return create_model(name, __config__=config, **fields)
 
 
@@ -1308,7 +1322,7 @@ def _create_field_with_default(
 ) -> Any:
     """Create a field with simplified default handling."""
     # Always use None as default for complex types
-    if isinstance(default_value, dict | list) or default_value is None:
+    if isinstance(default_value, (dict, list)) or default_value is None:
         return field(default=None)
 
     # For simple types, use the value directly
@@ -1537,7 +1551,7 @@ def _build_dataclass(
             meta["validate_default"] = _default_is_valid(field_type, default_val)
             if not meta["validate_default"]:
                 unchecked.append(field_name)
-            if isinstance(default_val, dict | list):
+            if isinstance(default_val, (dict, list)):
                 field_def = field(
                     default_factory=lambda d=default_val: deepcopy(d), metadata=meta
                 )
@@ -1554,7 +1568,21 @@ def _build_dataclass(
         else:
             fields.append((field_name, Union[field_type, type(None)], field_def))  # type: ignore[misc]  # noqa: UP007  # ty:ignore[invalid-type-form]
 
-    cls = make_dataclass(sanitized_name, fields, kw_only=True)
+    if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+        # Older dataclasses reject a required field following a default even
+        # when every field is keyword-only. Process required fields first.
+        fields.sort(
+            key=lambda item: item[2].default is not MISSING
+            or item[2].default_factory is not MISSING
+        )
+        namespace: dict[str, Any] = {
+            "__module__": __name__,
+            "__annotations__": {name: annotation for name, annotation, _ in fields},
+        }
+        namespace.update({name: value for name, _, value in fields})
+        cls = compatible_dataclass(type(sanitized_name, (), namespace), kw_only=True)
+    else:
+        cls = make_dataclass(sanitized_name, fields, kw_only=True)
 
     # Add model validator for defaults
     @model_validator(mode="before")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import weakref
 from collections.abc import Generator, Mapping
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
@@ -182,11 +182,10 @@ class FastMCPServerMiddleware:
         from fastmcp.server.dependencies import bind_request_context
 
         fastmcp = self._ref()
-        with (
-            self._apply_shared_context(fastmcp),
-            bind_request_context(ctx),
-            self._seam_span(fastmcp, ctx),
-        ):
+        with ExitStack() as stack:
+            stack.enter_context(self._apply_shared_context(fastmcp))
+            stack.enter_context(bind_request_context(ctx))
+            stack.enter_context(self._seam_span(fastmcp, ctx))
             if fastmcp is None:
                 return await call_next(ctx)
             if ctx.method == "initialize" and ctx.request_id is not None:
