@@ -33,8 +33,12 @@ from __future__ import annotations
 
 import hashlib
 import time
-from types import UnionType
-from typing import Literal, get_args
+from typing import Literal, Union, get_args, get_origin
+
+try:
+    from types import UnionType
+except ImportError:  # pragma: no cover - Python 3.8
+    UnionType = None  # type: ignore[assignment,misc]
 
 from key_value.aio.adapters.pydantic import PydanticAdapter
 from key_value.aio.protocols import AsyncKeyValue
@@ -68,7 +72,9 @@ def _cacheable_result_models() -> dict[str, type[CacheableResult]]:
     """
     models: dict[str, type[CacheableResult]] = {}
     for row in MONOLITH_RESULTS.values():
-        arms = get_args(row) if isinstance(row, UnionType) else (row,)
+        origin = get_origin(row)
+        is_union = origin is Union or (UnionType is not None and origin is UnionType)
+        arms = get_args(row) if is_union else (row,)
         for arm in arms:
             if isinstance(arm, type) and issubclass(arm, CacheableResult):
                 models[arm.__name__] = arm
