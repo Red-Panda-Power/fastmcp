@@ -1,5 +1,7 @@
 """Error handling middleware for consistent error responses and tracking."""
 
+from __future__ import annotations
+
 import logging
 import traceback
 from collections.abc import Callable
