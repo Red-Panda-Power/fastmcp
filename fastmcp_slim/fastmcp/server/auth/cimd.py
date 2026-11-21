@@ -21,7 +21,7 @@ import json
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC
+from datetime import timezone
 from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlparse
@@ -262,7 +262,7 @@ class CIMDFetcher:
 
         for directive in directives:
             if directive.startswith("max-age="):
-                value = directive.removeprefix("max-age=").strip()
+                value = directive[len("max-age=") :].strip()
                 try:
                     max_age = max(0, int(value))
                 except ValueError:
@@ -278,7 +278,7 @@ class CIMDFetcher:
             try:
                 dt = parsedate_to_datetime(normalized["expires"])
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=UTC)
+                    dt = dt.replace(tzinfo=timezone.utc)  # noqa: UP017
                 expires_at = dt.timestamp()
             except (TypeError, ValueError):
                 logger.debug(

@@ -9,16 +9,19 @@ This implementation is based on:
     OAuth 2.0 Authorization Server Metadata - https://datatracker.ietf.org/doc/html/rfc8414
 """
 
+from __future__ import annotations
+
 from collections import OrderedDict
 from collections.abc import Sequence
 from copy import deepcopy
 from threading import Lock
 from time import monotonic
-from typing import Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx2
 from key_value.aio.protocols import AsyncKeyValue
 from pydantic import AnyHttpUrl, BaseModel, model_validator
+from typing_extensions import Self, TypeAlias  # noqa: UP035 - Python 3.8
 
 from fastmcp.server.auth import TokenVerifier
 from fastmcp.server.auth.identity_assertion import IdentityAssertion
@@ -41,8 +44,14 @@ _OIDC_DISCOVERY_CACHE_TTL_SECONDS = 300
 #: Maximum number of distinct discovery configurations cached per process.
 _OIDC_DISCOVERY_CACHE_MAX_SIZE = 128
 
-_OIDCDiscoveryCacheKey = tuple[type[BaseModel], str, bool | None, int | None]
-_OIDCDiscoveryCacheValue = tuple[float, dict[str, Any]]
+if TYPE_CHECKING:
+    _OIDCDiscoveryCacheKey: TypeAlias = tuple[
+        type[BaseModel], str, bool | None, int | None
+    ]
+    _OIDCDiscoveryCacheValue: TypeAlias = tuple[float, dict[str, Any]]
+else:
+    _OIDCDiscoveryCacheKey = Any
+    _OIDCDiscoveryCacheValue = Any
 _oidc_configuration_cache: OrderedDict[
     _OIDCDiscoveryCacheKey, _OIDCDiscoveryCacheValue
 ] = OrderedDict()

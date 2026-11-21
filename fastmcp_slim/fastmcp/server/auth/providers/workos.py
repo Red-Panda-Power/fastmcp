@@ -10,25 +10,31 @@ Choose based on your WorkOS setup and authentication requirements.
 
 from __future__ import annotations
 
-import contextlib
-from typing import Annotated, Literal
+from typing import Literal
 
 import httpx2
 from key_value.aio.protocols import AsyncKeyValue
 from pydantic import AnyHttpUrl, TypeAdapter, UrlConstraints
 from starlette.routing import Route
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.server.auth import AccessToken, RemoteAuthProvider, TokenVerifier
 from fastmcp.server.auth.identity_assertion import IdentityAssertion
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
+from fastmcp.server.auth.providers._async_context import async_nullcontext
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.utilities.auth import parse_scopes
 from fastmcp.utilities.logging import get_logger
 
 logger = get_logger(__name__)
 
+try:
+    _AUTHKIT_URL_CONSTRAINTS = UrlConstraints(preserve_empty_path=True)
+except TypeError:  # Pydantic < 2.11, required for Python 3.8
+    _AUTHKIT_URL_CONSTRAINTS = UrlConstraints()
+
 _AUTHKIT_AUTHORIZATION_SERVER_URL_ADAPTER = TypeAdapter(
-    Annotated[AnyHttpUrl, UrlConstraints(preserve_empty_path=True)]
+    Annotated[AnyHttpUrl, _AUTHKIT_URL_CONSTRAINTS]
 )
 
 
@@ -66,7 +72,7 @@ class WorkOSTokenVerifier(TokenVerifier):
         """Verify WorkOS OAuth token by calling userinfo endpoint."""
         try:
             async with (
-                contextlib.nullcontext(self._http_client)
+                async_nullcontext(self._http_client)
                 if self._http_client is not None
                 else httpx2.AsyncClient(timeout=self.timeout_seconds)
             ) as client:

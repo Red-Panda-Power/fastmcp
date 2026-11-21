@@ -261,7 +261,7 @@ class ConsentMixin:
                 continue
             txn_id = data.get("txn")
             issued_at = data.get("iat")
-            if isinstance(txn_id, str) and isinstance(issued_at, int | float):
+            if isinstance(txn_id, str) and isinstance(issued_at, (int, float)):
                 found[name] = (txn_id, float(issued_at))
         return found
 

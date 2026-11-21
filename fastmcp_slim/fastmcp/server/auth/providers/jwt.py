@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
 import math
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import anyio
 import httpx2
@@ -18,16 +17,20 @@ from joserfc.errors import JoseError
 from joserfc.jws import JWSRegistry
 from joserfc.registry import JWS_HEADER_REGISTRY
 from pydantic import AnyHttpUrl, SecretStr
-from typing_extensions import TypedDict
+from typing_extensions import TypeAlias, TypedDict  # noqa: UP035 - Python 3.8
 
 from fastmcp.server.auth import AccessToken, TokenVerifier
+from fastmcp.server.auth.providers._async_context import async_nullcontext
 from fastmcp.server.auth.ssrf import SSRFError, SSRFFetchError, ssrf_safe_fetch
 from fastmcp.utilities.auth import decode_jwt_header, parse_scopes
 from fastmcp.utilities.logging import get_logger
 
 logger = get_logger(__name__)
 
-JWKKeyData: TypeAlias = dict[str, str | list[str]]
+if TYPE_CHECKING:
+    JWKKeyData: TypeAlias = dict[str, str | list[str]]
+else:
+    JWKKeyData = Any
 SUPPORTED_JWS_HEADER_FIELDS = frozenset(JWS_HEADER_REGISTRY)
 
 # Tolerance for `nbf`, so a token minted by an issuer whose clock runs slightly
@@ -98,12 +101,17 @@ class JWKSData(TypedDict):
     keys: list[JWKData]
 
 
-@dataclass(frozen=True, kw_only=True, repr=False)
+@dataclass(frozen=True, repr=False, init=False)
 class RSAKeyPair:
     """RSA key pair for JWT testing."""
 
     private_key: SecretStr
     public_key: str
+
+    def __init__(self, *, private_key: SecretStr, public_key: str) -> None:
+        """Initialize an immutable key pair with keyword-only arguments."""
+        object.__setattr__(self, "private_key", private_key)
+        object.__setattr__(self, "public_key", public_key)
 
     @classmethod
     def generate(cls) -> RSAKeyPair:
@@ -498,7 +506,7 @@ class JWTVerifier(TokenVerifier):
             return json.loads(content)
         else:
             async with (
-                contextlib.nullcontext(self._http_client)
+                async_nullcontext(self._http_client)
                 if self._http_client is not None
                 else httpx2.AsyncClient(timeout=httpx2.Timeout(10.0))
             ) as client:
