@@ -4,6 +4,8 @@ This module provides secure redirect URI validation with wildcard support,
 protecting against userinfo-based bypass attacks like http://localhost@evil.com.
 """
 
+from __future__ import annotations
+
 import fnmatch
 import ipaddress
 from urllib.parse import unquote, urlencode, urlparse, urlunparse

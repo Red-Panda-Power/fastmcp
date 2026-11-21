@@ -22,7 +22,6 @@ Example:
 
 from __future__ import annotations
 
-import contextlib
 from typing import Literal
 
 import httpx2
@@ -33,6 +32,7 @@ from fastmcp.server.auth import TokenVerificationError, TokenVerifier
 from fastmcp.server.auth.auth import AccessToken
 from fastmcp.server.auth.identity_assertion import IdentityAssertion
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
+from fastmcp.server.auth.providers._async_context import async_nullcontext
 from fastmcp.utilities.auth import parse_scopes
 from fastmcp.utilities.logging import get_logger
 from fastmcp.utilities.token_cache import TokenCache
@@ -128,7 +128,7 @@ class GitHubTokenVerifier(TokenVerifier):
 
         try:
             async with (
-                contextlib.nullcontext(self._http_client)
+                async_nullcontext(self._http_client)
                 if self._http_client is not None
                 else httpx2.AsyncClient(timeout=self.timeout_seconds)
             ) as client:

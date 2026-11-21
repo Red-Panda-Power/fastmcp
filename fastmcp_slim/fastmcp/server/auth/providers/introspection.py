@@ -24,7 +24,6 @@ Example:
 from __future__ import annotations
 
 import base64
-import contextlib
 import time
 from typing import Any, Literal, get_args
 
@@ -32,6 +31,7 @@ import httpx2
 from pydantic import AnyHttpUrl, SecretStr
 
 from fastmcp.server.auth import AccessToken, TokenVerifier
+from fastmcp.server.auth.providers._async_context import async_nullcontext
 from fastmcp.utilities.auth import parse_scopes
 from fastmcp.utilities.logging import get_logger
 from fastmcp.utilities.token_cache import TokenCache
@@ -213,7 +213,7 @@ class IntrospectionTokenVerifier(TokenVerifier):
 
         try:
             async with (
-                contextlib.nullcontext(self._http_client)
+                async_nullcontext(self._http_client)
                 if self._http_client is not None
                 else httpx2.AsyncClient(timeout=self.timeout_seconds)
             ) as client:

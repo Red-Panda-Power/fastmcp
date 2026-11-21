@@ -39,6 +39,7 @@ from fastmcp.server.auth import TokenVerifier
 from fastmcp.server.auth.auth import AccessToken
 from fastmcp.server.auth.identity_assertion import IdentityAssertion
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
+from fastmcp.server.auth.providers._async_context import async_nullcontext
 from fastmcp.utilities.auth import parse_scopes
 from fastmcp.utilities.logging import get_logger
 
@@ -51,7 +52,10 @@ def _normalize_domain(domain: str) -> str:
     The Clerk dashboard shows the Frontend API URL with its scheme, so users
     often pass it in that form.
     """
-    return domain.removeprefix("https://").removeprefix("http://").rstrip("/")
+    for prefix in ("https://", "http://"):
+        if domain.startswith(prefix):
+            domain = domain[len(prefix) :]
+    return domain.rstrip("/")
 
 
 class ClerkTokenVerifier(TokenVerifier):
@@ -115,7 +119,7 @@ class ClerkTokenVerifier(TokenVerifier):
         """
         try:
             async with (
-                contextlib.nullcontext(self._http_client)
+                async_nullcontext(self._http_client)
                 if self._http_client is not None
                 else httpx2.AsyncClient(timeout=self.timeout_seconds)
             ) as client:

@@ -368,11 +368,10 @@ class AzureProvider(OAuthProxy):
             )
 
         if custom_domain is not None:
-            custom_domain = (
-                custom_domain.removeprefix("https://")
-                .removeprefix("http://")
-                .rstrip("/")
-            )
+            for prefix in ("https://", "http://"):
+                if custom_domain.startswith(prefix):
+                    custom_domain = custom_domain[len(prefix) :]
+            custom_domain = custom_domain.rstrip("/")
 
         authority = custom_domain or f"{tenant_name}.b2clogin.com"
         tenant_path = f"{tenant_name}.onmicrosoft.com/{policy_name}"
@@ -489,7 +488,7 @@ class AzureProvider(OAuthProxy):
         unchanged.
         """
         prefix = f"{self.identifier_uri}/"
-        return [s.removeprefix(prefix) for s in scopes]
+        return [s[len(prefix) :] if s.startswith(prefix) else s for s in scopes]
 
     def _build_upstream_authorize_url(
         self, txn_id: str, transaction: dict[str, Any]
