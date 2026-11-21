@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "py-key-value-aio"
+version = "0.4.6"
+description = "Async key-value store with pluggable backends"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+dependencies = [
+    "beartype>=0.19,<0.20; python_version < '3.9'",
+    "beartype>=0.20; python_version >= '3.9'",
+    "typing-extensions>=4.13.0",
+]
+
+[project.optional-dependencies]
+memory = ["cachetools>=5.0.0"]
+disk = [
+    "diskcache>=5.0.0",
+    "pathvalidate>=3.2,<3.3; python_version < '3.9'",
+    "pathvalidate>=3.3.1; python_version >= '3.9'",
+]
+filetree = [
+    "aiofile>=3.5.0,!=3.9.0,<3.10; python_version < '3.11'",
+    "aiofile>=3.12.3; python_version >= '3.11'",
+    "anyio>=4.4.0",
+]
+redis = ["redis>=4.3.0"]
+keyring = [
+    "keyring>=25.5,<25.6; python_version < '3.9'",
+    "keyring>=25.6.0; python_version >= '3.9'",
+]
+pydantic = [
+    "pydantic==2.10.6; python_version < '3.9'",
+    "pydantic>=2.11.9; python_version >= '3.9'",
+]
+wrappers-encryption = ["cryptography>=45.0.0"]
+
+[dependency-groups]
+dev = [
+    "py-key-value-aio[disk,memory,filetree,keyring,pydantic,redis,wrappers-encryption]",
+    "dirty-equals>=0.9.0",
+    "fakeredis>=2.0.0",
+    "inline-snapshot>=0.27.2",
+    "pytest>=8.3.3,<9",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+    "pytest-timeout>=2.4.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/key_value"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = ["--inline-snapshot=disable"]
+testpaths = ["tests/stores/memory", "tests/stores/filetree", "tests/stores/wrappers", "tests/adapters"]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 140

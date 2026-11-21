@@ -12,6 +12,8 @@ The SDK's Python 3.8 dependency set also uses local backports of `typing-inspect
 
 `uncalled-for` 0.6.1, the dependency injection engine, is vendored under `vendor/uncalled-for`. Its upstream tests run on Python 3.8 and 3.12, and the FastMCP dependency and shared-context tests pass with this copy on Python 3.12. The root project has not yet switched to this copy; its Python 3.8 integration remains to be verified as part of the workspace port.
 
+`py-key-value-aio` 0.4.6 is being backported under `vendor/py-key-value`. Its in-memory, file-tree, Pydantic, encryption, size-limit, and statistics paths have focused Python 3.8 tests; Redis and keyring are also exercised against test doubles. The package still needs its other backend extras audited and restored, and the root project continues to use the published package.
+
 The `prefab-ui` dependency is now restricted to Python 3.10 and newer; MCP Apps UI is unavailable on Python 3.8. The dependency audit below records the original constraints before this change.
 
 ## Dependency audit
