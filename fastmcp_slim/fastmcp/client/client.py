@@ -129,7 +129,9 @@ T = TypeVar("T", bound="ClientTransport")
 ResultT = TypeVar("ResultT")
 CacheableT = TypeVar("CacheableT", bound=mcp_types.CacheableResult)
 
-ConnectMode = Literal["legacy", "auto"] | str
+# The literal arms are already members of `str`; retaining only `str` avoids
+# evaluating a Python 3.10 union expression at module import on Python 3.8.
+ConnectMode = str
 """How the client negotiates the protocol era at connect time.
 
 - ``"auto"`` (the default): probe ``server/discover`` at the newest modern version and
@@ -251,7 +253,7 @@ def _connection_failure(exception: BaseException) -> BaseException:
     transport error, depending on the race. Types callers reasonably branch on
     are passed through untouched.
     """
-    if isinstance(exception, httpx2.HTTPStatusError | MCPError):
+    if isinstance(exception, (httpx2.HTTPStatusError, MCPError)):  # noqa: UP038, RUF100 - Python 3.8
         return exception
     return RuntimeError(f"Client failed to connect: {exception}")
 
@@ -477,7 +479,7 @@ class Client(
             from fastmcp.client.transports.http import StreamableHttpTransport
             from fastmcp.client.transports.sse import SSETransport
 
-            if isinstance(self.transport, StreamableHttpTransport | SSETransport):
+            if isinstance(self.transport, (StreamableHttpTransport, SSETransport)):  # noqa: UP038, RUF100 - Python 3.8
                 self.transport.verify = verify
                 # Re-sync existing OAuth auth with the new verify setting,
                 # but only if neither the transport nor the auth provider has

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import importlib
 from collections.abc import AsyncGenerator
@@ -21,7 +23,7 @@ if TYPE_CHECKING:
     from fastmcp.server.server import FastMCP
 
 
-def _lowlevel_of(server: "FastMCP[Any] | SDKServer") -> Server:
+def _lowlevel_of(server: FastMCP[Any] | SDKServer) -> Server:
     """Resolve the underlying lowlevel MCP `Server` for either server type.
 
     The SDK's own high-level `MCPServer` exposes its lowlevel server as
@@ -44,7 +46,7 @@ class FastMCPTransport(ClientTransport):
     runtime.
     """
 
-    def __init__(self, mcp: "FastMCP[Any] | SDKServer", raise_exceptions: bool = False):
+    def __init__(self, mcp: FastMCP[Any] | SDKServer, raise_exceptions: bool = False):
         """Initialize a FastMCPTransport from a FastMCP server instance."""
 
         # Accept both fastmcp FastMCP servers and the SDK's MCPServer. Their underlying
@@ -117,7 +119,7 @@ class FastMCPTransport(ClientTransport):
 
 @contextlib.asynccontextmanager
 async def _enter_server_lifespan(
-    server: "FastMCP[Any] | SDKServer",
+    server: FastMCP[Any] | SDKServer,
 ) -> AsyncGenerator[None, None]:
     """Enters the server's lifespan context for FastMCP servers and does nothing for the SDK's own high-level servers."""
     FastMCP2: type[Any] | None

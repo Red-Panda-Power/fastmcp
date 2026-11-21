@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import httpx2
 from pydantic import SecretStr
 

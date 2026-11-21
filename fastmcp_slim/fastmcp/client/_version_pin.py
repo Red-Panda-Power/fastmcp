@@ -14,6 +14,8 @@ bare flag would also exempt an unrelated ``Client`` call made from inside that
 handler.
 """
 
+from __future__ import annotations
+
 from contextvars import ContextVar
 from typing import NamedTuple
 

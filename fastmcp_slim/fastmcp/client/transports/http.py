@@ -127,7 +127,7 @@ class StreamableHttpTransport(ClientTransport):
                 if factory is not None:
                     auth.httpx_client_factory = factory
             resolved = auth
-        elif isinstance(
+        elif isinstance(  # noqa: UP038, RUF100 - Python 3.8
             auth, (ClientCredentialsOAuthProvider, PrivateKeyJWTOAuthProvider)
         ):
             auth._bind(self.url)
@@ -226,21 +226,18 @@ class StreamableHttpTransport(ClientTransport):
 
         # Ensure httpx client is closed after use. SDK v2 streamable_http_client
         # yields a 2-tuple (read, write); get_session_id is gone from the transport.
-        async with (
-            http_client,
-            streamable_http_client(
+        # Python 3.8 has no parenthesized multi-context-manager syntax.
+        async with http_client:  # noqa: SIM117 - Python 3.8
+            async with streamable_http_client(
                 self.url,
                 http_client=http_client,
                 max_sse_event_size=self.max_sse_event_size,
-            ) as (
-                read_stream,
-                write_stream,
-            ),
-            options.session_class(
-                read_stream, write_stream, **session_kwargs
-            ) as session,
-        ):
-            yield session
+            ) as streams:
+                read_stream, write_stream = streams
+                async with options.session_class(
+                    read_stream, write_stream, **session_kwargs
+                ) as session:
+                    yield session
 
     def get_session_id(self) -> str | None:
         return self._session_id

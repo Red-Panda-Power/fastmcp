@@ -147,7 +147,7 @@ async def _drive_flow_tracking_step_up(
     token = _in_step_up.set(False)
     try:
         try:
-            outgoing = await anext(flow)
+            outgoing = await flow.__anext__()
         except StopAsyncIteration:
             return
         while True:

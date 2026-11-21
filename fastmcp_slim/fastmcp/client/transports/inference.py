@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 import warnings
 from pathlib import Path
@@ -174,21 +176,21 @@ def infer_transport(
         inferred_transport = infer_transport(Path(transport))
 
     # the transport is an http(s) URL
-    elif isinstance(transport, AnyUrl | str) and str(transport).startswith("http"):
+    elif isinstance(transport, (AnyUrl, str)) and str(transport).startswith("http"):  # noqa: UP038, RUF100 - Python 3.8
         inferred_transport_type = infer_transport_type_from_url(
-            cast(AnyUrl | str, transport)
+            cast("AnyUrl | str", transport)
         )
         if inferred_transport_type == "sse":
-            inferred_transport = SSETransport(url=cast(AnyUrl | str, transport))
+            inferred_transport = SSETransport(url=cast("AnyUrl | str", transport))
         else:
             inferred_transport = StreamableHttpTransport(
-                url=cast(AnyUrl | str, transport)
+                url=cast("AnyUrl | str", transport)
             )
 
     # if the transport is a config dict or MCPConfig
-    elif isinstance(transport, dict | MCPConfig):
+    elif isinstance(transport, (dict, MCPConfig)):  # noqa: UP038, RUF100 - Python 3.8
         inferred_transport = MCPConfigTransport(
-            config=cast(dict | MCPConfig, transport)
+            config=cast("dict[str, Any] | MCPConfig", transport)
         )
 
     # the transport is an unknown type

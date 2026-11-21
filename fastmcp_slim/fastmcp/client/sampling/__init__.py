@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+# ruff: noqa: UP006, UP007, UP035 - evaluated aliases must run on Python 3.8.
+
 import inspect
-from collections.abc import Awaitable, Callable
-from typing import TypeAlias, TypeVar, cast
+from typing import Awaitable, Callable, List, TypeVar, Union, cast
+
+from typing_extensions import TypeAlias
 
 import mcp_types
 from mcp import ClientSession, CreateMessageResult
@@ -11,9 +16,9 @@ from mcp_types import CreateMessageRequestParams as SamplingParams
 from mcp_types import CreateMessageResultWithTools, SamplingMessage
 
 # Result type that handlers can return
-SamplingHandlerResult: TypeAlias = (
-    str | CreateMessageResult | CreateMessageResultWithTools
-)
+SamplingHandlerResult: TypeAlias = Union[
+    str, CreateMessageResult, CreateMessageResultWithTools
+]
 
 # Session type for sampling handlers - works with both client and server sessions
 SessionT = TypeVar("SessionT", ClientSession, ServerSession)
@@ -23,11 +28,11 @@ SessionT = TypeVar("SessionT", ClientSession, ServerSession)
 # and return LLM responses.
 SamplingHandler: TypeAlias = Callable[
     [
-        list[SamplingMessage],
+        List[SamplingMessage],
         SamplingParams,
         RequestContext[SessionT, LifespanContextT],
     ],
-    SamplingHandlerResult | Awaitable[SamplingHandlerResult],
+    Union[SamplingHandlerResult, Awaitable[SamplingHandlerResult]],
 ]
 
 
