@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from key_value._typing_compat import runtime_typing as _py38_typing
-from typing import overload
+from typing import Any, overload
 
 from typing_extensions import override
 
@@ -20,11 +20,18 @@ try:
         NodeAddress,
         ServerCredentials,
     )
-except ImportError as e:
-    msg = "ValkeyStore requires py-key-value-aio[valkey]"
-    raise ImportError(msg) from e
+except ImportError:
+    try:
+        from redis.asyncio import Redis
+    except ImportError as redis_error:
+        msg = "ValkeyStore requires py-key-value-aio[valkey]"
+        raise ImportError(msg) from redis_error
 
-ValkeyClient = _py38_typing.Union[GlideClient, GlideClusterClient]
+    _GLIDE_AVAILABLE = False
+    ValkeyClient = Redis
+else:
+    _GLIDE_AVAILABLE = True
+    ValkeyClient = _py38_typing.Union[GlideClient, GlideClusterClient]
 
 
 DEFAULT_PAGE_SIZE = 10000
@@ -44,6 +51,10 @@ def _create_valkey_client_config(
     password: _py38_typing.Union[str, None] = None,
 ) -> GlideClientConfiguration:
     """Create a Valkey client configuration."""
+    if not _GLIDE_AVAILABLE:
+        msg = "GLIDE configuration requires Python 3.9 or later; use host/port parameters or a redis.asyncio.Redis client on Python 3.8"
+        raise ValueError(msg)
+
     addresses: _py38_typing.List[NodeAddress] = [NodeAddress(host=host, port=port)]
     credentials: _py38_typing.Union[ServerCredentials, None] = ServerCredentials(password=password, username=username) if password else None
     return GlideClientConfiguration(addresses=addresses, database_id=db, credentials=credentials)
@@ -59,6 +70,10 @@ async def _create_valkey_client(config: GlideClusterClientConfiguration) -> Glid
 
 async def _create_valkey_client(config: _py38_typing.Union[GlideClientConfiguration, GlideClusterClientConfiguration]) -> ValkeyClient:
     """Create a Valkey client from configuration."""
+    if not _GLIDE_AVAILABLE:
+        msg = "GLIDE configuration requires Python 3.9 or later"
+        raise ValueError(msg)
+
     if isinstance(config, GlideClusterClientConfiguration):
         return await GlideClusterClient.create(config=config)
 
@@ -67,18 +82,46 @@ async def _create_valkey_client(config: _py38_typing.Union[GlideClientConfigurat
 
 async def _valkey_mget(client: ValkeyClient, keys: _py38_typing.List[str]) -> _py38_typing.List[_py38_typing.Union[bytes, None]]:
     """Get multiple values from Valkey."""
-    return await client.mget(keys=keys)  # pyright: ignore[reportArgumentType]
+    if _GLIDE_AVAILABLE:
+        return await client.mget(keys=keys)  # pyright: ignore[reportArgumentType]
+    return await client.mget(keys=keys)  # pyright: ignore[reportArgumentType,reportUnknownMemberType]
 
 
 async def _valkey_delete(client: ValkeyClient, keys: _py38_typing.List[str]) -> int:
     """Delete one or more keys from Valkey."""
-    return await client.delete(keys=keys)  # pyright: ignore[reportArgumentType]
+    if _GLIDE_AVAILABLE:
+        return await client.delete(keys=keys)  # pyright: ignore[reportArgumentType]
+    return await client.delete(*keys)  # pyright: ignore[reportArgumentType,reportUnknownMemberType]
+
+
+def _create_redis_valkey_client(
+    *,
+    host: str,
+    port: int,
+    db: int,
+    username: _py38_typing.Union[str, None],
+    password: _py38_typing.Union[str, None],
+) -> Any:
+    """Create the Redis-protocol fallback used when GLIDE is unavailable."""
+    return Redis(host=host, port=port, db=db, username=username, password=password, decode_responses=False)
+
+
+async def _close_redis_valkey_client(client: Any) -> None:
+    """Close Redis clients across the redis-py versions supported by Python 3.8."""
+    aclose = getattr(client, "aclose", None)
+    if aclose is not None:
+        await aclose()
+        return
+    await client.close()
 
 
 class ValkeyStore(BaseContextManagerStore, BaseStore):
     """Valkey-based key-value store (Redis protocol compatible).
 
-    Supports both standalone (GlideClient) and cluster (GlideClusterClient) deployments.
+    Uses GLIDE when it is installed, including standalone and cluster deployments.
+    Python 3.8 uses the compatible ``redis.asyncio`` protocol client instead;
+    that fallback supports standalone host/port/auth connections and supplied
+    Redis clients, but not GLIDE configuration or cluster client objects.
     """
 
     _connected_client: _py38_typing.Union[ValkeyClient, None]
@@ -148,15 +191,28 @@ class ValkeyStore(BaseContextManagerStore, BaseStore):
             msg = "client and config are mutually exclusive"
             raise ValueError(msg)
 
+        if not _GLIDE_AVAILABLE and config is not None:
+            msg = "GLIDE configuration requires Python 3.9 or later; use host/port parameters or a redis.asyncio.Redis client on Python 3.8"
+            raise ValueError(msg)
+
         if client is not None:
             self._connected_client = client
             self._client_config = None
         elif config is not None:
             self._client_config = config
             self._connected_client = None
-        else:
+        elif _GLIDE_AVAILABLE:
             self._client_config = _create_valkey_client_config(host=host, port=port, db=db, username=username, password=password)
             self._connected_client = None
+        else:
+            self._client_config = None
+            self._connected_client = _create_redis_valkey_client(
+                host=host,
+                port=port,
+                db=db,
+                username=username,
+                password=password,
+            )
 
         super().__init__(
             default_collection=default_collection,
@@ -176,7 +232,10 @@ class ValkeyStore(BaseContextManagerStore, BaseStore):
 
         # Register client cleanup if we own the client
         if not self._client_provided_by_user:
-            self._exit_stack.push_async_callback(self._client.close)
+            if _GLIDE_AVAILABLE:
+                self._exit_stack.push_async_callback(self._client.close)
+            else:
+                self._exit_stack.push_async_callback(_close_redis_valkey_client, self._client)
 
     @property
     def _client(self) -> ValkeyClient:
@@ -191,7 +250,10 @@ class ValkeyStore(BaseContextManagerStore, BaseStore):
     async def _get_managed_entry(self, *, key: str, collection: str) -> _py38_typing.Union[ManagedEntry, None]:
         combo_key: str = compound_key(collection=collection, key=key)
 
-        response: _py38_typing.Union[bytes, None] = await self._client.get(key=combo_key)
+        if _GLIDE_AVAILABLE:
+            response: _py38_typing.Union[bytes, None] = await self._client.get(key=combo_key)
+        else:
+            response = await self._client.get(name=combo_key)  # pyright: ignore[reportUnknownMemberType]
 
         if not isinstance(response, bytes):
             return None
@@ -233,16 +295,20 @@ class ValkeyStore(BaseContextManagerStore, BaseStore):
 
         json_value: str = self._serialization_adapter.dump_json(entry=managed_entry, key=key, collection=collection)
 
-        expiry: _py38_typing.Union[ExpirySet, None] = (
-            ExpirySet(expiry_type=ExpiryType.SEC, value=int(managed_entry.ttl)) if managed_entry.ttl else None
-        )
-
-        _ = await self._client.set(key=combo_key, value=json_value, expiry=expiry)
+        if _GLIDE_AVAILABLE:
+            expiry: _py38_typing.Union[ExpirySet, None] = (
+                ExpirySet(expiry_type=ExpiryType.SEC, value=int(managed_entry.ttl)) if managed_entry.ttl else None
+            )
+            _ = await self._client.set(key=combo_key, value=json_value, expiry=expiry)
+        elif managed_entry.ttl is None:
+            _ = await self._client.set(name=combo_key, value=json_value)  # pyright: ignore[reportUnknownMemberType]
+        else:
+            _ = await self._client.set(name=combo_key, value=json_value, ex=max(int(managed_entry.ttl), 1))  # pyright: ignore[reportUnknownMemberType]
 
     @override
     async def _delete_managed_entry(self, *, key: str, collection: str) -> bool:
         combo_key: str = compound_key(collection=collection, key=key)
-        return await self._client.delete(keys=[combo_key]) != 0
+        return await _valkey_delete(self._client, [combo_key]) != 0
 
     @override
     async def _delete_managed_entries(self, *, keys: _py38_typing.Sequence[str], collection: str) -> int:

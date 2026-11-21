@@ -37,11 +37,16 @@ rocksdb = ["rocksdict>=0.3.0"]
 s3 = ["aioboto3>=13.3.0"]
 vault = ["hvac>=2.3.0"]
 
-## chDB and Valkey GLIDE do not publish CPython 3.8 distributions. Keeping
-## these extras makes the unsupported platform boundary explicit while still
-## allowing the vendored stores to be installed on supported interpreters.
-chdb = ["chdb>=4.1.1; python_version >= '3.9'"]
-valkey = ["valkey-glide>=2.1.0; python_version >= '3.9'"]
+## chDB 3.7.2 is the last CPython 3.8-compatible Linux release. GLIDE has no
+## usable CPython 3.8 distribution, so the Valkey store uses redis-py there.
+chdb = [
+    "chdb>=3.7.2,<4.0.0; python_version < '3.9' and sys_platform != 'win32'",
+    "chdb>=4.1.1; python_version >= '3.9'",
+]
+valkey = [
+    "redis>=4.3.0; python_version < '3.9'",
+    "valkey-glide>=2.1.0; python_version >= '3.9'",
+]
 
 ## This backend uses only winreg from the Python standard library. The import
 ## itself gives a clear error when used outside Windows.

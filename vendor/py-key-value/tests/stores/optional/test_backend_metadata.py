@@ -52,11 +52,17 @@ def test_all_vendored_backends_have_declared_extras_or_are_stdlib() -> None:
     assert extras["registry"] == []
 
 
-def test_unsupported_py38_backends_are_explicitly_marked() -> None:
+def test_py38_platform_boundaries_are_explicitly_marked() -> None:
     extras = _optional_dependencies()
 
-    assert extras["chdb"] == ["chdb>=4.1.1; python_version >= '3.9'"]
-    assert extras["valkey"] == ["valkey-glide>=2.1.0; python_version >= '3.9'"]
+    assert extras["chdb"] == [
+        "chdb>=3.7.2,<4.0.0; python_version < '3.9' and sys_platform != 'win32'",
+        "chdb>=4.1.1; python_version >= '3.9'",
+    ]
+    assert extras["valkey"] == [
+        "redis>=4.3.0; python_version < '3.9'",
+        "valkey-glide>=2.1.0; python_version >= '3.9'",
+    ]
 
 
 def test_store_sources_parse_on_the_running_python() -> None:

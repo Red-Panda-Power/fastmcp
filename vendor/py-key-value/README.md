@@ -13,12 +13,17 @@ The following extras resolve for CPython 3.8 on Windows and Linux: `aerospike`,
 cloud service. The `registry` extra has no third-party dependency and is
 Windows-only because it uses `winreg`.
 
-`chdb` 4.1.1+ and `valkey-glide` 2.1+ require Python 3.9 or later; Valkey
-GLIDE also has no CPython 3.8 Windows wheel. Their source remains vendored and
-their extras are retained for newer interpreters, but importing either backend
-on Python 3.8 correctly reports its missing dependency. A Python 3.8 deployment
-that needs those services must use a separately maintained local backport (or
-choose a supported backend such as Redis).
+chDB 3.7.2 is available as a CPython 3.8 `abi3` wheel on Linux (including
+manylinux and musllinux), while chDB 4.1.1+ requires Python 3.9. It has no
+Windows CPython 3.8 wheel, so that backend remains unavailable on Windows
+unless an internal native backport is supplied.
+
+Valkey GLIDE 2.1+ requires Python 3.9 and has no CPython 3.8 Windows wheel.
+On Python 3.8 the `valkey` extra instead installs the Redis-protocol client and
+keeps `ValkeyStore(host=..., port=..., db=..., username=..., password=...)`
+and supplied `redis.asyncio.Redis` clients working with Valkey. GLIDE cluster
+clients and GLIDE configuration objects remain a Python 3.9+ capability; the
+store raises a clear `ValueError` if one is requested on Python 3.8.
 
 The matrix is resolver-verified against CPython 3.8 for Windows and Linux. It
 does not replace integration testing against a real backend service; credentials
