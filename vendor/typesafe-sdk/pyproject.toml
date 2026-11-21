@@ -1,0 +1,79 @@
+[project]
+name = "typesafe-sdk"
+version = "0.5.7"
+description = "Python SDK for TypeSafe AI API."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "TypeSafe AI", email = "support@typesafe.ai" }
+]
+maintainers = [
+    { name = "Daniel Gafni", email = "daniel@typesafe.ai" }
+]
+requires-python = ">=3.8"
+keywords = ["typesafe", "sdk", "api", "ai"]
+classifiers = [
+    "Typing :: Typed",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "httpx2>=2.0.0",
+    "msgspec>=0.18.6,<0.19",
+    "tenacity>=9.0.0",
+    "typing-extensions>=4.13.0",
+]
+
+[project.urls]
+Homepage = "https://typesafe.ai"
+Documentation = "https://docs.typesafe.ai/sdk/python/"
+Changelog = "https://docs.typesafe.ai/sdk/python/changelog/"
+Repository = "https://github.com/typesafe-ai/typesafe-sdk-python"
+Issues = "https://github.com/typesafe-ai/typesafe-sdk-python/issues"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4,<9",
+    "pytest-asyncio>=0.21,<1",
+    "ruff>=0.8,<0.15",
+]
+[tool.pytest.ini_options]
+addopts = "-vv -ra --capture=tee-sys -p no:tach"
+log_cli = true
+log_cli_level = "INFO"
+log_level = "INFO"
+asyncio_mode = "auto"
+testpaths = ["compat_tests"]
+markers = ["integration: live API tests requiring TYPESAFE_API_KEY"]
+
+[tool.uv.sources]
+httpx2 = { path = "../httpx2/httpx2" }
+httpcore2 = { path = "../httpx2/httpcore2" }
+
+[tool.ruff]
+target-version = "py38"
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
