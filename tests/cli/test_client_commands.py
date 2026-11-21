@@ -1,9 +1,11 @@
 """Tests for fastmcp list and fastmcp call CLI commands."""
 
+from __future__ import annotations
+
 import json
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 from unittest.mock import patch
 
 import mcp_types
@@ -11,6 +13,7 @@ import pytest
 from cryptography.fernet import Fernet
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 from pydantic import BaseModel, Field
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp import FastMCP
 from fastmcp.cli import client as client_module

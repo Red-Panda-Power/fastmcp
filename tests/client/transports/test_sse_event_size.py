@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 from mcp import MCPError
 from mcp_types import TextResourceContents

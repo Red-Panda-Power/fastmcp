@@ -4,6 +4,8 @@ The client rebuilds Python types from the output schema, so every ``format``
 and positional item schema the server emits has to survive that round trip.
 """
 
+from __future__ import annotations
+
 from datetime import date, datetime, time, timedelta
 from typing import Any
 from uuid import UUID
@@ -25,12 +27,12 @@ class Reading(BaseModel):
 
 class Counters(BaseModel):
     model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[str, int] = Field(init=False)  # ty:ignore[incompatible-mutable-override]
+    __pydantic_extra__: dict[str, int] = Field(init=False)  # noqa: UP006  # ty:ignore[incompatible-mutable-override]
     name: str
 
 
 class CounterCollection(BaseModel):
-    counters: list[Counters]
+    counters: list[Counters]  # noqa: UP006
 
 
 @pytest.mark.parametrize("shape", ["model", "list", "nested"])
@@ -72,7 +74,7 @@ class Item(BaseModel):
 
 class TreeNode(BaseModel):
     value: int
-    children: list["TreeNode"] = []
+    children: list[TreeNode] = []
 
 
 class TestStructuredResultHydration:

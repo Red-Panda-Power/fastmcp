@@ -1,10 +1,13 @@
 """Generated parameter help must preserve descriptions as Python string literals."""
 
-from inspect import get_annotations
-from typing import Annotated, Any
+# Runtime type aliases keep these locally defined callables evaluable on Python 3.8.
+# ruff: noqa: UP006, UP035, UP045
+
+from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 from pydantic import Field
+from typing_extensions import Annotated, get_type_hints  # noqa: UP035
 
 from fastmcp import Client, FastMCP
 from fastmcp.cli.generate import generate_cli_script
@@ -14,15 +17,15 @@ from fastmcp.cli.generate import generate_cli_script
 async def test_parameter_help_preserves_line_endings(newline: str) -> None:
     description = f"First \"line\"{newline}Second 'line' at C:\\tools — 설명"
     server = FastMCP("Descriptions")
-    received: list[tuple[str, dict[str, str], str, dict[str, str] | None]] = []
+    received: List[Tuple[str, Dict[str, str], str, Optional[Dict[str, str]]]] = []
 
     @server.tool
     def record(
         message: Annotated[str, Field(description=description)],
-        options: Annotated[dict[str, str], Field(description=description)] = {"x": "y"},
+        options: Annotated[Dict[str, str], Field(description=description)] = {"x": "y"},
         label: Annotated[str, Field(description=description)] = "default",
         optional: Annotated[
-            dict[str, str] | None, Field(description=description)
+            Optional[Dict[str, str]], Field(description=description)
         ] = None,
     ) -> None:
         received.append((message, options, label, optional))
@@ -36,12 +39,14 @@ async def test_parameter_help_preserves_line_endings(newline: str) -> None:
         extra_imports=set(),
         tools=tools,
     )
-    namespace: dict[str, Any] = {"__name__": "generated_cli"}
+    namespace: Dict[str, Any] = {"__name__": "generated_cli"}
     exec(compile(script, "<generated>", "exec"), namespace)
     namespace["CLIENT_SPEC"] = server
     app = namespace["app"]
     # Python 3.10's get_type_hints adds Optional around parameters defaulted to None.
-    annotations = get_annotations(app["call-tool"]["record"].default_command)
+    annotations = get_type_hints(
+        app["call-tool"]["record"].default_command, include_extras=True
+    )
     for name in ("message", "label"):
         assert annotations[name].__metadata__[0].help == description
     for name in ("options", "optional"):
@@ -75,21 +80,21 @@ async def test_parameter_help_preserves_line_endings(newline: str) -> None:
 async def test_parameter_help_preserves_explicit_flags(newline: str) -> None:
     description = f"First \"line\"{newline}Second 'line' at C:\\tools — 설명"
     server = FastMCP("Flag descriptions")
-    received: list[tuple[str, str, dict[str, str], str, dict[str, str] | None]] = []
+    received: List[Tuple[str, str, Dict[str, str], str, Optional[Dict[str, str]]]] = []
 
     @server.tool(name="app")
     def record(
         user_id: str,
         userId: Annotated[str, Field(description=description)],
-        meta_data: dict[str, str] = {"x": "y"},
-        metaData: Annotated[dict[str, str], Field(description=description)] = {
+        meta_data: Dict[str, str] = {"x": "y"},
+        metaData: Annotated[Dict[str, str], Field(description=description)] = {
             "x": "y"
         },
         option_name: str = "default",
         optionName: Annotated[str, Field(description=description)] = "default",
-        extra_data: dict[str, str] | None = None,
+        extra_data: Optional[Dict[str, str]] = None,
         extraData: Annotated[
-            dict[str, str] | None, Field(description=description)
+            Optional[Dict[str, str]], Field(description=description)
         ] = None,
     ) -> None:
         received.append((user_id, userId, metaData, optionName, extraData))
@@ -103,11 +108,13 @@ async def test_parameter_help_preserves_explicit_flags(newline: str) -> None:
         extra_imports=set(),
         tools=tools,
     )
-    namespace: dict[str, Any] = {"__name__": "generated_cli"}
+    namespace: Dict[str, Any] = {"__name__": "generated_cli"}
     exec(compile(script, "<generated>", "exec"), namespace)
     namespace["CLIENT_SPEC"] = server
     app = namespace["app"]
-    annotations = get_annotations(app["call-tool"]["app"].default_command)
+    annotations = get_type_hints(
+        app["call-tool"]["app"].default_command, include_extras=True
+    )
     for name in ("userId", "optionName"):
         assert annotations[name].__metadata__[0].help == description
     for name in ("metaData", "extraData"):

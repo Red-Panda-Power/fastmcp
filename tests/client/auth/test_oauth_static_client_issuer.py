@@ -1,5 +1,7 @@
 """Pre-registered OAuth credentials must stay with their issuer."""
 
+from __future__ import annotations
+
 import json
 
 import httpx2

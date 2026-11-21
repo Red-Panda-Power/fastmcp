@@ -1,8 +1,11 @@
 """Client CLI argument handling for `fastmcp install claude-code|gemini-cli`.
 
+
 On Windows, npm installs these CLIs as `.cmd` wrappers that run through
 cmd.exe. The tests below check that each argument reaches the CLI literally.
 """
+
+from __future__ import annotations
 
 import json
 import subprocess

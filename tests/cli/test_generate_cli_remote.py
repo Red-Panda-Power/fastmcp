@@ -1,5 +1,7 @@
 """Tests for writing HTTP and SSE transports into a generated CLI."""
 
+from __future__ import annotations
+
 import datetime
 import json
 from pathlib import Path

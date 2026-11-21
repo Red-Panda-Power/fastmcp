@@ -1,5 +1,7 @@
 """Tests for MCP server discovery and name-based resolution."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any

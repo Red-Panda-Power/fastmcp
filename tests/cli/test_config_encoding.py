@@ -1,5 +1,7 @@
 """Regression tests for GH-5317: CLI config files are UTF-8 regardless of locale."""
 
+from __future__ import annotations
+
 import builtins
 import io
 import json
