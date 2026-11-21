@@ -3,6 +3,7 @@ from __future__ import annotations
 from key_value._typing_compat import runtime_typing as _py38_typing
 import asyncio
 import inspect
+import sys
 from typing import Any, overload
 
 from typing_extensions import override
@@ -23,6 +24,10 @@ try:
         ServerCredentials,
     )
 except ImportError:
+    if sys.version_info >= (3, 9):
+        msg = "ValkeyStore requires py-key-value-aio[valkey]"
+        raise ImportError(msg) from None
+
     try:
         from redis.asyncio import Redis
     except ImportError as redis_error:

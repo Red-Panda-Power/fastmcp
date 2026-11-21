@@ -8,8 +8,14 @@ from typing import Any
 import pytest
 from redis.asyncio import RedisCluster
 
-from key_value.aio.stores.valkey import ValkeyStore
-from key_value.aio.stores.valkey import store as valkey_store
+if sys.version_info < (3, 9):
+    from key_value.aio.stores.valkey import ValkeyStore
+    from key_value.aio.stores.valkey import store as valkey_store
+else:
+    ValkeyStore = Any
+    valkey_store = None
+
+PY38_FALLBACK_UNAVAILABLE = sys.version_info >= (3, 9) or (valkey_store is not None and valkey_store._GLIDE_AVAILABLE)
 
 
 class CrossSlotRedisClient:
@@ -38,7 +44,7 @@ class CrossSlotRedisClient:
         self.close_calls += 1
 
 
-@pytest.mark.skipif(valkey_store._GLIDE_AVAILABLE, reason="The test covers the Redis-protocol fallback only")
+@pytest.mark.skipif(PY38_FALLBACK_UNAVAILABLE, reason="The test covers the Python 3.8 Redis-protocol fallback only")
 async def test_redis_protocol_fallback_handles_cross_slot_multi_key_operations() -> None:
     client = CrossSlotRedisClient()
     store = ValkeyStore(client=client, default_collection="default")
@@ -56,7 +62,7 @@ async def test_redis_protocol_fallback_handles_cross_slot_multi_key_operations()
     assert client.close_calls == 0
 
 
-@pytest.mark.skipif(valkey_store._GLIDE_AVAILABLE, reason="The test covers the Redis-protocol fallback only")
+@pytest.mark.skipif(PY38_FALLBACK_UNAVAILABLE, reason="The test covers the Python 3.8 Redis-protocol fallback only")
 async def test_redis_protocol_fallback_closes_only_owned_clients(monkeypatch: pytest.MonkeyPatch) -> None:
     client = CrossSlotRedisClient()
     monkeypatch.setattr(valkey_store, "_create_redis_valkey_client", lambda **_: client)
@@ -67,7 +73,7 @@ async def test_redis_protocol_fallback_closes_only_owned_clients(monkeypatch: py
     assert client.close_calls == 1
 
 
-@pytest.mark.skipif(valkey_store._GLIDE_AVAILABLE, reason="The test covers the Redis-protocol fallback only")
+@pytest.mark.skipif(PY38_FALLBACK_UNAVAILABLE, reason="The test covers the Python 3.8 Redis-protocol fallback only")
 async def test_redis_protocol_fallback_accepts_redis_cluster_injection() -> None:
     cluster = RedisCluster(host="127.0.0.1", port=6379)
     store = ValkeyStore(client=cluster)
@@ -76,13 +82,13 @@ async def test_redis_protocol_fallback_accepts_redis_cluster_injection() -> None
     await cluster.aclose()
 
 
-@pytest.mark.skipif(valkey_store._GLIDE_AVAILABLE, reason="The test covers the Redis-protocol fallback only")
+@pytest.mark.skipif(PY38_FALLBACK_UNAVAILABLE, reason="The test covers the Python 3.8 Redis-protocol fallback only")
 def test_redis_protocol_fallback_preserves_runtime_type_hint_resolution() -> None:
     assert typing.get_type_hints(valkey_store._create_valkey_client)
     assert typing.get_type_hints(ValkeyStore.__init__)
 
 
-@pytest.mark.skipif(valkey_store._GLIDE_AVAILABLE, reason="The test covers the Redis-protocol fallback only")
+@pytest.mark.skipif(PY38_FALLBACK_UNAVAILABLE, reason="The test covers the Python 3.8 Redis-protocol fallback only")
 def test_redis_protocol_fallback_rejects_glide_configuration() -> None:
     with pytest.raises(ValueError, match="GLIDE configuration requires Python 3.9 or later"):
         ValkeyStore(config=object())
@@ -110,3 +116,21 @@ else:
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
 
     assert result.returncode == 0, result.stderr
+
+
+def test_valkey_import_fallback_is_limited_to_python_38() -> None:
+    code = """
+try:
+    from key_value.aio.stores.valkey import store
+except ImportError as error:
+    print('error:' + str(error))
+else:
+    print('fallback:' + str(store._GLIDE_AVAILABLE))
+"""
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+
+    assert result.returncode == 0, result.stderr
+    if sys.version_info < (3, 9):
+        assert result.stdout.strip() == "fallback:False"
+    else:
+        assert result.stdout.strip() == "error:ValkeyStore requires py-key-value-aio[valkey]"
