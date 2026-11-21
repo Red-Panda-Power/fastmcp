@@ -120,13 +120,29 @@ def install_cyclopts_py38_annotation_support() -> None:
     ) -> Any:
         """Backport Cyclopts 4's ``--`` handling for ``fastmcp run``."""
         normalized_tokens = cyclopts.core.normalize_tokens(tokens)
+        forwarded_tokens: List[str] = []
         if "fastmcp" in app.name and normalized_tokens[:1] == ["run"]:
             try:
                 separator_index = normalized_tokens.index("--", 1)
             except ValueError:
                 pass
             else:
-                normalized_tokens.pop(separator_index)
-        return original_parse_known_args(app, normalized_tokens, console=console)
+                forwarded_tokens = normalized_tokens[separator_index + 1 :]
+                placeholders = [
+                    f"\0fastmcp-server-argument-{index}"
+                    for index in range(len(forwarded_tokens))
+                ]
+                normalized_tokens = normalized_tokens[:separator_index] + placeholders
+
+        command, bound, unused_tokens = original_parse_known_args(
+            app, normalized_tokens, console=console
+        )
+        if forwarded_tokens:
+            parsed_server_args = tuple(bound.arguments.get("server_args", ()))
+            placeholder_count = len(forwarded_tokens)
+            bound.arguments["server_args"] = parsed_server_args[
+                :-placeholder_count
+            ] + tuple(forwarded_tokens)
+        return command, bound, unused_tokens
 
     cyclopts.App.parse_known_args = parse_known_args
