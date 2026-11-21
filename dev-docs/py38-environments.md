@@ -28,5 +28,7 @@ Deployment environments should omit the development group:
 uv sync --locked --python 3.8 --no-dev
 ```
 
-MCP Apps UI, Azure Identity, Gemini, and Tasks are not included for Python
-3.8. Their existing Python 3.11+ behavior remains available.
+MCP Apps UI, Azure Identity, and Gemini are not included for Python 3.8.
+Tasks are deferred across this internal migration branch: its source remains
+in `fastmcp_tasks/`, but its extra and default development installation will
+be restored only after its dynamic-versioned packaging can be locked reliably.
