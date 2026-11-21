@@ -70,6 +70,13 @@ style = "pep440"
 bump = true
 fallback-version = "0.0.0"
 
+[tool.uv]
+# The dynamic version and FastMCP sibling pins include the Git revision.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { git = { commit = true, tags = true } },
+]
+
 [tool.hatch.metadata.hooks.uv-dynamic-versioning.optional-dependencies]
 anthropic = ["certifi>=2026.10.19", "anthropic>=0.48.0,<2"]
 # MCP Apps UI is not available in the Python 3.8 internal deployment.

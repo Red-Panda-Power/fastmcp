@@ -58,6 +58,13 @@ style = "pep440"
 bump = true
 fallback-version = "0.0.0"
 
+[tool.uv]
+# The dynamic version and FastMCP sibling pins include the Git revision.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { git = { commit = true, tags = true } },
+]
+
 [tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
     "fastmcp-slim[client,server]=={{ version }}",
