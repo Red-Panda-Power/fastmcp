@@ -125,6 +125,7 @@ fastmcp-slim = { workspace = true }
 fastmcp-remote = { workspace = true }
 fastmcp-tasks = { workspace = true }
 mcp-types = { path = "vendor/python-sdk/mcp-types", editable = true }
+pytest-examples = [{ path = "vendor/pytest-examples", editable = true, marker = "python_version < '3.9'" }]
 pytest-retry = [{ path = "vendor/pytest-retry", editable = true, marker = "python_version < '3.9'" }]
 uv-dynamic-versioning = [{ path = "vendor/uv-dynamic-versioning", marker = "python_version < '3.9'" }]
 

@@ -36,7 +36,7 @@ Remove-Item Env:UV_PROJECT_ENVIRONMENT
 .venv\Scripts\python.exe -m pytest --noconftest dev-docs/py38-bootstrap/test_bootstrap.py -n 0
 ```
 
-This bootstrap installs test tools only, not FastMCP or its runtime dependencies. It includes the local Python 3.8 backport of `pytest-retry`; `pytest-examples` still needs a Python 3.8-compatible solution. See [the migration baseline](dev-docs/py38-migration.md) for the current blockers. Once the root workspace supports Python 3.8, use its normal development group instead of the bootstrap.
+This bootstrap installs test tools only, not FastMCP or its runtime dependencies. It includes local Python 3.8 backports of `pytest-retry` and `pytest-examples`. See [the migration baseline](dev-docs/py38-migration.md) for the current blockers. Once the root workspace supports Python 3.8, use its normal development group instead of the bootstrap.
 
 Run the tests relevant to the behavior you changed, including neighboring paths
 that share the implementation. For example:

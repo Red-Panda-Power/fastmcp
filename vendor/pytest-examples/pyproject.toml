@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pytest-examples"
+version = "0.0.18"
+description = "Pytest plugin for testing examples in docstrings and markdown files"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+dependencies = [
+    "pytest>=7",
+    "black>=23",
+    "ruff>=0.5.0,<0.16; python_version < '3.9'",
+    "ruff>=0.5.0; python_version >= '3.9'",
+]
+
+[project.entry-points.pytest11]
+examples = "pytest_examples"
+
+[dependency-groups]
+dev = ["pytest>=8.3.3,<9", "ruff>=0.12.8,<0.16"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pytest_examples"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+xfail_strict = true
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+force-exclude = true
+extend-exclude = ["tests/cases_update/*.py"]
+
+[tool.ruff.format]
+quote-style = "single"

@@ -14,6 +14,7 @@ dev = [
     "pytest-asyncio>=0.24,<0.25",
     "pytest-cov>=5,<6",
     "pytest-env>=1.1.5",
+    "pytest-examples>=0.0.18",
     "pytest-flakefinder>=1.1.0",
     "pytest-report>=0.2.1",
     "pytest-retry>=1.7.0",
@@ -26,6 +27,7 @@ default-groups = ["dev"]
 package = false
 
 [tool.uv.sources]
+pytest-examples = { path = "../../vendor/pytest-examples", editable = true }
 pytest-retry = { path = "../../vendor/pytest-retry", editable = true }
 
 [tool.uv.workspace]
