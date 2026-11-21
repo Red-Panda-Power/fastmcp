@@ -1,5 +1,7 @@
 """Session visibility must preserve explicit empty component selections."""
 
+from __future__ import annotations
+
 from typing import Literal
 
 import pytest

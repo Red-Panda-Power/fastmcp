@@ -1,5 +1,7 @@
 """Tests for OAuth proxy token endpoint and handling."""
 
+from __future__ import annotations
+
 import logging
 import time
 from unittest.mock import AsyncMock, Mock, patch

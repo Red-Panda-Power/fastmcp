@@ -1,5 +1,7 @@
 """Tests for session-specific visibility control via Context."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 

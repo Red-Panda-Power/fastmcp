@@ -1,5 +1,7 @@
 """Multipart string arrays arrive as repeated form fields."""
 
+from __future__ import annotations
+
 import io
 from email.parser import BytesParser
 from email.policy import default

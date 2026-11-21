@@ -1,5 +1,7 @@
 """Tests for Auth0 MCP resource server provider."""
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 import httpx2

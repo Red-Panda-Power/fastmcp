@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import httpx2
 import pytest
 from key_value.aio.stores.memory import MemoryStore

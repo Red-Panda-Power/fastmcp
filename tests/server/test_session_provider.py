@@ -9,6 +9,8 @@ through its full injection + storage path under a simulated authenticated
 principal.
 """
 
+from __future__ import annotations
+
 import re
 from collections.abc import Generator
 from contextlib import contextmanager

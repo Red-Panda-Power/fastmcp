@@ -12,6 +12,8 @@ clients at `issuer_url`, the client performs discovery there, and the `issuer`
 in the returned metadata must match the identifier used for discovery.
 """
 
+from __future__ import annotations
+
 import re
 import time
 from urllib.parse import parse_qs, urlparse

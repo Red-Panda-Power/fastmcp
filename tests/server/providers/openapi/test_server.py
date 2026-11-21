@@ -1,5 +1,7 @@
 """Unit tests for OpenAPIProvider."""
 
+from __future__ import annotations
+
 import httpx2
 import pytest
 

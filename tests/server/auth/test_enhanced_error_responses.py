@@ -7,6 +7,8 @@ This test suite covers:
 4. Server branding in error pages
 """
 
+from __future__ import annotations
+
 import asyncio
 from urllib.parse import parse_qs, quote, urlparse
 

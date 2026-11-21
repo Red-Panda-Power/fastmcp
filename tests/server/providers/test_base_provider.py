@@ -1,5 +1,7 @@
 """Tests for base Provider class behavior."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import pytest

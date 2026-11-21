@@ -5,6 +5,8 @@ inactivity. The deadline is reset on every request. This is the SDK's
 behavior, surfaced through FastMCP's ``http_session_idle_timeout`` setting.
 """
 
+from __future__ import annotations
+
 import time
 from typing import Any
 

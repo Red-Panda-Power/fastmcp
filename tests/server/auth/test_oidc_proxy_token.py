@@ -1,5 +1,7 @@
 """Tests for OIDC Proxy verify_id_token functionality."""
 
+from __future__ import annotations
+
 from unittest.mock import patch
 
 import pytest

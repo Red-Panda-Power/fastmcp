@@ -1,5 +1,7 @@
 """Configured authentication sources retain stable principal identities."""
 
+from __future__ import annotations
+
 import json
 from collections.abc import AsyncGenerator
 from types import SimpleNamespace

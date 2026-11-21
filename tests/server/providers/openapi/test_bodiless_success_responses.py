@@ -1,5 +1,7 @@
 """Operations that may answer with a success response that has no body."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import httpx2

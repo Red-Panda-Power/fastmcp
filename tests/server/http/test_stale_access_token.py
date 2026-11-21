@@ -7,6 +7,8 @@ but the current HTTP request (via request_ctx) has a fresh token.
 The test should FAIL with the current implementation and PASS after the fix.
 """
 
+from __future__ import annotations
+
 from unittest.mock import MagicMock
 
 from mcp.server.auth.middleware.auth_context import auth_context_var

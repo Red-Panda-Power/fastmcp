@@ -1,5 +1,7 @@
 """End-to-end tests for OpenAPIProvider implementation."""
 
+from __future__ import annotations
+
 import json
 
 import httpx2

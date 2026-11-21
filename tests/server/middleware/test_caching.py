@@ -1,5 +1,7 @@
 """Tests for response caching middleware."""
 
+from __future__ import annotations
+
 import sys
 import tempfile
 import warnings

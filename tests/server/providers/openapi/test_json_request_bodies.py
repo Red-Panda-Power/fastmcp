@@ -1,5 +1,7 @@
 """JSON scalar request bodies retain their type through OpenAPI tool calls."""
 
+from __future__ import annotations
+
 import json
 
 import httpx2

@@ -8,6 +8,8 @@ middleware before. The typed per-method hooks keep firing exactly once, interior
 where ``call_next`` yields the typed component result.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 import mcp_types

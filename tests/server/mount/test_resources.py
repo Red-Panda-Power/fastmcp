@@ -1,5 +1,7 @@
 """Tests for resource and template mounting."""
 
+from __future__ import annotations
+
 import json
 
 import pytest

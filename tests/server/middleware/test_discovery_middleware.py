@@ -1,5 +1,7 @@
 """Tests for typed middleware support during modern discovery."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import mcp_types

@@ -1,5 +1,7 @@
 """Provider-level required_scopes must survive a custom token_verifier."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from unittest.mock import patch
 

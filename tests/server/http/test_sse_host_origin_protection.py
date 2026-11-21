@@ -1,5 +1,7 @@
 """Host and Origin validation on the SSE transport's connection and message endpoints."""
 
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any, Literal

@@ -1,5 +1,7 @@
 """Advanced tests for dependency injection in FastMCP: context annotations, vendored DI, and auth dependencies."""
 
+from __future__ import annotations
+
 import inspect
 
 import pytest

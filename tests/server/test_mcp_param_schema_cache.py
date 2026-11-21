@@ -8,11 +8,13 @@ registration seeds it, and every `tools/list` response refreshes it (which also
 covers proxied and mounted tools).
 """
 
+from __future__ import annotations
+
 import json
-from typing import Annotated
 
 from pydantic import Field
 from starlette.testclient import TestClient
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp import Client, FastMCP
 from fastmcp.server.middleware import Middleware

@@ -6,6 +6,8 @@ signed cookie. The remembered entry must be specific to the redirect URI
 more scopes, or for another redirect URI of the same client, is prompted.
 """
 
+from __future__ import annotations
+
 import re
 import time
 from urllib.parse import parse_qs, urlparse

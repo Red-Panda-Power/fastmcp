@@ -6,6 +6,8 @@ observable: form-encoded bodies, client authentication methods, falsy-param
 dropping, refresh-token injection, expires_at derivation, and error mapping.
 """
 
+from __future__ import annotations
+
 import base64
 import time
 from urllib.parse import parse_qs

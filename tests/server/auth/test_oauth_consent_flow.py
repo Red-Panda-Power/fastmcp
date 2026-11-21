@@ -12,6 +12,8 @@ This test suite verifies:
 9. Consent binding cookie prevents confused deputy attacks (GHSA-rww4-4w9c-7733)
 """
 
+from __future__ import annotations
+
 import asyncio
 import re
 import secrets

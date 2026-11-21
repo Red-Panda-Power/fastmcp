@@ -1,5 +1,7 @@
 """Tests for response caching with versioned components."""
 
+from __future__ import annotations
+
 import mcp_types
 import pytest
 from mcp_types import TextContent

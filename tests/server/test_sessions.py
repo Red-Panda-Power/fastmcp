@@ -4,6 +4,8 @@ Covers the principal helpers, the `(principal, session_id)` key scheme, and the
 `Session` object's read-modify-write behavior against a real server store.
 """
 
+from __future__ import annotations
+
 import functools
 import json
 from collections.abc import Generator

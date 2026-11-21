@@ -4,6 +4,8 @@ These tests ensure that large OpenAPI schemas (like GitHub's API) parse quickly
 and don't regress to the slow performance we had before optimization.
 """
 
+from __future__ import annotations
+
 import os
 import time
 from typing import Any

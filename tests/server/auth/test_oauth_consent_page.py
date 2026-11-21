@@ -1,5 +1,7 @@
 """Tests for OAuth Proxy consent page display, CSP policy, and consent binding cookie."""
 
+from __future__ import annotations
+
 import re
 import secrets
 import time

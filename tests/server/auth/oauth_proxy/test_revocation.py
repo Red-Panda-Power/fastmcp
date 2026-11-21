@@ -1,5 +1,7 @@
 """Revocation ownership must not replace the identity used for authentication."""
 
+from __future__ import annotations
+
 import time
 from collections.abc import Awaitable, Callable
 from unittest.mock import AsyncMock, patch

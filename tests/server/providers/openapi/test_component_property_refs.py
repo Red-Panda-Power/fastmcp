@@ -1,5 +1,7 @@
 """References that point into a component schema rather than at a whole one."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import httpx2

@@ -1,11 +1,15 @@
 """Tests for tool decorator patterns."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Annotated
 
 import pytest
 from pydantic import BaseModel, Field
-from typing_extensions import TypedDict
+from typing_extensions import (
+    Annotated,  # noqa: UP035
+    TypedDict,
+)
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import NotFoundError

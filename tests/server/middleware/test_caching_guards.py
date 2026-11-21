@@ -15,6 +15,8 @@ resources:
   questions altogether.
 """
 
+from __future__ import annotations
+
 import mcp_types
 
 from fastmcp import Context, FastMCP

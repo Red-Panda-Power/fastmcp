@@ -1,5 +1,7 @@
 """Tests for Scalekit OAuth provider."""
 
+from __future__ import annotations
+
 import httpx2
 import pytest
 from mcp import MCPError

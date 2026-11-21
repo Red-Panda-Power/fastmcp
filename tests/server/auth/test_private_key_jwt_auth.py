@@ -1,5 +1,7 @@
 """Exercise private_key_jwt authentication through the real token route."""
 
+from __future__ import annotations
+
 from collections.abc import Iterator
 from typing import TypedDict
 from unittest.mock import AsyncMock, patch

@@ -1,5 +1,7 @@
 """Tests for OpenAPI discriminator handling in OpenAPIProvider."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 

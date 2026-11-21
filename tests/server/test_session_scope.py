@@ -6,6 +6,8 @@ process on stdio and in-memory transports. An unauthenticated HTTP request
 carries no client identity and is rejected rather than losing data.
 """
 
+from __future__ import annotations
+
 import base64
 
 import pytest

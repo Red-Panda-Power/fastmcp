@@ -1,5 +1,7 @@
 """FastAPI tuple schemas retain resolvable model references."""
 
+from __future__ import annotations
+
 import httpx2
 import pytest
 from fastapi import FastAPI

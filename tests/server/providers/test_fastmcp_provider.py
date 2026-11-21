@@ -1,5 +1,7 @@
 """Tests for FastMCPProvider."""
 
+from __future__ import annotations
+
 import mcp_types as mt
 
 from fastmcp import FastMCP

@@ -1,19 +1,24 @@
 """Tests for tool parameters and validation."""
 
+from __future__ import annotations
+
 import base64
 import datetime
 import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Literal
 
 import pytest
 from mcp_types import (
     ImageContent,
 )
 from pydantic import BaseModel, Field
-from typing_extensions import TypedDict
+from typing_extensions import (
+    Annotated,  # noqa: UP035
+    TypedDict,
+)
 
 from fastmcp import FastMCP
 from fastmcp.utilities.types import Image

@@ -1,5 +1,7 @@
 """Transport error propagation from OpenAPI components."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 
 import httpx2
@@ -101,7 +103,7 @@ async def test_unmasked_ordinary_error_keeps_details() -> None:
 async def test_legacy_request_error_remains_normalized() -> None:
     httpx = pytest.importorskip("httpx", reason="legacy httpx not installed")
 
-    def handler(request: "httpx.Request") -> "httpx.Response":
+    def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("transport failed", request=request)
 
     transport = httpx.MockTransport(handler)
