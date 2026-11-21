@@ -3,7 +3,7 @@ name = "fastmcp"
 dynamic = ["version", "dependencies", "optional-dependencies"]
 description = "The fast, Pythonic way to build MCP servers and clients."
 authors = [{ name = "Jeremiah Lowin" }, { name = "Nate Nowack" }]
-requires-python = ">=3.11"
+requires-python = ">=3.8, !=3.9.*, !=3.10.*"
 readme = "README.md"
 license = "Apache-2.0"
 keywords = [
@@ -19,6 +19,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -60,7 +61,8 @@ code-mode = ["fastmcp-slim[code-mode]=={{ version }}"]
 jev = ["fastmcp-slim[jev]=={{ version }}"]
 gemini = ["fastmcp-slim[gemini]=={{ version }}"]
 openai = ["fastmcp-slim[openai]=={{ version }}"]
-tasks = ["fastmcp-tasks=={{ version }}"]
+# Task execution has not yet been ported to Python 3.8.
+tasks = ["fastmcp-tasks=={{ version }}; python_version >= '3.11'"]
 
 [tool.uv-dynamic-versioning]
 vcs = "git"
@@ -69,10 +71,14 @@ bump = true
 fallback-version = "0.0.0"
 
 [tool.uv.workspace]
-members = ["fastmcp_slim", "fastmcp_remote", "fastmcp_tasks"]
+members = ["fastmcp_slim", "fastmcp_remote"]
 
 [tool.uv]
 default-groups = ["dev"]
+# Monty's local native packages use Maturin while resolving their build
+# metadata.  Keep that backend on the last release line with a Python 3.8
+# Windows wheel, independently of the application's runtime dependencies.
+build-constraint-dependencies = ["maturin>=1.9.4,<1.10"]
 exclude-newer = "1 week"
 # The cooldown above refuses anything published in the last week. Exempt the
 # first-party packages, whose fresh releases we install deliberately, the
@@ -80,13 +86,15 @@ exclude-newer = "1 week"
 # has nothing older to fall back to, and uncalled-for, the DI engine whose
 # releases we adopt deliberately. Monty 1.1.0 supplies Python 3.15 wheels.
 # Authlib is exempt so security fixes can bypass the cooldown.
-exclude-newer-package = { authlib = false, certifi = false, fastmcp = false, fastmcp-slim = false, fastmcp-remote = false, prefab-ui = false, mcp = false, mcp-types = false, uncalled-for = false, pydocket = false, pydantic-monty = false, pydantic-monty-client = false, pydantic-monty-runtime = false }
+exclude-newer-package = { authlib = false, certifi = false, fastmcp = false, fastmcp-slim = false, fastmcp-remote = false, prefab-ui = false, mcp = false, mcp-types = false, maturin = false, uncalled-for = false, pydocket = false, pydantic-monty = false, pydantic-monty-client = false, pydantic-monty-runtime = false }
 
 [dependency-groups]
 dev = [
     "dirty-equals>=0.9.0",
-    "fastmcp[anthropic,apps,azure,code-mode,gemini,jev,openai,tasks]",
-    "fastapi>=0.115.12",
+    "fastmcp[jev]; python_version < '3.9'",
+    "fastmcp[anthropic,apps,azure,code-mode,gemini,jev,openai,tasks]; python_version >= '3.11'",
+    "fastapi>=0.115.12,<0.125.0; python_version < '3.11'",
+    "fastapi>=0.115.12; python_version >= '3.11'",
     "fastmcp-remote",
     # FastMCP itself is httpx2-only, but the PEP 723 scripts in scripts/ (and
     # their tests), the Anthropic 0.x compatibility test, and the upgrade guide's
@@ -102,32 +110,49 @@ dev = [
     "pyinstrument>=5.0.2",
     "pyperclip>=1.9.0",
     "pytest>=8.3.3",
-    "pytest-asyncio>=1.2.0",
-    "pytest-cov>=6.1.1",
+    "pytest-asyncio>=0.24.0,<0.25.0; python_version < '3.9'",
+    "pytest-asyncio>=1.2.0; python_version >= '3.9'",
+    "pytest-cov>=5.0.0,<6.0.0; python_version < '3.9'",
+    "pytest-cov>=6.1.1; python_version >= '3.9'",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
     "pytest-report>=0.2.1",
     "pytest-retry>=1.7.0",
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.6.1",
-    "ruff>=0.12.8",
-    "ty>=0.0.100",
-    "prek>=0.2.12",
-    "loq>=0.1.0a3",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.39.0",
+    "ruff>=0.12.8; python_version >= '3.9'",
+    "ty>=0.0.100; python_version >= '3.9'",
+    "prek>=0.2.12; python_version >= '3.9'",
+    "loq>=0.1.0a3; python_version >= '3.9'",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.33.1,<1.34.0; python_version < '3.9'",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.39.0; python_version >= '3.9'",
     "pytest-examples>=0.0.18",
-    "hypothesis>=6.170.15",
+    "hypothesis>=6.113.0,<6.114.0; python_version < '3.11'",
+    "hypothesis>=6.170.15; python_version >= '3.11'",
 ]
+
+# Code mode is native code on Python 3.8.  Keep the regular development
+# environment focused on the test suite; opt into its sandbox separately.
+dev-code-mode = ["fastmcp[code-mode]; python_version < '3.9'"]
 
 [tool.uv.sources]
 fastmcp = { workspace = true }
 fastmcp-slim = { workspace = true }
 fastmcp-remote = { workspace = true }
-fastmcp-tasks = { workspace = true }
+fastmcp-tasks = { path = "fastmcp_tasks", editable = true }
 mcp-types = { path = "vendor/python-sdk/mcp-types", editable = true }
-pydantic-monty = [{ path = "vendor/monty/packages/pydantic-monty", marker = "python_version < '3.9'" }]
-pydantic-monty-client = [{ path = "vendor/monty/crates/monty-python", marker = "python_version < '3.9'" }]
-pydantic-monty-runtime = [{ path = "vendor/monty/crates/monty-runtime", marker = "python_version < '3.9'" }]
+mcp = [{ path = "vendor/python-sdk/mcp", editable = true, marker = "python_version < '3.11'" }]
+pyjwt = [{ path = "vendor/pyjwt", editable = true, marker = "python_version < '3.9'" }]
+httpcore2 = [{ path = "vendor/httpx2/httpcore2", editable = true, marker = "python_version < '3.11'" }]
+httpx2 = [{ path = "vendor/httpx2/httpx2", editable = true, marker = "python_version < '3.11'" }]
+py-key-value-aio = [{ path = "vendor/py-key-value", editable = true, marker = "python_version < '3.11'" }]
+sse-starlette = [{ path = "vendor/sse-starlette", editable = true, marker = "python_version < '3.9'" }]
+typesafe-sdk = [{ path = "vendor/typesafe-sdk", editable = true, marker = "python_version < '3.11'" }]
+typing-inspection = [{ path = "vendor/typing-inspection", editable = true, marker = "python_version < '3.9'" }]
+uncalled-for = [{ path = "vendor/uncalled-for", editable = true, marker = "python_version < '3.11'" }]
+pydantic-monty = [{ path = "vendor/monty/packages/pydantic-monty", marker = "python_version < '3.11'" }]
+pydantic-monty-client = [{ path = "vendor/monty/crates/monty-python", marker = "python_version < '3.11'" }]
+pydantic-monty-runtime = [{ path = "vendor/monty/crates/monty-runtime", marker = "python_version < '3.11'" }]
 pytest-examples = [{ path = "vendor/pytest-examples", editable = true, marker = "python_version < '3.9'" }]
 pytest-retry = [{ path = "vendor/pytest-retry", editable = true, marker = "python_version < '3.9'" }]
 uv-dynamic-versioning = [{ path = "vendor/uv-dynamic-versioning", marker = "python_version < '3.9'" }]
