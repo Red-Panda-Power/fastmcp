@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import AsyncGenerator, Callable, Generator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
@@ -37,7 +38,12 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 DEFAULT_HOSTS = ("127.0.0.1", "localhost", "::1")
-HostOriginProtection = bool | Literal["auto"]
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+    from typing import Union
+
+    HostOriginProtection = Union[bool, Literal["auto"]]  # noqa: UP007 - Python 3.8
+else:
+    HostOriginProtection = bool | Literal["auto"]
 HostOriginProtectionMode = Literal["auto", "strict"]
 
 

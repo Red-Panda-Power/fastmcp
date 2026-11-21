@@ -518,7 +518,8 @@ class ProxyTool(Tool):
             )
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.provider.type": "ProxyProvider",
             "fastmcp.proxy.backend_name": self._backend_name or self.name,
         }
@@ -639,7 +640,8 @@ class ProxyResource(Resource):
             )
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.provider.type": "ProxyProvider",
             "fastmcp.proxy.backend_uri": self._backend_uri or str(self.uri),
         }
@@ -790,7 +792,8 @@ class ProxyTemplate(ResourceTemplate):
         )
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.provider.type": "ProxyProvider",
             "fastmcp.proxy.backend_uri_template": (
                 self._backend_uri_template or self.uri_template
@@ -909,7 +912,8 @@ class ProxyPrompt(Prompt):
             )
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.provider.type": "ProxyProvider",
             "fastmcp.proxy.backend_name": self._backend_name or self.name,
         }

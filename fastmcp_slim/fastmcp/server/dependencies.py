@@ -1158,7 +1158,7 @@ def CurrentRequest() -> Request:
     return cast(Request, _CurrentRequest())
 
 
-class _CurrentHeaders(Provider[dict[str, str]]):
+class _CurrentHeaders(Provider["dict[str, str]"]):
     """Async context manager for HTTP Headers dependency."""
 
     async def __aenter__(self) -> dict[str, str]:
@@ -1197,7 +1197,7 @@ def CurrentHeaders() -> dict[str, str]:
             return "Bearer" if auth.startswith("Bearer ") else "None"
         ```
     """
-    return cast(dict[str, str], _CurrentHeaders())
+    return cast("dict[str, str]", _CurrentHeaders())
 
 
 # --- Progress dependency ---

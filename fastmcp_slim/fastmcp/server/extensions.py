@@ -26,12 +26,13 @@ a default, so a subclass overrides only what it needs.
 from __future__ import annotations
 
 import copy
+import sys
 import weakref
 from collections.abc import Awaitable, Callable, Generator, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from mcp.server.context import ServerRequestContext
 from mcp.shared.exceptions import MCPError
@@ -43,6 +44,7 @@ from mcp_types import (
 )
 from mcp_types.methods import SPEC_CLIENT_METHODS
 from pydantic import BaseModel
+from typing_extensions import TypeAlias  # noqa: UP035 - Python 3.8
 
 from fastmcp.server.dependencies import _lift_meta, bind_request_context, get_context
 
@@ -65,14 +67,25 @@ ToolCallOutcome: TypeAlias = "ToolResult | BaseModel"
 
 # A method handler receives the SDK request context plus validated params and
 # returns a bare result model (the runner serializes it).
-ExtensionRequestHandler: TypeAlias = Callable[
-    [ServerRequestContext[Any, Any], Any],
-    Awaitable[BaseModel | dict[str, Any] | None],
-]
+# A tools/call continuation awaits the rest of the interceptor chain and the
+# tool body.
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+    from typing import Awaitable as _Awaitable  # noqa: UP035 - Python 3.8
+    from typing import Callable as _Callable  # noqa: UP035 - Python 3.8
+    from typing import Dict as _Dict  # noqa: UP035 - Python 3.8
+    from typing import Union as _Union
 
-# A tools/call interceptor's continuation: awaiting it runs the rest of the
-# interceptor chain and, finally, the tool body.
-ToolCallContinuation: TypeAlias = Callable[[], Awaitable["ToolCallOutcome"]]
+    ExtensionRequestHandler: TypeAlias = _Callable[
+        [ServerRequestContext[Any, Any], Any],
+        _Awaitable[_Union[BaseModel, _Dict[str, Any], None]],  # noqa: UP006, UP007
+    ]
+    ToolCallContinuation: TypeAlias = _Callable[[], _Awaitable["ToolCallOutcome"]]
+else:
+    ExtensionRequestHandler: TypeAlias = Callable[
+        [ServerRequestContext[Any, Any], Any],
+        Awaitable[BaseModel | dict[str, Any] | None],
+    ]
+    ToolCallContinuation: TypeAlias = Callable[[], Awaitable["ToolCallOutcome"]]
 
 # During mounted tool execution, the parent already applied its propagated
 # extensions. Carry ownership through nested delegation without suppressing

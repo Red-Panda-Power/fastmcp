@@ -1,5 +1,7 @@
 """Middleware that dereferences $ref in JSON schemas before sending to clients."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from typing import Any
 

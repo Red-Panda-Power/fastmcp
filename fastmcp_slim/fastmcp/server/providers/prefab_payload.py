@@ -23,6 +23,7 @@ needs no renderer change.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from typing import Any
 
@@ -38,7 +39,13 @@ _TOOL_NAMES_KEY = "toolNames"
 #: Resolves an identity hash to the name this server lists that tool under.
 #: Returns None when the identity cannot be resolved here, in which case the
 #: existing reference is left alone.
-IdentityResolver = Callable[[str], str | None]
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+    from typing import Callable as _Callable  # noqa: UP035 - Python 3.8
+    from typing import Optional as _Optional
+
+    IdentityResolver = _Callable[[str], _Optional[str]]  # noqa: UP045 - Python 3.8
+else:
+    IdentityResolver = Callable[[str], str | None]
 
 
 def _walk_tool_calls(node: Any) -> list[dict[str, Any]]:

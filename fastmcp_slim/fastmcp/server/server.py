@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import secrets
+import sys
 from collections.abc import (
     AsyncGenerator,
     Awaitable,
@@ -22,7 +23,6 @@ from typing import (
     Any,
     Generic,
     Literal,
-    Self,
     TypeVar,
     cast,
     get_args,
@@ -45,6 +45,7 @@ from pydantic import AnyUrl
 from pydantic import ValidationError as PydanticValidationError
 from pydantic_core import ErrorType
 from starlette.routing import BaseRoute
+from typing_extensions import Self  # noqa: UP035 - Python 3.8 compatibility
 
 import fastmcp
 import fastmcp.server
@@ -192,7 +193,7 @@ logging.getLogger("mcp.server.lowlevel.server").addFilter(
     _SuppressUnlistedToolWarning()
 )
 
-F = TypeVar("F", bound=Callable[..., Any])
+F = TypeVar("F", bound=AnyFunction)
 ComponentT = TypeVar("ComponentT", bound=FastMCPComponent)
 
 
@@ -260,9 +261,19 @@ def _check_removed_kwargs(kwargs: dict[str, Any]) -> None:
 Transport = Literal["stdio", "http", "sse", "streamable-http"]
 
 
-LifespanCallable = Callable[
-    ["FastMCP[LifespanResultT]"], AbstractAsyncContextManager[LifespanResultT]
-]
+if sys.version_info < (3, 9):  # noqa: UP036 - Python 3.8 compatibility
+    from typing import (  # noqa: UP035
+        AsyncContextManager as _AsyncContextManager,
+    )
+    from typing import Callable as _Callable  # noqa: UP035 - Python 3.8
+
+    LifespanCallable = _Callable[
+        ["FastMCP[LifespanResultT]"], _AsyncContextManager[LifespanResultT]
+    ]
+else:
+    LifespanCallable = Callable[
+        ["FastMCP[LifespanResultT]"], AbstractAsyncContextManager[LifespanResultT]
+    ]
 
 
 async def _component_auth_allows(

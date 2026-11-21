@@ -26,8 +26,9 @@ from __future__ import annotations
 
 import datetime
 import re
+import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
+from typing import TYPE_CHECKING, Any, Literal, Union, cast
 from urllib.parse import urlparse
 
 import httpx2
@@ -39,7 +40,7 @@ from pydantic import (
     PrivateAttr,
     model_validator,
 )
-from typing_extensions import override
+from typing_extensions import Annotated, Self, override  # noqa: UP035 - Python 3.8
 
 from fastmcp import _install_hints
 
@@ -346,11 +347,18 @@ class TransformingRemoteMCPServer(_TransformingMCPServerMixin, RemoteMCPServer):
     """A Remote server with tool transforms."""
 
 
-TransformingMCPServerTypes = TransformingStdioMCPServer | TransformingRemoteMCPServer
-
-CanonicalMCPServerTypes = StdioMCPServer | RemoteMCPServer
-
-MCPServerTypes = TransformingMCPServerTypes | CanonicalMCPServerTypes
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+    TransformingMCPServerTypes = Union[  # noqa: UP007
+        TransformingStdioMCPServer, TransformingRemoteMCPServer
+    ]
+    CanonicalMCPServerTypes = Union[StdioMCPServer, RemoteMCPServer]  # noqa: UP007
+    MCPServerTypes = Union[TransformingMCPServerTypes, CanonicalMCPServerTypes]  # noqa: UP007
+else:
+    TransformingMCPServerTypes = (
+        TransformingStdioMCPServer | TransformingRemoteMCPServer
+    )
+    CanonicalMCPServerTypes = StdioMCPServer | RemoteMCPServer
+    MCPServerTypes = TransformingMCPServerTypes | CanonicalMCPServerTypes
 
 
 class MCPConfig(BaseModel):

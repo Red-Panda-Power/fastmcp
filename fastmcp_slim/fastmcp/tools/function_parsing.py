@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import functools
 import inspect
-import types
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any, Generic, Union, get_args, get_origin, get_type_hints
+from typing import Any, Generic, Union, get_type_hints
 
 import mcp_types
 from pydantic import PydanticSchemaGenerationError
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaValue
 from pydantic_core import core_schema
-from typing_extensions import TypeAliasType
+from typing_extensions import (  # noqa: UP035 - Python 3.8
+    Annotated,
+    TypeAliasType,
+    get_args,
+    get_origin,
+)
 from typing_extensions import TypeVar as TypeVarExt
 
 from fastmcp.tools.base import ToolResult
@@ -25,6 +29,7 @@ from fastmcp.utilities.types import (
     Audio,
     File,
     Image,
+    UnionType,
     get_cached_typeadapter,
     is_class_member_of_type,
     replace_type,
@@ -36,7 +41,7 @@ def _contains_bytes_type(tp: Any) -> bool:
     if tp is bytes:
         return True
     origin = get_origin(tp)
-    if origin is Union or origin is types.UnionType or origin is Annotated:
+    if origin is Union or origin is UnionType or origin is Annotated:
         return any(_contains_bytes_type(a) for a in get_args(tp))
     return False
 
@@ -49,7 +54,7 @@ def _contains_prefab_type(tp: Any) -> bool:
     if is_prefab_type(tp):
         return True
     origin = get_origin(tp)
-    if origin is Union or origin is types.UnionType or origin is Annotated:
+    if origin is Union or origin is UnionType or origin is Annotated:
         return any(_contains_prefab_type(a) for a in get_args(tp))
     return False
 
@@ -117,7 +122,7 @@ def _contains_input_required(tp: Any) -> bool:
     if _is_input_required_type(tp):
         return True
     origin = get_origin(tp)
-    if origin is Union or origin is types.UnionType or origin is Annotated:
+    if origin is Union or origin is UnionType or origin is Annotated:
         return any(_contains_input_required(a) for a in get_args(tp))
     return False
 
@@ -134,7 +139,7 @@ def _residual_union_arms(tp: Any) -> list[Any]:
             continue
         unwrapped = _unwrap_type_alias(arm)
         arm_origin = get_origin(unwrapped)
-        if arm_origin is Union or arm_origin is types.UnionType:
+        if arm_origin is Union or arm_origin is UnionType:
             arms.extend(_residual_union_arms(unwrapped))
         elif arm_origin is Annotated:
             arms.append(_strip_input_required(arm))
@@ -163,7 +168,7 @@ def _strip_input_required(tp: Any) -> Any:
         # Annotated[X | InputRequiredResult, meta] — strip inside, keep metadata.
         inner, *metadata = get_args(unwrapped)
         return Annotated[(_strip_input_required(inner), *metadata)]
-    if origin is not Union and origin is not types.UnionType:
+    if origin is not Union and origin is not UnionType:
         # A bare InputRequiredResult (possibly via a `type X = ...` alias): left
         # intact, but returned de-aliased so the downstream subclass/exact-type
         # suppression recognizes it and emits no output schema.

@@ -4,6 +4,8 @@ This module has no dependencies on the server or resource packages,
 so it can be safely imported from anywhere.
 """
 
+from __future__ import annotations
+
 UI_MIME_TYPE = "text/html;profile=mcp-app"
 
 

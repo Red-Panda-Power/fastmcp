@@ -21,6 +21,8 @@ Example usage with SDK:
     ```
 """
 
+from __future__ import annotations
+
 from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -83,7 +85,7 @@ _DISABLED_TRACER = _DisabledTracer()
 _SUPPRESS_KEY = otel_context.create_key("fastmcp_suppress_telemetry")
 
 
-def telemetry_mode() -> "TelemetryMode":
+def telemetry_mode() -> TelemetryMode:
     """Resolve the effective telemetry mode for the current context.
 
     This is `fastmcp.settings.telemetry_mode`, except that an active

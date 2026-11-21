@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Set
 from dataclasses import dataclass, field
-from functools import cache
+from functools import lru_cache
 from typing import Any
 
 from pydantic import GetCoreSchemaHandler
@@ -29,7 +29,7 @@ from pydantic_core import core_schema
 __all__ = ["ResourceSecurity"]
 
 
-@cache
+@lru_cache(maxsize=None)  # noqa: UP033 - Python 3.8
 def _path_checks() -> tuple[Callable[[str], bool], Callable[[str], bool]]:
     """Lazily load the SDK's path-safety helpers.
 

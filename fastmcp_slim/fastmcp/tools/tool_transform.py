@@ -4,8 +4,7 @@ import inspect
 from collections.abc import Callable
 from contextvars import ContextVar
 from copy import deepcopy
-from dataclasses import dataclass
-from typing import Annotated, Any, Literal, LiteralString, cast
+from typing import Any, Literal, cast
 
 import mcp_types
 from mcp_types import ToolAnnotations
@@ -15,6 +14,7 @@ from pydantic.fields import Field
 from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import SkipJsonSchema
 from pydantic_core import InitErrorDetails, PydanticCustomError
+from typing_extensions import Annotated, LiteralString  # noqa: UP035 - Python 3.8
 
 from fastmcp.exceptions import ValidationError
 from fastmcp.tools.base import (
@@ -24,6 +24,7 @@ from fastmcp.tools.base import (
 )
 from fastmcp.tools.function_parsing import ParsedFunction
 from fastmcp.tools.function_tool import FunctionTool, _ToolBodyError, _wrap_body_errors
+from fastmcp.utilities._dataclasses import dataclass
 from fastmcp.utilities.async_utils import (
     call_sync_fn_in_threadpool,
     is_coroutine_function,
@@ -653,7 +654,7 @@ class TransformedTool(Tool):
             else:
                 final_output_schema = tool.output_schema
         else:
-            final_output_schema = cast(dict | None, output_schema)
+            final_output_schema = cast("dict | None", output_schema)
 
         if transform_fn is None:
             # User wants pure transformation - use forwarding_fn as the main function

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+import sys
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
@@ -44,7 +45,16 @@ class AuthContext:
         return self.component if isinstance(self.component, Tool) else None
 
 
-AuthCheck = Callable[[AuthContext], bool] | Callable[[AuthContext], Awaitable[bool]]
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+    from typing import Awaitable as _Awaitable  # noqa: UP035 - Python 3.8
+    from typing import Callable as _Callable  # noqa: UP035 - Python 3.8
+    from typing import Union as _Union
+
+    AuthCheck = _Union[  # noqa: UP007 - Python 3.8
+        _Callable[[AuthContext], bool], _Callable[[AuthContext], _Awaitable[bool]]
+    ]
+else:
+    AuthCheck = Callable[[AuthContext], bool] | Callable[[AuthContext], Awaitable[bool]]
 
 
 class _ScopeAwareCheck:
@@ -217,7 +227,7 @@ def scope_requirements(
     layers without evaluating anything that would otherwise be skipped.
     """
     check_list = [checks] if not isinstance(checks, list) else checks
-    check_list = cast(list[AuthCheck], check_list)
+    check_list = cast("list[AuthCheck]", check_list)
 
     missing: set[str] = set()
     for check in check_list:
@@ -274,7 +284,7 @@ async def run_auth_checks_with_shortfall(
     An ``AuthorizationError`` raised by a check propagates unchanged.
     """
     check_list = [checks] if not isinstance(checks, list) else checks
-    check_list = cast(list[AuthCheck], check_list)
+    check_list = cast("list[AuthCheck]", check_list)
 
     scope_shortfall = False
     for check in check_list:
@@ -307,7 +317,7 @@ async def run_auth_checks(
 ) -> bool:
     """Run auth checks with AND logic, stopping at the first failure."""
     check_list = [checks] if not isinstance(checks, list) else checks
-    check_list = cast(list[AuthCheck], check_list)
+    check_list = cast("list[AuthCheck]", check_list)
 
     for check in check_list:
         if not await _evaluate_check(check, ctx):

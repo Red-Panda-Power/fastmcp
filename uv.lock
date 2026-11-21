@@ -1018,6 +1018,7 @@ requires-dist = [
     { name = "certifi", marker = "extra == 'openai'", specifier = ">=2026.10.19" },
     { name = "certifi", marker = "extra == 'server'", specifier = ">=2026.10.19" },
     { name = "cyclopts", marker = "extra == 'server'", specifier = ">=4.0.0" },
+    { name = "eval-type-backport", marker = "python_full_version < '3.10'", specifier = ">=0.4.0" },
     { name = "exceptiongroup", marker = "extra == 'client'", specifier = ">=1.2.2" },
     { name = "exceptiongroup", marker = "extra == 'mcp'", specifier = ">=1.2.2" },
     { name = "exceptiongroup", marker = "extra == 'server'", specifier = ">=1.2.2" },

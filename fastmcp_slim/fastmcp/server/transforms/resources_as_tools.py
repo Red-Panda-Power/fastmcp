@@ -23,9 +23,10 @@ from __future__ import annotations
 import base64
 import json
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Any
 
 from mcp_types import InputRequiredResult, ToolAnnotations
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.resources.base import InputRequiredResourceResult
 from fastmcp.server.dependencies import get_context

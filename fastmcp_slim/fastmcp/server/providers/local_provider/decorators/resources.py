@@ -26,7 +26,7 @@ from fastmcp.utilities.types import AnyFunction
 if TYPE_CHECKING:
     from fastmcp.server.providers.local_provider import LocalProvider
 
-F = TypeVar("F", bound=Callable[..., Any])
+F = TypeVar("F", bound=AnyFunction)
 
 
 class ResourceDecoratorMixin:

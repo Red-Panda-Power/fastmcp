@@ -4,6 +4,7 @@ dynamic = ["version", "optional-dependencies"]
 description = "The dependency-slim FastMCP package."
 authors = [{ name = "Jeremiah Lowin" }, { name = "Nate Nowack" }]
 dependencies = [
+    "eval-type-backport>=0.4.0; python_version < '3.10'",
     "mcp-types>=2.0.0,<3.0.0",
     "platformdirs>=4.0.0",
     "pydantic[email]>=2.12.0",

@@ -344,7 +344,7 @@ class Prompt(FastMCPComponent):
                 meta=public_result_meta(self.meta),
             )
 
-        if isinstance(raw_value, list | tuple):
+        if isinstance(raw_value, (list, tuple)):
             messages: list[Message] = []
             for i, item in enumerate(raw_value):
                 if isinstance(item, Message):
@@ -381,7 +381,8 @@ class Prompt(FastMCPComponent):
         return self.convert_result(result)
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.component.type": "prompt",
             "fastmcp.provider.type": "LocalProvider",
         }

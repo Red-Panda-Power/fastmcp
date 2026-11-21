@@ -5,14 +5,12 @@ from __future__ import annotations
 import base64
 import json
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import mcp_types
 
 if TYPE_CHECKING:
     from fastmcp.resources.function_resource import FunctionResource
-
-from typing import Self
 
 import pydantic
 import pydantic_core
@@ -27,6 +25,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic.json_schema import SkipJsonSchema
+from typing_extensions import Annotated, Self  # noqa: UP035 - Python 3.8
 
 from fastmcp.utilities.authorization import AuthCheck
 from fastmcp.utilities.components import FastMCPComponent, public_result_meta
@@ -187,7 +186,7 @@ class ResourceResult(pydantic.BaseModel):
             return contents
         # Auto-serialize JSON-native types to JSON text
         if (
-            isinstance(contents, dict | list | tuple | int | float | bool)
+            isinstance(contents, (dict, list, tuple, int, float, bool))
             or contents is None
         ):
             return [ResourceContent(json.dumps(contents), mime_type="application/json")]
@@ -303,7 +302,7 @@ def convert_raw_to_resource_result(
     # matching the str/bytes path above so CSP/permissions propagate.
     # An empty list is JSON-native and serializes to "[]" as before.
     if (
-        isinstance(raw_value, dict | list | tuple | int | float | bool)
+        isinstance(raw_value, (dict, list, tuple, int, float, bool))
         or raw_value is None
     ):
         return ResourceResult(
@@ -472,7 +471,8 @@ class Resource(FastMCPComponent):
         return f"{base_key}@{self.version or ''}"
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.component.type": "resource",
             "fastmcp.provider.type": "LocalProvider",
         }

@@ -7,7 +7,6 @@ from collections.abc import Callable
 from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
-    Annotated,
     Any,
     ClassVar,
 )
@@ -32,6 +31,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic.json_schema import SkipJsonSchema
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.exceptions import ToolError
 from fastmcp.utilities.authorization import AuthCheck
@@ -61,7 +61,19 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+_CONTENT_BLOCK_TYPES = (
+    mcp_types.TextContent,
+    mcp_types.ImageContent,
+    mcp_types.AudioContent,
+    mcp_types.ResourceLink,
+    mcp_types.EmbeddedResource,
+)
+_CONTENT_OR_MEDIA_TYPES = (*_CONTENT_BLOCK_TYPES, Audio, Image, File)
+
 _JSONABLE_ADAPTER = get_cached_typeadapter(Any)
+_DUMP_JSON_SUPPORTS_FALLBACK = (
+    "fallback" in inspect.signature(_JSONABLE_ADAPTER.dump_json).parameters
+)
 
 
 def _default_title(name: str) -> str:
@@ -75,6 +87,12 @@ def _default_title(name: str) -> str:
 
 
 def default_serializer(data: Any) -> str:
+    if not _DUMP_JSON_SUPPORTS_FALLBACK:
+        # Pydantic 2.10 exposes fallback on the core serializer, but not yet on
+        # TypeAdapter.dump_json. Its dump_json default for by_alias is False.
+        return _JSONABLE_ADAPTER.serializer.to_json(
+            data, by_alias=False, fallback=str
+        ).decode()
     return _JSONABLE_ADAPTER.dump_json(data, fallback=str).decode()
 
 
@@ -111,7 +129,7 @@ def _reject_nonfinite(value: Any, path: str = "$") -> None:
     if isinstance(value, dict):
         for key, item in value.items():
             _reject_nonfinite(item, f"{path}.{key}")
-    elif isinstance(value, list | tuple):
+    elif isinstance(value, (list, tuple)):
         for index, item in enumerate(value):
             _reject_nonfinite(item, f"{path}[{index}]")
 
@@ -497,14 +515,9 @@ class Tool(FastMCPComponent):
         if isinstance(raw_value, bytes):
             return ToolResult(content=content)
 
-        is_content_result = isinstance(
-            raw_value, ContentBlock | Audio | Image | File
-        ) or (
-            isinstance(raw_value, list | tuple)
-            and any(
-                isinstance(item, ContentBlock | Audio | Image | File)
-                for item in raw_value
-            )
+        is_content_result = isinstance(raw_value, _CONTENT_OR_MEDIA_TYPES) or (
+            isinstance(raw_value, (list, tuple))
+            and any(isinstance(item, _CONTENT_OR_MEDIA_TYPES) for item in raw_value)
         )
 
         # Skip structured content for ContentBlock types only if no output_schema
@@ -563,7 +576,7 @@ class Tool(FastMCPComponent):
         wrapper it advertises for non-object schemas.
         """
         if (
-            isinstance(result, RawStructuredToolResult | InputRequiredToolResult)
+            isinstance(result, (RawStructuredToolResult, InputRequiredToolResult))
             or result.structured_content is None
             or self.output_schema is None
             or is_object_schema(self.output_schema)
@@ -627,7 +640,8 @@ class Tool(FastMCPComponent):
         return cls.from_function(tool)
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.component.type": "tool",
             "fastmcp.provider.type": "LocalProvider",
         }
@@ -636,7 +650,7 @@ class Tool(FastMCPComponent):
 def _convert_to_single_content_block(
     item: Any,
 ) -> ContentBlock:
-    if isinstance(item, ContentBlock):
+    if isinstance(item, _CONTENT_BLOCK_TYPES):
         return item
 
     if isinstance(item, Image):
@@ -718,19 +732,19 @@ def _convert_to_content(
     if result is None:
         return []
 
-    if not isinstance(result, (list | tuple)):
+    if not isinstance(result, (list, tuple)):
         return [_convert_to_single_content_block(result)]
 
     # If all items are ContentBlocks, return them as is
-    if all(isinstance(item, ContentBlock) for item in result):
+    if all(isinstance(item, _CONTENT_BLOCK_TYPES) for item in result):
         return result
 
     # If any item is a ContentBlock, convert non-ContentBlock items to TextContent
     # without aggregating them
-    if any(isinstance(item, ContentBlock | Image | Audio | File) for item in result):
+    if any(isinstance(item, _CONTENT_OR_MEDIA_TYPES) for item in result):
         return [
             _convert_to_single_content_block(item)
-            if not isinstance(item, ContentBlock)
+            if not isinstance(item, _CONTENT_BLOCK_TYPES)
             else item
             for item in result
         ]

@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from contextvars import ContextVar
-from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from dataclasses import field, replace
+from datetime import datetime, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -21,6 +21,7 @@ from fastmcp.prompts.base import Prompt, PromptResult
 from fastmcp.resources.base import Resource, ResourceResult
 from fastmcp.resources.template import ResourceTemplate
 from fastmcp.tools.base import Tool, ToolResult
+from fastmcp.utilities._dataclasses import dataclass
 
 if TYPE_CHECKING:
     from fastmcp.server.context import Context
@@ -104,7 +105,7 @@ class MiddlewareContext(Generic[T]):
     source: Literal["client", "server"] = "client"
     type: Literal["request", "notification"] = "request"
     method: str | None = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))  # noqa: UP017 - Python 3.8
 
     def copy(self, **kwargs: Any) -> MiddlewareContext[T]:
         return replace(self, **kwargs)
@@ -167,35 +168,30 @@ class Middleware:
         handler = call_next
 
         if phase in ("all", "typed"):
-            match context.method:
-                case "initialize":
-                    handler = make_handler_wrapper(self.on_initialize, handler)
-                case "server/discover":
-                    handler = make_handler_wrapper(self.on_discover, handler)
-                case "tools/call":
-                    handler = make_handler_wrapper(self.on_call_tool, handler)
-                case "resources/read":
-                    handler = make_handler_wrapper(self.on_read_resource, handler)
-                case "prompts/get":
-                    handler = make_handler_wrapper(self.on_get_prompt, handler)
-                case "tools/list":
-                    handler = make_handler_wrapper(self.on_list_tools, handler)
-                case "resources/list":
-                    handler = make_handler_wrapper(self.on_list_resources, handler)
-                case "resources/templates/list":
-                    handler = make_handler_wrapper(
-                        self.on_list_resource_templates,
-                        handler,
-                    )
-                case "prompts/list":
-                    handler = make_handler_wrapper(self.on_list_prompts, handler)
+            if context.method == "initialize":
+                handler = make_handler_wrapper(self.on_initialize, handler)
+            elif context.method == "server/discover":
+                handler = make_handler_wrapper(self.on_discover, handler)
+            elif context.method == "tools/call":
+                handler = make_handler_wrapper(self.on_call_tool, handler)
+            elif context.method == "resources/read":
+                handler = make_handler_wrapper(self.on_read_resource, handler)
+            elif context.method == "prompts/get":
+                handler = make_handler_wrapper(self.on_get_prompt, handler)
+            elif context.method == "tools/list":
+                handler = make_handler_wrapper(self.on_list_tools, handler)
+            elif context.method == "resources/list":
+                handler = make_handler_wrapper(self.on_list_resources, handler)
+            elif context.method == "resources/templates/list":
+                handler = make_handler_wrapper(self.on_list_resource_templates, handler)
+            elif context.method == "prompts/list":
+                handler = make_handler_wrapper(self.on_list_prompts, handler)
 
         if phase in ("all", "outer"):
-            match context.type:
-                case "request":
-                    handler = make_handler_wrapper(self.on_request, handler)
-                case "notification":
-                    handler = make_handler_wrapper(self.on_notification, handler)
+            if context.type == "request":
+                handler = make_handler_wrapper(self.on_request, handler)
+            elif context.type == "notification":
+                handler = make_handler_wrapper(self.on_notification, handler)
 
             handler = make_handler_wrapper(self.on_message, handler)
 

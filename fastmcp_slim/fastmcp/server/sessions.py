@@ -45,23 +45,25 @@ from functools import lru_cache
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
-    Annotated,
     Any,
     Final,
     cast,
-    get_args,
-    get_origin,
-    get_type_hints,
 )
 from uuid import uuid4
 
 from mcp.server.auth.provider import principal_components
+from typing_extensions import (  # noqa: UP035 - Python 3.8
+    Annotated,
+    get_args,
+    get_origin,
+)
 from uncalled_for import Provider as DependencyProvider
 
 from fastmcp.exceptions import FastMCPError
 from fastmcp.server.dependencies import get_access_token, get_server, get_session
 from fastmcp.server.providers.base import Provider
 from fastmcp.utilities.logging import get_logger
+from fastmcp.utilities.types import get_function_type_hints
 
 if TYPE_CHECKING:
     from key_value.aio.adapters.pydantic import PydanticAdapter
@@ -360,7 +362,7 @@ def session_id_parameter_names(fn: Callable[..., object]) -> tuple[str, ...]:
     if not callable(target):
         return ()
     try:
-        hints = get_type_hints(target, include_extras=True)
+        hints = get_function_type_hints(target)
     except (TypeError, NameError):
         return ()
     # `inspect.signature` on the (possibly partial) callable reports only the

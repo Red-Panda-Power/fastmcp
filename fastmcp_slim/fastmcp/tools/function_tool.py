@@ -6,11 +6,10 @@ import functools
 import inspect
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import field
 from functools import lru_cache
 from types import MethodType
 from typing import (
-    Annotated,
     Any,
     Literal,
     Protocol,
@@ -29,6 +28,7 @@ from pydantic import Field, TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
 from pydantic.json_schema import SkipJsonSchema
 from pydantic_core import to_json
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.decorators import get_fastmcp_meta
 from fastmcp.exceptions import ValidationError
@@ -38,6 +38,7 @@ from fastmcp.tools.base import (
     ToolResult,
 )
 from fastmcp.tools.function_parsing import ParsedFunction
+from fastmcp.utilities._dataclasses import dataclass
 from fastmcp.utilities.async_utils import (
     call_sync_fn_in_threadpool,
     is_coroutine_function,
@@ -47,6 +48,7 @@ from fastmcp.utilities.json_schema import is_object_schema
 from fastmcp.utilities.logging import get_logger
 from fastmcp.utilities.tasks import TaskConfig
 from fastmcp.utilities.types import (
+    AnyFunction,
     NotSet,
     NotSetT,
     get_cached_typeadapter,
@@ -193,7 +195,7 @@ def _validate_input(
     return type_adapter.validate_json(to_json(value), strict=True)
 
 
-F = TypeVar("F", bound=Callable[..., Any])
+F = TypeVar("F", bound=AnyFunction)
 
 
 @runtime_checkable
@@ -663,7 +665,7 @@ def tool(
             auth=auth,
             run_in_thread=run_in_thread,
         )
-        target = fn.__func__ if isinstance(fn, staticmethod | MethodType) else fn
+        target = fn.__func__ if isinstance(fn, (staticmethod, MethodType)) else fn
         cast(Any, target).__fastmcp__ = metadata
         return fn
 

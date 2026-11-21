@@ -44,6 +44,7 @@ To compose with existing `@asynccontextmanager` lifespans, wrap them explicitly:
 
 from __future__ import annotations
 
+import sys
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import TYPE_CHECKING, Any, cast
@@ -52,10 +53,26 @@ if TYPE_CHECKING:
     from fastmcp.server.server import FastMCP
 
 
-LifespanFn = Callable[["FastMCP[Any]"], AsyncIterator[dict[str, Any] | None]]
-LifespanContextManagerFn = Callable[
-    ["FastMCP[Any]"], AbstractAsyncContextManager[dict[str, Any] | None]
-]
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+    from typing import (  # noqa: UP035
+        AsyncContextManager as _AsyncContextManager,
+    )
+    from typing import AsyncIterator as _AsyncIterator  # noqa: UP035 - Python 3.8
+    from typing import Callable as _Callable  # noqa: UP035 - Python 3.8
+    from typing import Dict as _Dict  # noqa: UP035 - Python 3.8
+    from typing import Optional as _Optional
+
+    LifespanFn = _Callable[
+        ["FastMCP[Any]"], _AsyncIterator[_Optional[_Dict[str, Any]]]  # noqa: UP006, UP045
+    ]
+    LifespanContextManagerFn = _Callable[
+        ["FastMCP[Any]"], _AsyncContextManager[_Optional[_Dict[str, Any]]]  # noqa: UP006, UP045
+    ]
+else:
+    LifespanFn = Callable[["FastMCP[Any]"], AsyncIterator[dict[str, Any] | None]]
+    LifespanContextManagerFn = Callable[
+        ["FastMCP[Any]"], AbstractAsyncContextManager[dict[str, Any] | None]
+    ]
 
 
 class Lifespan:
@@ -87,7 +104,7 @@ class Lifespan:
             The lifespan context dict.
         """
         generator_fn = cast(
-            Callable[["FastMCP[Any]"], AsyncGenerator[dict[str, Any] | None]],
+            'Callable[["FastMCP[Any]"], AsyncGenerator[dict[str, Any] | None]]',
             self._fn,
         )
         async with asynccontextmanager(generator_fn)(server) as result:
@@ -172,11 +189,9 @@ class ComposedLifespan(Lifespan):
         Yields:
             The merged lifespan context dict from both lifespans.
         """
-        async with (
-            self._left(server) as left_result,
-            self._right(server) as right_result,
-        ):
-            yield {**left_result, **right_result}
+        async with self._left(server) as left_result:  # noqa: SIM117 - Python 3.8
+            async with self._right(server) as right_result:
+                yield {**left_result, **right_result}
 
 
 def lifespan(fn: LifespanFn) -> Lifespan:

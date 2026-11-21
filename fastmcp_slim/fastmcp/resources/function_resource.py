@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import inspect
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import field
 from types import MethodType
 from typing import (
     Any,
@@ -26,14 +26,16 @@ from fastmcp.resources.security import (
     InheritSecurity,
     ResourceSecurity,
 )
+from fastmcp.utilities._dataclasses import dataclass
 from fastmcp.utilities.async_utils import (
     call_sync_fn_in_threadpool,
     is_coroutine_function,
 )
 from fastmcp.utilities.authorization import AuthCheck
 from fastmcp.utilities.mime import resolve_ui_mime_type
+from fastmcp.utilities.types import AnyFunction
 
-F = TypeVar("F", bound=Callable[..., Any])
+F = TypeVar("F", bound=AnyFunction)
 
 
 @runtime_checkable
@@ -264,7 +266,7 @@ def resource(
             auth=auth,
             security=security,
         )
-        target = fn.__func__ if isinstance(fn, staticmethod | MethodType) else fn
+        target = fn.__func__ if isinstance(fn, (staticmethod, MethodType)) else fn
         cast(Any, target).__fastmcp__ = metadata
         return fn
 

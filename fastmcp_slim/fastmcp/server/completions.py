@@ -13,14 +13,49 @@ whichever reference/argument pair it recognizes.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Awaitable, Callable
 
 import mcp_types
 
-CompletionReference = mcp_types.PromptReference | mcp_types.ResourceTemplateReference
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+    from typing import Awaitable as _Awaitable  # noqa: UP035 - Python 3.8
+    from typing import Callable as _Callable  # noqa: UP035 - Python 3.8
+    from typing import List as _List  # noqa: UP035 - Python 3.8
+    from typing import Optional as _Optional
+    from typing import Tuple as _Tuple  # noqa: UP035 - Python 3.8
+    from typing import Union as _Union
+
+    CompletionReference = _Union[  # noqa: UP007 - Python 3.8
+        mcp_types.PromptReference, mcp_types.ResourceTemplateReference
+    ]
+    CompletionValues = _Union[  # noqa: UP007 - Python 3.8
+        mcp_types.Completion, _List[str], _Tuple[str, ...], None  # noqa: UP006 - Python 3.8
+    ]
+    CompletionHandler = _Callable[
+        [
+            CompletionReference,
+            mcp_types.CompletionArgument,
+            _Optional[mcp_types.CompletionContext],  # noqa: UP045 - Python 3.8
+        ],
+        _Union[_Awaitable[CompletionValues], CompletionValues],  # noqa: UP007 - Python 3.8
+    ]
+else:
+    CompletionReference = (
+        mcp_types.PromptReference | mcp_types.ResourceTemplateReference
+    )
+    CompletionValues = mcp_types.Completion | list[str] | tuple[str, ...] | None
+    CompletionHandler = Callable[
+        [
+            CompletionReference,
+            mcp_types.CompletionArgument,
+            mcp_types.CompletionContext | None,
+        ],
+        Awaitable[CompletionValues] | CompletionValues,
+    ]
+
 """The reference a completion request targets: a prompt or a resource template."""
 
-CompletionValues = mcp_types.Completion | list[str] | tuple[str, ...] | None
 """What a completion handler may return.
 
 - ``Completion`` — used verbatim (carries the optional ``total`` / ``has_more``
@@ -32,14 +67,6 @@ CompletionValues = mcp_types.Completion | list[str] | tuple[str, ...] | None
 - ``None`` — treated as "no candidates" (an empty completion).
 """
 
-CompletionHandler = Callable[
-    [
-        CompletionReference,
-        mcp_types.CompletionArgument,
-        mcp_types.CompletionContext | None,
-    ],
-    Awaitable[CompletionValues] | CompletionValues,
-]
 """A server's completion handler.
 
 Called with the reference, the argument being completed, and the optional

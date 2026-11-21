@@ -275,7 +275,7 @@ max_lines = 1404
 
 [[rules]]
 path = "fastmcp_slim/fastmcp/server/server.py"
-max_lines = 2410
+max_lines = 2730
 
 [[rules]]
 path = "fastmcp_slim/fastmcp/server/auth/oauth_proxy/proxy.py"
@@ -295,11 +295,11 @@ max_lines = 1686
 
 [[rules]]
 path = "fastmcp_slim/fastmcp/server/providers/proxy.py"
-max_lines = 1096
+max_lines = 2075
 
 [[rules]]
 path = "fastmcp_slim/fastmcp/tools/tool_transform.py"
-max_lines = 1004
+max_lines = 1280
 
 [[rules]]
 path = "tests/resources/test_resource_template.py"

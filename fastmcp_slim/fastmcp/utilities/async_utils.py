@@ -1,5 +1,7 @@
 """Async utilities for FastMCP."""
 
+from __future__ import annotations
+
 import functools
 import inspect
 from collections.abc import Awaitable, Callable, Iterable

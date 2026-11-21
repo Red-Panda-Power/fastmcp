@@ -121,7 +121,8 @@ class FastMCPProviderTool(Tool):
             )
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.provider.type": "FastMCPProvider",
             "fastmcp.delegate.original_name": self._original_name,
         }
@@ -183,7 +184,8 @@ class FastMCPProviderResource(Resource):
             return await self._server.read_resource(self._original_uri, version=version)
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.provider.type": "FastMCPProvider",
             "fastmcp.delegate.original_uri": self._original_uri,
         }
@@ -258,7 +260,8 @@ class FastMCPProviderPrompt(Prompt):
         )
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.provider.type": "FastMCPProvider",
             "fastmcp.delegate.original_name": self._original_name,
         }
@@ -357,7 +360,8 @@ class FastMCPProviderResourceTemplate(ResourceTemplate):
             return await self._server.read_resource(original_uri, version=version)
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.provider.type": "FastMCPProvider",
             "fastmcp.delegate.original_uri_template": self._original_uri_template,
         }

@@ -1,29 +1,47 @@
 """Common types used across FastMCP."""
 
+from __future__ import annotations
+
 import base64
 import inspect
 import mimetypes
 import os
-from collections.abc import Callable
+import sys
 from functools import lru_cache
 from pathlib import Path
-from types import EllipsisType, UnionType
 from typing import (
-    Annotated,
     Any,
+    ForwardRef,
     Protocol,
-    TypeAlias,
     Union,
-    get_args,
-    get_origin,
-    get_type_hints,
 )
 from urllib.parse import quote
 
 import mcp_types
 from mcp_types import Annotations, ContentBlock, ModelPreferences, SamplingMessage
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, TypeAdapter, UrlConstraints
-from typing_extensions import TypeVar
+from typing_extensions import (  # noqa: UP035 - Python 3.8 compatibility
+    Annotated,
+    TypeAlias,
+    TypeVar,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
+
+if sys.version_info < (3, 9):  # noqa: UP036 - Python 3.8 compatibility
+    from typing import Callable  # noqa: UP035 - collections.abc is not subscriptable
+else:
+    from collections.abc import Callable
+
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+    EllipsisType = type(Ellipsis)
+
+    class UnionType:
+        """Sentinel for the union type that does not exist before Python 3.10."""
+
+else:
+    from types import EllipsisType, UnionType
 
 T = TypeVar("T", default=Any)
 
@@ -47,7 +65,38 @@ class FastMCPBaseModel(BaseModel):
 
 def get_function_type_hints(fn: Callable[..., Any]) -> dict[str, Any]:
     """Resolve a function's type hints, keeping `Annotated` metadata."""
-    return get_type_hints(fn, include_extras=True)
+    if sys.version_info >= (3, 10):  # noqa: UP036 - Python 3.8 compatibility
+        return get_type_hints(fn, include_extras=True)
+
+    try:
+        return get_type_hints(fn, include_extras=True)
+    except TypeError:
+        # On older Python, evaluating postponed ``list[int]`` or ``X | Y``
+        # annotations can fail even though the annotation is valid on newer
+        # interpreters. Keep the normal path for classes and older-style hints.
+        pass
+
+    from eval_type_backport import eval_type_backport
+
+    if getattr(fn, "__no_type_check__", False):
+        return {}
+    target = inspect.unwrap(fn)
+    namespace = getattr(target, "__globals__", None)
+    if namespace is None:
+        module = sys.modules.get(getattr(target, "__module__", ""))
+        namespace = vars(module) if module is not None else {}
+    localns = dict(vars(target)) if inspect.isclass(target) else namespace
+    hints = {}
+    for name, annotation in getattr(fn, "__annotations__", {}).items():
+        if annotation is None:
+            annotation = type(None)
+        elif isinstance(annotation, str):
+            annotation = ForwardRef(annotation)
+        resolved = eval_type_backport(annotation, globalns=namespace, localns=localns)
+        if isinstance(resolved, ForwardRef):
+            resolved = eval_type_backport(resolved, globalns=namespace, localns=localns)
+        hints[name] = resolved
+    return hints
 
 
 @lru_cache(maxsize=5000)
@@ -173,7 +222,7 @@ def find_kwarg_by_type(fn: Callable, kwarg_type: type) -> str | None:
     # Try to get resolved type hints
     try:
         # Use include_extras=True to preserve Annotated metadata
-        type_hints = get_type_hints(fn, include_extras=True)
+        type_hints = get_function_type_hints(fn)
     except Exception:
         # If resolution fails, use raw annotations if they exist
         type_hints = getattr(fn, "__annotations__", {})

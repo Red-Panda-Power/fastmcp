@@ -7,35 +7,36 @@ registration functionality to LocalProvider.
 from __future__ import annotations
 
 import inspect
-import types
 from collections.abc import Callable
 from functools import partial
 from typing import (
     TYPE_CHECKING,
-    Annotated,
     Any,
     Literal,
     TypeVar,
     Union,
-    get_args,
-    get_origin,
     overload,
 )
 
 import mcp_types
 from mcp_types import ToolAnnotations
+from typing_extensions import (  # noqa: UP035 - Python 3.8
+    Annotated,
+    get_args,
+    get_origin,
+)
 
 from fastmcp.tools.base import Tool
 from fastmcp.tools.function_tool import FunctionTool
 from fastmcp.utilities.authorization import AuthCheck
 from fastmcp.utilities.prefab import is_prefab_type, prefab_available
 from fastmcp.utilities.tasks import TaskConfig
-from fastmcp.utilities.types import AnyFunction, NotSet, NotSetT
+from fastmcp.utilities.types import AnyFunction, NotSet, NotSetT, UnionType
 
 if TYPE_CHECKING:
     from fastmcp.server.providers.local_provider import LocalProvider
 
-F = TypeVar("F", bound=Callable[..., Any])
+F = TypeVar("F", bound=AnyFunction)
 
 DuplicateBehavior = Literal["error", "warn", "replace", "ignore"]
 
@@ -47,7 +48,7 @@ def _is_prefab_type(tp: Any) -> bool:
     if is_prefab_type(tp):
         return True
     origin = get_origin(tp)
-    if origin is Union or origin is types.UnionType or origin is Annotated:
+    if origin is Union or origin is UnionType or origin is Annotated:
         return any(_is_prefab_type(a) for a in get_args(tp))
     return False
 

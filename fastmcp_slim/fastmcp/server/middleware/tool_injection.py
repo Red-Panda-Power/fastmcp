@@ -1,5 +1,7 @@
 """A middleware for injecting tools into the MCP server context."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from logging import Logger
 

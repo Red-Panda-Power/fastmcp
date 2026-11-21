@@ -7,7 +7,7 @@ import inspect
 import json
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import field
 from types import MethodType
 from typing import (
     Any,
@@ -27,6 +27,7 @@ from pydantic.json_schema import SkipJsonSchema
 
 from fastmcp.exceptions import PromptError, ValidationError
 from fastmcp.prompts.base import Prompt, PromptArgument, PromptResult
+from fastmcp.utilities._dataclasses import dataclass
 from fastmcp.utilities.async_utils import (
     call_sync_fn_in_threadpool,
     is_coroutine_function,
@@ -35,9 +36,13 @@ from fastmcp.utilities.authorization import AuthCheck
 from fastmcp.utilities.docstring_parsing import ParsedDocstring, parse_docstring
 from fastmcp.utilities.json_schema import compress_schema
 from fastmcp.utilities.logging import get_logger
-from fastmcp.utilities.types import get_cached_typeadapter, get_function_type_hints
+from fastmcp.utilities.types import (
+    AnyFunction,
+    get_cached_typeadapter,
+    get_function_type_hints,
+)
 
-F = TypeVar("F", bound=Callable[..., Any])
+F = TypeVar("F", bound=AnyFunction)
 
 logger = get_logger(__name__)
 
@@ -443,7 +448,7 @@ def prompt(
             meta=meta,
             auth=auth,
         )
-        target = fn.__func__ if isinstance(fn, staticmethod | MethodType) else fn
+        target = fn.__func__ if isinstance(fn, (staticmethod, MethodType)) else fn
         cast(Any, target).__fastmcp__ = metadata
         return fn
 

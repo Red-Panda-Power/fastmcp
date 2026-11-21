@@ -6,8 +6,7 @@ import functools
 import inspect
 import re
 from collections.abc import Callable, Collection
-from types import UnionType
-from typing import Annotated, Any, ClassVar, Union, get_args, get_origin
+from typing import Any, ClassVar, Union
 from urllib.parse import parse_qs, quote, unquote, unquote_plus
 
 from mcp_types import Annotations, Icon
@@ -20,6 +19,11 @@ from pydantic import (
     validate_call,
 )
 from pydantic.json_schema import SkipJsonSchema
+from typing_extensions import (  # noqa: UP035 - Python 3.8
+    Annotated,
+    get_args,
+    get_origin,
+)
 
 from fastmcp.resources.base import (
     Resource,
@@ -39,7 +43,7 @@ from fastmcp.utilities.authorization import AuthCheck
 from fastmcp.utilities.components import FastMCPComponent
 from fastmcp.utilities.json_schema import compress_schema
 from fastmcp.utilities.mime import resolve_ui_mime_type
-from fastmcp.utilities.types import get_cached_typeadapter
+from fastmcp.utilities.types import UnionType, get_cached_typeadapter
 
 
 def extract_query_params(uri_template: str) -> set[str]:
@@ -52,7 +56,9 @@ def extract_query_params(uri_template: str) -> set[str]:
     """
     names: set[str] = set()
     for match in re.finditer(r"\{[?&]([^}]+)\}", uri_template):
-        names.update(p.strip().removesuffix("*") for p in match.group(1).split(","))
+        for param in match.group(1).split(","):
+            name = param.strip()
+            names.add(name[:-1] if name.endswith("*") else name)
     return names
 
 
@@ -622,7 +628,8 @@ class ResourceTemplate(FastMCPComponent):
         return f"{base_key}@{self.version or ''}"
 
     def get_span_attributes(self) -> dict[str, Any]:
-        return super().get_span_attributes() | {
+        return {
+            **super().get_span_attributes(),
             "fastmcp.component.type": "resource_template",
             "fastmcp.provider.type": "LocalProvider",
         }
