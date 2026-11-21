@@ -41,6 +41,24 @@ members = [
 ]
 build-constraints = [{ name = "maturin", specifier = ">=1.9.4,<1.10" }]
 
+[[manifest.dependency-metadata]]
+name = "fastmcp-tasks"
+version = "0.0.0"
+requires-dist = ["fastmcp-slim[server]", "cryptography>=43.0.0", "pydocket>=0.29.1", "redis!=8.1.0"]
+requires-python = ">=3.11"
+
+[[manifest.dependency-metadata]]
+name = "pydantic-monty-client"
+version = "1.1.0"
+requires-dist = ["typing-extensions>=4.5", "opentelemetry-api>=1.39.0 ; extra == 'opentelemetry'"]
+requires-python = ">=3.8"
+provides-extras = ["opentelemetry"]
+
+[[manifest.dependency-metadata]]
+name = "pydantic-monty-runtime"
+version = "1.1.0"
+requires-python = ">=3.8"
+
 [[package]]
 name = "aiofile"
 version = "3.8.8"
@@ -2239,8 +2257,8 @@ client = [
 code-mode = [
     { name = "pydantic-monty", version = "1.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pydantic-monty", version = "1.1.0", source = { directory = "vendor/monty/packages/pydantic-monty" }, marker = "python_full_version < '3.11'" },
-    { name = "pydantic-monty-client", source = { directory = "vendor/monty/crates/monty-python" }, marker = "python_full_version < '3.11'" },
-    { name = "pydantic-monty-runtime", source = { directory = "vendor/monty/crates/monty-runtime" }, marker = "python_full_version < '3.11'" },
+    { name = "pydantic-monty-client", version = "1.1.0", source = { directory = "vendor/monty/crates/monty-python" }, marker = "python_full_version < '3.11'" },
+    { name = "pydantic-monty-runtime", version = "1.1.0", source = { directory = "vendor/monty/crates/monty-runtime" }, marker = "python_full_version < '3.11'" },
 ]
 gemini = [
     { name = "certifi", marker = "python_full_version >= '3.11'" },
@@ -2419,6 +2437,7 @@ provides-extras = ["anthropic", "apps", "azure", "client", "code-mode", "gemini"
 
 [[package]]
 name = "fastmcp-tasks"
+version = "0.0.0"
 source = { editable = "fastmcp_tasks" }
 dependencies = [
     { name = "cryptography", version = "50.0.0", source = { registry = "https://pypi.org/simple" } },
@@ -2430,7 +2449,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=43.0.0" },
-    { name = "fastmcp-slim", extras = ["server"], specifier = "==0.0.1.dev4621+f7ceb672" },
+    { name = "fastmcp-slim", extras = ["server"] },
     { name = "pydocket", specifier = ">=0.29.1" },
     { name = "redis", specifier = "!=8.1.0" },
 ]
@@ -5672,8 +5691,8 @@ resolution-markers = [
     "python_full_version < '3.9'",
 ]
 dependencies = [
-    { name = "pydantic-monty-client", source = { directory = "vendor/monty/crates/monty-python" } },
-    { name = "pydantic-monty-runtime", source = { directory = "vendor/monty/crates/monty-runtime" } },
+    { name = "pydantic-monty-client", version = "1.1.0", source = { directory = "vendor/monty/crates/monty-python" } },
+    { name = "pydantic-monty-runtime", version = "1.1.0", source = { directory = "vendor/monty/crates/monty-runtime" } },
 ]
 
 [package.metadata]
@@ -5683,39 +5702,6 @@ requires-dist = [
     { name = "pydantic-monty-runtime", specifier = "==1.1.0" },
 ]
 provides-extras = ["opentelemetry"]
-
-[[package]]
-name = "pydantic-monty-client"
-source = { directory = "vendor/monty/crates/monty-python" }
-resolution-markers = [
-    "python_full_version == '3.10.*'",
-    "python_full_version > '3.9' and python_full_version < '3.10'",
-    "python_full_version == '3.9'",
-    "python_full_version < '3.9'",
-]
-dependencies = [
-    { name = "typing-extensions", version = "4.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9' or python_full_version >= '3.11'" },
-    { name = "typing-extensions", version = "4.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9' and python_full_version < '3.11'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "opentelemetry-api", marker = "extra == 'opentelemetry'", specifier = ">=1.39.0" },
-    { name = "typing-extensions", specifier = ">=4.5" },
-]
-provides-extras = ["opentelemetry"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "anyio", specifier = ">=4.0" },
-    { name = "black", specifier = ">=25.12.0" },
-    { name = "dirty-equals", specifier = ">=0.11" },
-    { name = "inline-snapshot", specifier = ">=0.31.1" },
-    { name = "opentelemetry-sdk", specifier = ">=1.39.0" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-examples", specifier = ">=0.0.14" },
-    { name = "pytest-pretty", specifier = ">=1.3.0" },
-]
 
 [[package]]
 name = "pydantic-monty-client"
@@ -5832,14 +5818,26 @@ wheels = [
 ]
 
 [[package]]
-name = "pydantic-monty-runtime"
-source = { directory = "vendor/monty/crates/monty-runtime" }
+name = "pydantic-monty-client"
+version = "1.1.0"
+source = { directory = "vendor/monty/crates/monty-python" }
 resolution-markers = [
     "python_full_version == '3.10.*'",
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version == '3.9'",
     "python_full_version < '3.9'",
 ]
+dependencies = [
+    { name = "typing-extensions", version = "4.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9' or python_full_version >= '3.11'" },
+    { name = "typing-extensions", version = "4.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9' and python_full_version < '3.11'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "opentelemetry-api", marker = "extra == 'opentelemetry'", specifier = ">=1.39.0" },
+    { name = "typing-extensions", specifier = ">=4.5" },
+]
+provides-extras = ["opentelemetry"]
 
 [[package]]
 name = "pydantic-monty-runtime"
@@ -5866,6 +5864,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/20/63/8908bd469ca9bf908efaccdfe1651a48663d23220dbf74a81dbf2563fa45/pydantic_monty_runtime-1.1.0-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:17247008378c32450c874768823018b9f51f78528ead75ca576ead828e120593", size = 12008599, upload-time = "2026-10-05T19:19:35.087Z" },
     { url = "https://files.pythonhosted.org/packages/12/33/36388ede7879dfd5463e6dc0c510ea0afa0913bf3516c836521bc1baa903/pydantic_monty_runtime-1.1.0-py3-none-win32.whl", hash = "sha256:c305ffa0234dec98cd7414f42f47b511fae4a5e91b792da5e475d28e2f54b4e5", size = 11391729, upload-time = "2026-10-05T19:19:37.333Z" },
     { url = "https://files.pythonhosted.org/packages/d5/a9/133c13cd82d1d2d8d0bafd67a67cb2803357c60e07f3564274eea2182507/pydantic_monty_runtime-1.1.0-py3-none-win_amd64.whl", hash = "sha256:ff5045ab4e1c72e5b1270db17fb2afaf6f811bb5a7a7abade579bfa7fd114768", size = 12240448, upload-time = "2026-10-05T19:19:39.523Z" },
+]
+
+[[package]]
+name = "pydantic-monty-runtime"
+version = "1.1.0"
+source = { directory = "vendor/monty/crates/monty-runtime" }
+resolution-markers = [
+    "python_full_version == '3.10.*'",
+    "python_full_version > '3.9' and python_full_version < '3.10'",
+    "python_full_version == '3.9'",
+    "python_full_version < '3.9'",
 ]
 
 [[package]]
