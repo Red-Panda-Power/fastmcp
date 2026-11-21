@@ -40,7 +40,10 @@ mimetypes.add_type("text/markdown", ".md")
 
 _T = TypeVar("_T")
 
-SkillCatalog = Mapping[str, Skill] | Iterable[Skill]
+if TYPE_CHECKING:
+    SkillCatalog = Mapping[str, Skill] | Iterable[Skill]
+else:
+    SkillCatalog = Any
 
 
 class SkillManifestProvider(Provider):
@@ -306,7 +309,7 @@ class SkillsDirectoryProvider(SkillCatalogProvider):
         *,
         reload: bool = False,
     ) -> None:
-        if isinstance(roots, str | os.PathLike):
+        if isinstance(roots, (str, os.PathLike)):
             roots = [roots]
         self._roots = tuple(Path(root).expanduser().absolute() for root in roots)
         self._reload = reload
@@ -377,7 +380,10 @@ def _scan_skill_roots(roots: Sequence[Path]) -> tuple[dict[str, Skill], list[str
 def _invalid_folder(folder: Path, folder_name: str, exc: Exception) -> str:
     """One line per invalid folder: what's wrong, then how to fix it."""
     if isinstance(exc, ValidationError):
-        reason = exc.errors()[0]["msg"].removeprefix("Value error, ")
+        reason = exc.errors()[0]["msg"]
+        prefix = "Value error, "
+        if reason.startswith(prefix):
+            reason = reason[len(prefix) :]
     else:
         reason = str(exc).splitlines()[0] if str(exc) else type(exc).__name__
     if isinstance(exc, OSError) or any(

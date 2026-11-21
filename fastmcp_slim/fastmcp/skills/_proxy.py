@@ -145,7 +145,7 @@ class _ProxiedSkills:
             # Creating a resource from a proxied template reads the backend, so
             # the template itself counts.
             if not (
-                isinstance(component, ProxyResource | ProxyTemplate)
+                isinstance(component, (ProxyResource, ProxyTemplate))
                 and component._client_factory is self._provider.client_factory
                 and await _may_read(server, record.uri)
             ):

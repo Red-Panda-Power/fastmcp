@@ -1,0 +1,32 @@
+# Rust
+/target/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+
+# Native extensions (built by maturin develop)
+*.so
+*.dylib
+*.pyd
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Agent/runtime state
+.bg-shell/
+.claude/settings.local.json
+.claude/worktrees/
+.gsd/runtime/
+.gsd/exec/
+.gsd/*.jsonl
+.gsd/doctor-history.jsonl
+.gsd/gsd.db-shm
+.gsd/gsd.db-wal

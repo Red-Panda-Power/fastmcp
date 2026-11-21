@@ -1,0 +1,23 @@
+[run]
+branch = true
+parallel = true
+omit =
+    src/docket/__main__.py
+    src/docket/_uuid7.py
+    src/docket/_prometheus_exporter.py
+    src/docket/_result_store.py
+    src/docket/cli/*.py
+    **/conftest.py
+    tests/_key_leak_checker.py
+    tests/_container.py
+    tests/_rotating_provider.py
+    tests/sitecustomize.py
+    tests/cli/*.py
+    # real-Redis-only; skips on the memory and cluster legs
+    tests/test_socket_timeout.py
+    tests/test_pubsub_resp_version.py
+    tests/test_credential_rotation.py
+
+[report]
+exclude_also =
+    \.\.\.$
