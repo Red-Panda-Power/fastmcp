@@ -7,6 +7,8 @@ import pytest
 from hypothesis import given, strategies
 from inline_snapshot import snapshot
 
+_retry_attempts = 0
+
 
 @pytest.mark.asyncio
 async def test_python_and_async_plugin() -> None:
@@ -17,3 +19,10 @@ async def test_python_and_async_plugin() -> None:
 @given(strategies.integers())
 def test_hypothesis_and_snapshot(value: int) -> None:
     assert value - value == snapshot(0)
+
+
+@pytest.mark.flaky(retries=1)
+def test_retry_plugin() -> None:
+    global _retry_attempts
+    _retry_attempts += 1
+    assert _retry_attempts == 2

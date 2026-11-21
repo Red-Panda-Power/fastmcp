@@ -8,6 +8,10 @@ exclude = ["**/uv.lock", ".git/**", "docs/**"]
 
 # Upstream SDK sources and tests retain their original file boundaries.
 [[rules]]
+path = "vendor/pytest-retry/tests/test_retry_plugin.py"
+max_lines = 1023
+
+[[rules]]
 path = "vendor/httpx2/httpx2/httpx2/_client.py"
 max_lines = 2237
 

@@ -56,6 +56,6 @@ An initial syntax scan with CPython 3.8.20 found 10 of 277 `fastmcp_slim/fastmcp
 
 ## Temporary test tooling
 
-`py38-bootstrap` is a separate UV project containing Python 3.8 test tools. It does not install FastMCP or its runtime dependencies. It omits `pytest-retry` because no published release supports Python 3.8, and `pytest-examples` because the tested 0.0.16 and 0.0.18 releases fail to import on Python 3.8 despite their package metadata. It is only for migration work; the normal root development dependency group must eventually provide the complete test environment. Deployment installs should not use this group.
+`py38-bootstrap` is a separate UV project containing Python 3.8 test tools. It does not install FastMCP or its runtime dependencies. The bootstrap installs a local Python 3.8 backport of `pytest-retry` 1.7.0 from `vendor/pytest-retry`. It still omits `pytest-examples` because the tested 0.0.16 and 0.0.18 releases fail to import on Python 3.8 despite their package metadata. It is only for migration work; the normal root development dependency group must eventually provide the complete test environment. Deployment installs should not use this group.
 
 After the runtime and dependency ports, validate the root UV lockfile and both runtime-only and development installations on Python 3.8, then exercise the affected protocol, feature, and optional-integration paths. Do not advertise full Python 3.8 support until those checks pass.

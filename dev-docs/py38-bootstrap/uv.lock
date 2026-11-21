@@ -111,6 +111,7 @@ dev = [
     { name = "pytest-env" },
     { name = "pytest-flakefinder" },
     { name = "pytest-report" },
+    { name = "pytest-retry" },
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
 ]
@@ -128,6 +129,7 @@ dev = [
     { name = "pytest-env", specifier = ">=1.1.5" },
     { name = "pytest-flakefinder", specifier = ">=1.1.0" },
     { name = "pytest-report", specifier = ">=0.2.1" },
+    { name = "pytest-retry", editable = "../../vendor/pytest-retry" },
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "pytest-xdist", specifier = ">=3.6.1" },
 ]
@@ -299,6 +301,23 @@ dependencies = [
     { name = "pytest" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3b/82/e141da085de0b6dac3f047ae009e136bcedbcfca4ada082a55359d6f735e/pytest-report-0.2.1.tar.gz", hash = "sha256:d382e8db4c52a815d39dae5f21ee5edc0da3ae8ec19a22e55e9be5c60714a39d", size = 3517, upload-time = "2016-05-11T02:08:04.665Z" }
+
+[[package]]
+name = "pytest-retry"
+version = "1.7.0"
+source = { editable = "../../vendor/pytest-retry" }
+dependencies = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pytest", specifier = ">=7" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.3.3,<9" },
+    { name = "pytest-xdist", specifier = ">=3.6.1" },
+]
 
 [[package]]
 name = "pytest-timeout"
