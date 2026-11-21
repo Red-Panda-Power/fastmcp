@@ -25,13 +25,13 @@ uv sync --python 3.8                 # Runtime and development/test dependencies
 uv sync --python 3.8 --no-dev        # Deployment: runtime dependencies only
 ```
 
-The current project configuration requires a recent uv; uv 0.13.9 is known to parse it. If the installed uv is too old, prefix project commands with `uvx uv@0.13.9` instead of `uv` (for example, `uvx uv@0.13.9 sync --python 3.8`).
+Use the installed `uv` and `ruff` directly; do not run them through `uvx`. The current project configuration requires a recent uv; uv 0.13.9 is known to parse it.
 
 During the migration, the separate `dev-docs/py38-bootstrap` UV project can install Python 3.8 test tools into the root environment. For example, from the repository root in PowerShell:
 
 ```powershell
 $env:UV_PROJECT_ENVIRONMENT = (Resolve-Path -LiteralPath '.venv').Path
-uvx uv@0.13.9 sync --locked --project dev-docs/py38-bootstrap --python 3.8
+uv sync --locked --project dev-docs/py38-bootstrap --python 3.8
 Remove-Item Env:UV_PROJECT_ENVIRONMENT
 .venv\Scripts\python.exe -m pytest --noconftest dev-docs/py38-bootstrap/test_bootstrap.py -n 0
 ```
