@@ -65,6 +65,36 @@ def test_py38_platform_boundaries_are_explicitly_marked() -> None:
     ]
 
 
+def test_py38_downgrades_do_not_constrain_modern_backend_extras() -> None:
+    extras = _optional_dependencies()
+
+    assert extras["aerospike"] == [
+        "aerospike>=16.0.0,<19.0.0; python_version < '3.9'",
+        "aerospike>=16.0.0; python_version >= '3.9'",
+    ]
+    assert extras["elasticsearch"] == [
+        "elasticsearch[async]>=8.0.0,<9.0.0; python_version < '3.9'",
+        "elasticsearch[async]>=8.0.0; python_version >= '3.9'",
+        "aiohttp>=3.12.0; python_version >= '3.9'",
+    ]
+    assert extras["mongodb"] == [
+        "pymongo>=4.9.0,<4.11.0; python_version < '3.9'",
+        "pymongo>=4.9.0; python_version >= '3.9'",
+    ]
+    assert extras["opensearch"] == [
+        "opensearch-py[async]>=2.0.0,<3.0.0; python_version < '3.9'",
+        "opensearch-py[async]>=2.0.0; python_version >= '3.9'",
+    ]
+    assert extras["postgresql"] == [
+        "asyncpg>=0.29.0; python_version < '3.9'",
+        "asyncpg>=0.30.0; python_version >= '3.9'",
+    ]
+    assert extras["rocksdb"] == [
+        "rocksdict>=0.3.2; python_version < '3.12'",
+        "rocksdict>=0.3.24; python_version >= '3.12'",
+    ]
+
+
 def test_store_sources_parse_on_the_running_python() -> None:
     assert sys.version_info >= (3, 8)
     assert compileall.compile_dir(str(STORES_ROOT), quiet=1)

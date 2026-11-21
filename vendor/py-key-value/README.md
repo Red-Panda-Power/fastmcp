@@ -29,10 +29,11 @@ The matrix is resolver-verified against CPython 3.8 for Windows and Linux. It
 does not replace integration testing against a real backend service; credentials
 and endpoint validation continue to be handled by each store implementation.
 
-Aerospike is an exception to the wheel availability story: its CPython 3.8
-dependency is capped below 19 because version 19's build backend evaluates
-Python 3.10 syntax. On Windows, Aerospike 18.x builds from source and requires
-MSBuild plus the Aerospike client C dependencies; it has no usable prebuilt
+Aerospike is an exception to the Python 3.8 wheel availability story: its
+CPython 3.8 dependency is capped below 19 because version 19's build backend
+evaluates Python 3.10 syntax. Newer Python versions retain the upstream
+unbounded Aerospike range. On Windows, Aerospike 18.x builds from source and
+requires MSBuild plus the Aerospike client C dependencies; it has no usable prebuilt
 CPython 3.8 wheel. Linux deployments need the corresponding native build
 toolchain and client libraries. This is a native integration constraint, not a
 reason to bypass authentication or validation in `AerospikeStore`.
