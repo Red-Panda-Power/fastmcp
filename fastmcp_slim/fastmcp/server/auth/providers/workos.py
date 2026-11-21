@@ -11,10 +11,14 @@ Choose based on your WorkOS setup and authentication requirements.
 from __future__ import annotations
 
 from typing import Literal
+from urllib.parse import urlparse
 
 import httpx2
 from key_value.aio.protocols import AsyncKeyValue
+from mcp.server.auth.routes import build_resource_metadata_url, cors_middleware
+from mcp.shared.auth import ProtectedResourceMetadata
 from pydantic import AnyHttpUrl, TypeAdapter, UrlConstraints
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
@@ -30,8 +34,10 @@ logger = get_logger(__name__)
 
 try:
     _AUTHKIT_URL_CONSTRAINTS = UrlConstraints(preserve_empty_path=True)
+    _AUTHKIT_PRESERVES_EMPTY_PATH = True
 except TypeError:  # Pydantic < 2.11, required for Python 3.8
     _AUTHKIT_URL_CONSTRAINTS = UrlConstraints()
+    _AUTHKIT_PRESERVES_EMPTY_PATH = False
 
 _AUTHKIT_AUTHORIZATION_SERVER_URL_ADAPTER = TypeAdapter(
     Annotated[AnyHttpUrl, _AUTHKIT_URL_CONSTRAINTS]
@@ -466,6 +472,41 @@ class AuthKitProvider(RemoteAuthProvider):
         """
         # Get the standard protected resource routes from RemoteAuthProvider
         routes = super().get_routes(mcp_path)
+
+        if not _AUTHKIT_PRESERVES_EMPTY_PATH:
+            resource_url = self._get_resource_url(mcp_path)
+            if resource_url is not None:
+                metadata = ProtectedResourceMetadata(
+                    resource=resource_url,
+                    authorization_servers=self.authorization_servers,
+                    scopes_supported=self.scopes_supported,
+                    resource_name=self.resource_name,
+                    resource_documentation=self.resource_documentation,
+                )
+                payload = metadata.model_dump(mode="json", exclude_none=True)
+                payload["authorization_servers"] = [self.authkit_domain]
+                metadata_path = urlparse(
+                    str(build_resource_metadata_url(resource_url))
+                ).path
+
+                async def protected_resource_metadata(request):
+                    return JSONResponse(
+                        payload,
+                        headers={"Cache-Control": "public, max-age=3600"},
+                    )
+
+                routes = [
+                    Route(
+                        metadata_path,
+                        endpoint=cors_middleware(
+                            protected_resource_metadata, ["GET", "OPTIONS"]
+                        ),
+                        methods=["GET", "OPTIONS"],
+                    )
+                    if route.path == metadata_path
+                    else route
+                    for route in routes
+                ]
 
         async def oauth_authorization_server_metadata(request):
             """Forward AuthKit OAuth authorization server metadata (cached)."""
