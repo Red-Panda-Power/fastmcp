@@ -73,6 +73,13 @@ members = ["fastmcp_slim", "fastmcp_remote"]
 
 [tool.uv]
 default-groups = ["dev"]
+# The workspace packages derive their version and sibling pins from Git.  Make
+# the source-build cache commit-aware so a new checkout cannot reuse wheel
+# metadata from an earlier FastMCP revision.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { git = { commit = true, tags = true } },
+]
 # Monty's local native packages use Maturin while resolving their build
 # metadata.  Keep that backend on the last release line with a Python 3.8
 # Windows wheel, independently of the application's runtime dependencies.
