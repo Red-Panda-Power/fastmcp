@@ -18,7 +18,7 @@ import mcp_types
 import pydantic_core
 from mcp import MCPError
 from rich.console import Console
-from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
+from typing_extensions import Annotated
 
 from fastmcp.cli.client import _build_client, resolve_server_spec
 from fastmcp.client.auth.bearer import BearerAuth
@@ -112,6 +112,15 @@ def _schema_to_python_type(schema: dict[str, Any]) -> tuple[str, bool]:
 
     # Complex type - needs JSON parsing
     return "str", True
+
+
+def _generated_type_expression(annotation: str) -> str:
+    """Render a generated annotation using Python 3.8-compatible typing forms."""
+    if annotation.startswith("list["):
+        return f"List[{annotation[5:]}"
+    if " | " in annotation:
+        return f"Union[{annotation.replace(' | ', ', ')}]"
+    return annotation
 
 
 def _format_schema_for_help(schema: dict[str, Any]) -> str:
@@ -324,8 +333,9 @@ def _tool_function_source(tool: mcp_types.Tool) -> str:
         flag_arg = f'name="{explicit_name}", ' if explicit_name else ""
 
         # Build parameter annotation
+        generated_type = _generated_type_expression(py_type)
         if is_required:
-            annotation = f"Annotated[{py_type}, cyclopts.Parameter({flag_arg}help={help_text!r})]"
+            annotation = f"Annotated[{generated_type}, cyclopts.Parameter({flag_arg}help={help_text!r})]"
             param_lines.append(f"    {safe_name}: {annotation},")
         else:
             default = prop_schema.get("default")
@@ -333,15 +343,15 @@ def _tool_function_source(tool: mcp_types.Tool) -> str:
                 # For complex types with defaults, serialize to JSON string
                 if needs_json:
                     default_str = pydantic_core.to_json(default, fallback=str).decode()
-                    annotation = f"Annotated[{py_type}, cyclopts.Parameter({flag_arg}help={help_text!r})]"
+                    annotation = f"Annotated[{generated_type}, cyclopts.Parameter({flag_arg}help={help_text!r})]"
                     param_lines.append(
                         f"    {safe_name}: {annotation} = {default_str!r},"
                     )
                 else:
-                    annotation = f"Annotated[{py_type}, cyclopts.Parameter({flag_arg}help={help_text!r})]"
+                    annotation = f"Annotated[{generated_type}, cyclopts.Parameter({flag_arg}help={help_text!r})]"
                     param_lines.append(f"    {safe_name}: {annotation} = {default!r},")
             else:
-                annotation = f"Annotated[{py_type} | None, cyclopts.Parameter({flag_arg}help={help_text!r})]"
+                annotation = f"Annotated[Optional[{generated_type}], cyclopts.Parameter({flag_arg}help={help_text!r})]"
                 param_lines.append(f"    {safe_name}: {annotation} = None,")
 
         call_args.append(f"{prop_name!r}: {safe_name}")
@@ -429,11 +439,12 @@ def generate_cli_script(
     # --- Imports ---
     lines.append("import json")
     lines.append("import sys")
-    lines.append("from typing import Annotated")
+    lines.append("from typing import List, Optional, Union")
     lines.append("")
     lines.append("import cyclopts")
     lines.append("import mcp_types")
     lines.append("from rich.console import Console")
+    lines.append("from typing_extensions import Annotated")
     lines.append("")
     lines.append("from fastmcp import Client")
     lines.extend(sorted(extra_imports))

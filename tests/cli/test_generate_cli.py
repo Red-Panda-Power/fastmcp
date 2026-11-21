@@ -177,7 +177,7 @@ class TestToolFunctionSource:
         )
         source = _tool_function_source(tool)
         assert "query: Annotated[str" in source
-        assert "limit: Annotated[int | None" in source
+        assert "limit: Annotated[Optional[int]" in source
         assert "= None" in source
 
     def test_param_with_default(self):
@@ -281,7 +281,7 @@ class TestToolFunctionSource:
         )
         source = _tool_function_source(tool)
         # Should use list[str] type with help metadata
-        assert "tags: Annotated[list[str] | None" in source
+        assert "tags: Annotated[Optional[List[str]]" in source
         assert "= None" in source
         # Should not have JSON parsing for simple arrays
         assert "json.loads" not in source
@@ -307,7 +307,7 @@ class TestToolFunctionSource:
         )
         source = _tool_function_source(tool)
         # Should use str type for complex object
-        assert "metadata: Annotated[str | None" in source
+        assert "metadata: Annotated[Optional[str]" in source
         # Should include JSON schema in help
         assert "JSON Schema:" in source
         assert '"type": "object"' in source
@@ -601,11 +601,11 @@ def _patch_client():
     def fake_build_client(resolved: Any, **kwargs: Any) -> Client:
         return Client(server)
 
-    with (
-        patch.object(generate_module, "resolve_server_spec", side_effect=fake_resolve),
-        patch.object(generate_module, "_build_client", side_effect=fake_build_client),
-    ):
-        yield
+    with patch.object(generate_module, "resolve_server_spec", side_effect=fake_resolve):
+        with patch.object(
+            generate_module, "_build_client", side_effect=fake_build_client
+        ):
+            yield
 
 
 class TestGenerateCliCommand:
@@ -685,13 +685,13 @@ class TestGenerateCliCommand:
         monkeypatch.setattr(Path, "write_text", write_text_cp1252_default)
 
         output = tmp_path / "cli.py"
-        with (
-            patch.object(
-                generate_module, "resolve_server_spec", return_value="fake://server"
-            ),
-            patch.object(generate_module, "_build_client", return_value=Client(server)),
+        with patch.object(
+            generate_module, "resolve_server_spec", return_value="fake://server"
         ):
-            await generate_cli_command("weather", str(output))
+            with patch.object(
+                generate_module, "_build_client", return_value=Client(server)
+            ):
+                await generate_cli_command("weather", str(output))
 
         script = output.read_bytes().decode("utf-8")
         compile(script, str(output), "exec")
