@@ -11,7 +11,7 @@ Choose based on your WorkOS setup and authentication requirements.
 from __future__ import annotations
 
 from typing import Literal
-from urllib.parse import urlparse
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx2
 from key_value.aio.protocols import AsyncKeyValue
@@ -42,6 +42,16 @@ except TypeError:  # Pydantic < 2.11, required for Python 3.8
 _AUTHKIT_AUTHORIZATION_SERVER_URL_ADAPTER = TypeAdapter(
     Annotated[AnyHttpUrl, _AUTHKIT_URL_CONSTRAINTS]
 )
+
+
+def _canonical_authkit_authorization_server(value: str, validated: AnyHttpUrl) -> str:
+    """Preserve an empty path after Pydantic canonicalizes a validated URL."""
+    canonical = str(validated)
+    if _AUTHKIT_PRESERVES_EMPTY_PATH or urlsplit(value).path:
+        return canonical
+
+    parts = urlsplit(canonical)
+    return urlunsplit(parts._replace(path=""))
 
 
 class WorkOSTokenVerifier(TokenVerifier):
@@ -402,6 +412,14 @@ class AuthKitProvider(RemoteAuthProvider):
         """
         self.authkit_domain = str(authkit_domain).rstrip("/")
         self.base_url = AnyHttpUrl(str(base_url).rstrip("/"))
+        authorization_server = (
+            _AUTHKIT_AUTHORIZATION_SERVER_URL_ADAPTER.validate_python(
+                self.authkit_domain
+            )
+        )
+        self._authorization_server = _canonical_authkit_authorization_server(
+            self.authkit_domain, authorization_server
+        )
 
         # Parse scopes if provided as string
         parsed_scopes = (
@@ -422,11 +440,7 @@ class AuthKitProvider(RemoteAuthProvider):
         # Initialize RemoteAuthProvider with AuthKit as the authorization server
         super().__init__(
             token_verifier=token_verifier,
-            authorization_servers=[
-                _AUTHKIT_AUTHORIZATION_SERVER_URL_ADAPTER.validate_python(
-                    self.authkit_domain
-                )
-            ],
+            authorization_servers=[authorization_server],
             base_url=self.base_url,
             resource_base_url=resource_base_url,
             scopes_supported=scopes_supported,
@@ -484,8 +498,8 @@ class AuthKitProvider(RemoteAuthProvider):
                     resource_documentation=self.resource_documentation,
                 )
                 payload = metadata.model_dump(mode="json", exclude_none=True)
-                payload["authorization_servers"] = [self.authkit_domain]
-                metadata_path = urlparse(
+                payload["authorization_servers"] = [self._authorization_server]
+                metadata_path = urlsplit(
                     str(build_resource_metadata_url(resource_url))
                 ).path
 

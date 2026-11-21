@@ -58,11 +58,23 @@ def test_py38_auth_runtime_types_load_without_changing_key_pair_api():
     )
 
 
-def test_authkit_metadata_preserves_an_empty_issuer_path():
-    """Pydantic 2.10 must not add a slash to the AuthKit issuer."""
+@pytest.mark.parametrize(
+    ("authkit_domain", "expected_issuer"),
+    [
+        ("https://test.authkit.app", "https://test.authkit.app"),
+        (
+            "https://EXAMPLE.COM?tenant=x#fragment",
+            "https://example.com?tenant=x#fragment",
+        ),
+    ],
+)
+def test_authkit_metadata_preserves_empty_path_after_url_canonicalization(
+    authkit_domain, expected_issuer
+):
+    """Pydantic 2.10 must not add a slash or bypass URL normalization."""
 
     provider = AuthKitProvider(
-        authkit_domain="https://test.authkit.app",
+        authkit_domain=authkit_domain,
         base_url="http://127.0.0.1:8000",
     )
     app = Starlette(routes=provider.get_routes("/mcp"))
@@ -71,4 +83,4 @@ def test_authkit_metadata_preserves_an_empty_issuer_path():
         response = client.get("/.well-known/oauth-protected-resource/mcp")
 
     assert response.status_code == 200
-    assert response.json()["authorization_servers"] == ["https://test.authkit.app"]
+    assert response.json()["authorization_servers"] == [expected_issuer]
