@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import inspect
 import json
 import math
@@ -31,7 +32,10 @@ from pydantic import (
     model_validator,
 )
 from pydantic.json_schema import SkipJsonSchema
-from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
+from typing_extensions import (  # noqa: UP035 - Python 3.8
+    Annotated,
+    get_args,
+)
 
 from fastmcp.exceptions import ToolError
 from fastmcp.utilities.authorization import AuthCheck
@@ -106,9 +110,10 @@ def _get_json_serializer(annotation: Any) -> pydantic_core.SchemaSerializer:
     The schema is the annotation's own, so custom serializers and explicit
     per-model policies keep control of their output.
     """
+    schema = copy.deepcopy(get_cached_typeadapter(annotation).core_schema)
+    _remove_serialization_aliases(schema, set())
     return pydantic_core.SchemaSerializer(
-        get_cached_typeadapter(annotation).core_schema,
-        config={"ser_json_inf_nan": "constants"},
+        schema, config={"ser_json_inf_nan": "constants"}
     )
 
 
@@ -132,6 +137,97 @@ def _reject_nonfinite(value: Any, path: str = "$") -> None:
     elif isinstance(value, (list, tuple)):
         for index, item in enumerate(value):
             _reject_nonfinite(item, f"{path}[{index}]")
+
+
+def _model_serializes_by_alias(model_type: type[Any]) -> bool:
+    """Read a model or dataclass's explicit alias policy.
+
+    Pydantic 2.10 accepts ``serialize_by_alias`` in a model config but its core
+    serializer does not honor the setting. Newer Pydantic versions do, with a
+    default of ``False``. Keeping that default here gives both dependency lines
+    the same public tool-result contract.
+    """
+    config = getattr(model_type, "model_config", None)
+    if config is None:
+        config = getattr(model_type, "__pydantic_config__", None)
+    if config is None:
+        return False
+    return config.get("serialize_by_alias") is True
+
+
+def _remove_serialization_aliases(schema: Any, visited: set[int]) -> None:
+    """Remove aliases for models that do not explicitly opt into them.
+
+    Pydantic Core 2.27 only accepts a single `by_alias` value for an entire
+    serializer tree. Its schema retains each field's serialization alias, so a
+    copied schema can express the per-model policy introduced in newer Pydantic
+    releases: retain aliases for opt-in models and remove them everywhere else.
+    This leaves custom serializers and all non-alias serialization behavior in
+    Pydantic Core untouched.
+    """
+    if isinstance(schema, dict):
+        schema_id = id(schema)
+        if schema_id in visited:
+            return
+        visited.add(schema_id)
+
+        schema_type = schema.get("type")
+        model_type = schema.get("cls")
+        if (
+            schema_type in {"model", "dataclass"}
+            and isinstance(model_type, type)
+            and not _model_serializes_by_alias(model_type)
+        ):
+            fields_schema = schema.get("schema", {})
+            fields = fields_schema.get("fields", {})
+            if isinstance(fields, dict):
+                for field in fields.values():
+                    if isinstance(field, dict):
+                        field.pop("serialization_alias", None)
+            elif isinstance(fields, list):
+                for field in fields:
+                    if isinstance(field, dict):
+                        field.pop("serialization_alias", None)
+
+        for value in schema.values():
+            _remove_serialization_aliases(value, visited)
+    elif isinstance(schema, list):
+        for value in schema:
+            _remove_serialization_aliases(value, visited)
+
+
+def _annotation_contains_any(annotation: Any) -> bool:
+    """Return whether a serializer schema must dispatch through ``Any``."""
+    if annotation is Any:
+        return True
+    return any(_annotation_contains_any(argument) for argument in get_args(annotation))
+
+
+def _restore_dynamic_model_policies(serialized: Any, data: Any) -> Any:
+    """Re-serialize model values that pass through an ``Any`` schema.
+
+    An ``Any`` node has no child schema to adjust ahead of time. Re-running the
+    concrete model's copied schema preserves model and field serializers while
+    giving that model its own alias policy. Primitive JSON and arbitrary custom
+    serializer output are otherwise left unchanged.
+    """
+    if isinstance(data, BaseModel) or (
+        hasattr(data, "__dataclass_fields__") and not isinstance(data, type)
+    ):
+        serializer = _get_json_serializer(type(data))
+        return json.loads(serializer.to_json(data, fallback=str))
+    if isinstance(serialized, list) and isinstance(data, (list, tuple, set, frozenset)):
+        return [
+            _restore_dynamic_model_policies(value, item)
+            for value, item in zip(serialized, data)
+        ]
+    if isinstance(serialized, dict) and isinstance(data, dict):
+        raw_items = iter(data.items())
+        return {
+            key: _restore_dynamic_model_policies(value, next(raw_items)[1])
+            for key, value in serialized.items()
+        }
+    return serialized
 
 
 def _serialize_to_jsonable(data: Any, annotation: Any = Any) -> Any:
@@ -161,6 +257,9 @@ def _serialize_to_jsonable(data: Any, annotation: Any = Any) -> Any:
     # Only walk the structure when a NaN/Infinity token was emitted; the
     # substring check keeps clean results on the cheap path.
     if b"NaN" in payload or b"Infinity" in payload:
+        _reject_nonfinite(value)
+    if _annotation_contains_any(annotation):
+        value = _restore_dynamic_model_policies(value, data)
         _reject_nonfinite(value)
     return value
 
