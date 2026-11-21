@@ -12,9 +12,9 @@ import pytest
 
 
 def test_uv_build_renders_dynamic_metadata(tmp_path: Path) -> None:
-    uvx = shutil.which("uvx")
-    if uvx is None:
-        pytest.skip("uvx is required for the isolated UV build")
+    uv = shutil.which("uv")
+    if uv is None:
+        pytest.skip("uv is required for the isolated UV build")
 
     source = Path(__file__).resolve().parents[1].as_posix()
     package = tmp_path / "build_fixture"
@@ -52,7 +52,7 @@ uv-dynamic-versioning = {{ path = "{source}" }}
     environment = os.environ.copy()
     environment["UV_DYNAMIC_VERSIONING_BYPASS"] = "1.2.3"
     subprocess.run(
-        [uvx, "uv@0.13.9", "build", "--wheel", "--python", sys.executable],
+        [uv, "build", "--wheel", "--python", sys.executable],
         cwd=tmp_path,
         env=environment,
         check=True,

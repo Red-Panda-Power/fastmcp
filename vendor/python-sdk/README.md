@@ -7,10 +7,10 @@ These sources come from [modelcontextprotocol/python-sdk](https://github.com/mod
 To set up and run the type-package checks with UV from the repository root:
 
 ```bash
-uvx uv@0.13.9 sync --project vendor/python-sdk --python 3.8
-uvx uv@0.13.9 run --project vendor/python-sdk --python 3.8 pytest -c vendor/python-sdk/pyproject.toml --noconftest vendor/python-sdk/tests/types
+uv sync --project vendor/python-sdk --python 3.8
+uv run --project vendor/python-sdk --python 3.8 pytest -c vendor/python-sdk/pyproject.toml --noconftest vendor/python-sdk/tests/types
 ```
 
 The test project's development group contains pytest and snapshot tools. `uv sync --project vendor/python-sdk --no-dev` selects only the type package and its runtime dependencies.
 
-For the SDK itself, use `uvx uv@0.13.9 sync --project vendor/python-sdk/mcp --python 3.8` and run `pytest --noconftest vendor/python-sdk/tests/compat` in that environment. Add `--no-dev` when installing the SDK without test tools. The SDK project uses local backports of its HTTP transport, SSE transport, and typing inspection dependency on Python 3.8.
+For the SDK itself, use `uv sync --project vendor/python-sdk/mcp --python 3.8` and run `pytest --noconftest vendor/python-sdk/tests/compat` in that environment. Add `--no-dev` when installing the SDK without test tools. The SDK project uses local backports of its HTTP transport, SSE transport, and typing inspection dependency on Python 3.8.
