@@ -96,7 +96,7 @@ The source configuration determines **WHERE** your server code lives. It tells F
   The server source configuration that determines where your server code lives.
   
   <ParamField body="type" type="string" default="filesystem">
-    The source type identifier that determines which implementation to use. Currently supports `"filesystem"` for local files. Future releases will add support for `"git"` and `"cloud"` source types.
+    The source type identifier that determines which implementation to use. Currently supports `"filesystem"` for local files. Future releases may add support for `"git"` sources.
   </ParamField>
   
   <Expandable title="FileSystemSource">
@@ -130,9 +130,7 @@ The source configuration determines **WHERE** your server code lives. It tells F
 <Note>
 **Future Source Types**
 
-Future releases will support additional source types:
-- **Git repositories** (`type: "git"`) for loading server code directly from version control
-- **FastMCP Gateway** (`type: "cloud"`) for hosted servers with automatic scaling and management
+Future releases may support loading server code directly from Git repositories (`type: "git"`).
 </Note>
 
 ### Environment Configuration

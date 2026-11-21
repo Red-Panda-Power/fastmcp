@@ -24,10 +24,7 @@
     "primary": "#2d00f7"
   },
   "contextual": {
-    "options": [
-      "copy",
-      "view"
-    ]
+    "options": ["copy", "view"]
   },
   "description": "The fast, Pythonic way to build MCP servers and clients.",
   "errors": {
@@ -70,11 +67,6 @@
         "href": "https://discord.gg/uu8dJCgttd",
         "icon": "discord",
         "label": ""
-      },
-      {
-        "href": "https://www.prefect.io/horizon?utm_source=gofastmcp&utm_medium=docs&utm_campaign=docs_horizon&utm_content=header",
-        "icon": "cloud",
-        "label": "FastMCP Gateway"
       }
     ],
     "primary": {
@@ -203,7 +195,6 @@
                       "deployment/running-server",
                       "deployment/http",
                       "deployment/sandboxed-agents",
-                      "deployment/fastmcp-gateway",
                       "deployment/server-configuration",
                       "servers/testing",
                       "servers/telemetry"
@@ -314,10 +305,7 @@
                     "collapsed": true,
                     "group": "Web Frameworks",
                     "icon": "code",
-                    "pages": [
-                      "integrations/fastapi",
-                      "integrations/openapi"
-                    ]
+                    "pages": ["integrations/fastapi", "integrations/openapi"]
                   },
                   {
                     "collapsed": true,
@@ -393,10 +381,7 @@
                     "collapsed": true,
                     "group": "What's New",
                     "icon": "sparkles",
-                    "pages": [
-                      "updates",
-                      "changelog"
-                    ]
+                    "pages": ["updates", "changelog"]
                   },
                   "more/faq"
                 ]
@@ -490,15 +475,19 @@
       "source": "/clients/generate-cli"
     },
     {
-      "destination": "/deployment/fastmcp-gateway",
+      "destination": "/deployment/http",
       "source": "/deployment/prefect-horizon"
     },
     {
-      "destination": "/deployment/fastmcp-gateway",
+      "destination": "/deployment/http",
+      "source": "/deployment/fastmcp-gateway"
+    },
+    {
+      "destination": "/deployment/http",
       "source": "/deployment/fastmcp-cloud"
     },
     {
-      "destination": "/deployment/fastmcp-gateway",
+      "destination": "/v2/deployment/http",
       "source": "/v2/deployment/fastmcp-cloud"
     },
     {

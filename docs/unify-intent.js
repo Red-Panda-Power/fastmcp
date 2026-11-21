@@ -9,8 +9,7 @@
       path.includes("/clients/auth/") ||
       path.includes("/deployment/running-server") ||
       path.includes("/deployment/http") ||
-      path.includes("/deployment/prefect-horizon") ||
-      path.includes("/deployment/fastmcp-gateway")
+      path.includes("/deployment/prefect-horizon")
     );
   }
 
@@ -28,7 +27,7 @@
         [],
         e.reduce(function (r, n) {
           r[n] = function () {
-            return o.push([n, [].slice.call(arguments)]), o;
+            return (o.push([n, [].slice.call(arguments)]), o);
           };
           return r;
         }, {}),

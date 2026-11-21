@@ -1,6 +1,8 @@
 # Python 3.8 migration baseline
 
-This internal fork targets Python 3.8 while preserving the current FastMCP features, except that MCP Apps UI and `prefab-ui` may be omitted. The Python 3.8 environment is a starting point, not a working installation of FastMCP. The main workspace still declares Python 3.11 or newer and its existing lockfile does not support Python 3.8.
+This internal fork targets Python 3.8 while preserving the current FastMCP features, except that MCP Apps UI and `prefab-ui` may be omitted. Prefect Horizon account and deployment integration is removed from this fork; general server deployment and authentication remain supported. The Python 3.8 environment is a starting point, not a working installation of FastMCP. The main workspace still declares Python 3.11 or newer and its existing lockfile does not support Python 3.8.
+
+Removing the Horizon commands does not revoke existing Horizon API keys or delete their local state. Earlier versions stored the key in `FASTMCP_HOME/cli/auth.json` and the selected host in `FASTMCP_HOME/cli/config.json`. Revoke any unused key through Horizon and remove those files if they are no longer needed. Other FastMCP authentication state is separate.
 
 The MCP SDK and protocol type sources from upstream version 2.3.0 are now vendored under `vendor/python-sdk`. The local `mcp-types` package is selected by the root UV project and has focused Python 3.8 tests. The copied `mcp` SDK itself is still being ported and the root project still resolves the published SDK.
 

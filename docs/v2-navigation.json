@@ -60,7 +60,6 @@
               "pages": [
                 "v2/deployment/running-server",
                 "v2/deployment/http",
-                "deployment/fastmcp-gateway",
                 "v2/deployment/server-configuration"
               ]
             }
@@ -72,10 +71,7 @@
             {
               "group": "Essentials",
               "icon": "cube",
-              "pages": [
-                "v2/clients/client",
-                "v2/clients/transports"
-              ]
+              "pages": ["v2/clients/client", "v2/clients/transports"]
             },
             {
               "group": "Core Operations",
@@ -102,10 +98,7 @@
             {
               "group": "Authentication",
               "icon": "user-shield",
-              "pages": [
-                "v2/clients/auth/oauth",
-                "v2/clients/auth/bearer"
-              ]
+              "pages": ["v2/clients/auth/oauth", "v2/clients/auth/bearer"]
             }
           ]
         },
@@ -162,10 +155,7 @@
             {
               "group": "API Integration",
               "icon": "globe",
-              "pages": [
-                "v2/integrations/fastapi",
-                "v2/integrations/openapi"
-              ]
+              "pages": ["v2/integrations/fastapi", "v2/integrations/openapi"]
             }
           ]
         },

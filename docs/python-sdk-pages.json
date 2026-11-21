@@ -29,19 +29,6 @@
       "python-sdk/fastmcp-cli-cimd",
       "python-sdk/fastmcp-cli-cli",
       "python-sdk/fastmcp-cli-client",
-      {
-        "group": "deploy",
-        "pages": [
-          "python-sdk/fastmcp-cli-deploy-__init__",
-          "python-sdk/fastmcp-cli-deploy-authentication",
-          "python-sdk/fastmcp-cli-deploy-command",
-          "python-sdk/fastmcp-cli-deploy-configuration",
-          "python-sdk/fastmcp-cli-deploy-credentials",
-          "python-sdk/fastmcp-cli-deploy-horizon_client",
-          "python-sdk/fastmcp-cli-deploy-output",
-          "python-sdk/fastmcp-cli-deploy-state"
-        ]
-      },
       "python-sdk/fastmcp-cli-discovery",
       "python-sdk/fastmcp-cli-generate",
       {
@@ -161,9 +148,7 @@
           "python-sdk/fastmcp-server-auth-cimd",
           {
             "group": "handlers",
-            "pages": [
-              "python-sdk/fastmcp-server-auth-handlers-authorize"
-            ]
+            "pages": ["python-sdk/fastmcp-server-auth-handlers-authorize"]
           },
           "python-sdk/fastmcp-server-auth-identity_assertion",
           "python-sdk/fastmcp-server-auth-jwt_issuer",

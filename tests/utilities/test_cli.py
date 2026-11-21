@@ -2,8 +2,23 @@
 
 from pathlib import Path
 
-from fastmcp.utilities.cli import load_and_merge_config
+import pytest
+
+from fastmcp import FastMCP
+from fastmcp.utilities.cli import load_and_merge_config, log_server_banner
 from fastmcp.utilities.mcp_server_config.v1.environments.uv import UVEnvironment
+
+
+def test_server_banner_shows_server_details_without_horizon(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("fastmcp.utilities.cli.check_for_newer_version", lambda: None)
+
+    log_server_banner(FastMCP("My Server", version="1.2.3"))
+
+    output = capsys.readouterr().err
+    assert "My Server, 1.2.3" in output
+    assert "horizon.prefect.io" not in output
 
 
 class TestEnvironmentBuildUVRunCommand:

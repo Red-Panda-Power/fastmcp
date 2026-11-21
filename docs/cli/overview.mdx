@@ -26,9 +26,6 @@ fastmcp --help
 | [`generate-cli`](/cli/generate-cli) | Scaffold a standalone typed CLI from a server's tool schemas |
 | [`project prepare`](/cli/running#pre-building-environments) | Pre-install dependencies into a reusable uv project |
 | [`auth cimd`](/cli/auth) | Create and validate CIMD documents for OAuth |
-| `login` | Sign in to FastMCP Gateway with a browser device flow |
-| `whoami` | Show the current FastMCP Gateway account |
-| `logout` | Revoke the current FastMCP Gateway key and remove the local credential |
 | `version` | Print version info (`--copy` to copy to clipboard) |
 
 ## Server Targets
@@ -81,40 +78,6 @@ fastmcp call cursor:weather get_forecast city=London
 Run [`fastmcp discover`](/cli/client#discovering-configured-servers) to see what's available on your machine.
 
 ## Authentication
-
-<a id="prefect-horizon-account" />
-
-### FastMCP Gateway Account
-
-Use the top-level account commands to manage the credential for FastMCP Gateway.
-
-```bash
-fastmcp login
-fastmcp whoami
-fastmcp logout
-```
-
-`fastmcp login` first uses `HORIZON_API_KEY` or a valid stored key when one is available.
-When login needs a new key, it shows a verification URL and code.
-It opens a browser when the terminal supports it.
-If the browser does not open, use the shown URL and code on another device.
-To switch accounts, run `fastmcp logout` before you run `fastmcp login` again.
-
-Login stores only the personal FastMCP Gateway API key.
-It does not select or store a deployment organization.
-`fastmcp whoami` gets the current user from FastMCP Gateway.
-`fastmcp logout` attempts to revoke the stored key and always removes its local credential.
-
-Set `HORIZON_API_KEY` to use an environment credential instead.
-The CLI gives that value first precedence and never stores it.
-When this variable controls the session, logout does not revoke or remove any credential.
-Remove the variable from your environment to sign out.
-
-Use `--json` for stable command results.
-During JSON login, the verification challenge goes to stderr and the final result goes to stdout.
-JSON mode does not open a browser or ask a question.
-
-### MCP Server Authentication
 
 When targeting an HTTP URL, the CLI enables OAuth authentication by default. If the server requires it, you'll be guided through the flow (typically opening a browser). If it doesn't, the setup is a silent no-op.
 
