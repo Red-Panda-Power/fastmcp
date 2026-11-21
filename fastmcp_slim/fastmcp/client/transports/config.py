@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
@@ -215,13 +217,13 @@ class MCPConfigTransport(ClientTransport):
 
     async def _build_composite(
         self,
-        fastmcp_type: type["FastMCP[Any]"],
+        fastmcp_type: type[FastMCP[Any]],
         timeout: float | None,
         stack: contextlib.AsyncExitStack,
         backend_mode: str,
         prepared_transports: dict[str, ClientTransport] | None = None,
         transport_options: TransportOptions | None = None,
-    ) -> tuple["FastMCP[Any]", list[str]]:
+    ) -> tuple[FastMCP[Any], list[str]]:
         """Connect configured backends and mount their proxies on one router."""
         composite = fastmcp_type(
             name="MCPRouter", request_state_security=self._request_state_security
@@ -323,7 +325,7 @@ class MCPConfigTransport(ClientTransport):
         backend_mode: str | None = None,
         transport: ClientTransport | None = None,
         transport_options: TransportOptions | None = None,
-    ) -> tuple[ClientTransport, Any, "FastMCP[Any]"]:
+    ) -> tuple[ClientTransport, Any, FastMCP[Any]]:
         """Create underlying transport, proxy client, and proxy server for a single backend.
 
         The ProxyClient is connected via the AsyncExitStack *before* being
@@ -347,7 +349,7 @@ class MCPConfigTransport(ClientTransport):
             transport = self._create_transport(config)
 
         # Handle transforming servers.
-        if isinstance(
+        if isinstance(  # noqa: UP038, RUF100 - Python 3.8
             config, (TransformingStdioMCPServer, TransformingRemoteMCPServer)
         ):
             tool_transforms = config.tools

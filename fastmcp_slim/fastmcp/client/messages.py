@@ -1,9 +1,13 @@
-from typing import TypeAlias
+from __future__ import annotations
+
+# ruff: noqa: UP007 - the alias's expression is evaluated on Python 3.8.
+from typing import Union
 
 import mcp_types
 from mcp.client.session import MessageHandlerFnT
+from typing_extensions import TypeAlias  # noqa: UP035 - Python 3.8
 
-Message: TypeAlias = mcp_types.ServerNotification | Exception
+Message: TypeAlias = Union[mcp_types.ServerNotification, Exception]
 
 MessageHandlerT: TypeAlias = MessageHandlerFnT
 
@@ -34,22 +38,22 @@ class MessageHandler:
             # notifications (unwrapped monolith models)
             await self.on_notification(message)
 
-            # handle specific notifications
-            match message:
-                case mcp_types.CancelledNotification():
-                    await self.on_cancelled(message)
-                case mcp_types.ProgressNotification():
-                    await self.on_progress(message)
-                case mcp_types.LoggingMessageNotification():
-                    await self.on_logging_message(message)
-                case mcp_types.ToolListChangedNotification():
-                    await self.on_tool_list_changed(message)
-                case mcp_types.ResourceListChangedNotification():
-                    await self.on_resource_list_changed(message)
-                case mcp_types.PromptListChangedNotification():
-                    await self.on_prompt_list_changed(message)
-                case mcp_types.ResourceUpdatedNotification():
-                    await self.on_resource_updated(message)
+            # Check the concrete notification classes in the same order as the
+            # former structural pattern match. `match` is unavailable on Python 3.8.
+            if isinstance(message, mcp_types.CancelledNotification):
+                await self.on_cancelled(message)
+            elif isinstance(message, mcp_types.ProgressNotification):
+                await self.on_progress(message)
+            elif isinstance(message, mcp_types.LoggingMessageNotification):
+                await self.on_logging_message(message)
+            elif isinstance(message, mcp_types.ToolListChangedNotification):
+                await self.on_tool_list_changed(message)
+            elif isinstance(message, mcp_types.ResourceListChangedNotification):
+                await self.on_resource_list_changed(message)
+            elif isinstance(message, mcp_types.PromptListChangedNotification):
+                await self.on_prompt_list_changed(message)
+            elif isinstance(message, mcp_types.ResourceUpdatedNotification):
+                await self.on_resource_updated(message)
 
     async def on_message(self, message: Message) -> None:
         pass

@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 import webbrowser
 from collections.abc import AsyncGenerator
-from contextlib import aclosing
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 import anyio
@@ -34,6 +34,19 @@ from fastmcp.utilities.logging import get_logger
 __all__ = ["OAuth"]
 
 logger = get_logger(__name__)
+
+
+class _AsyncClosing(AbstractAsyncContextManager):
+    """Backport of :func:`contextlib.aclosing` for Python 3.8."""
+
+    def __init__(self, thing: Any) -> None:
+        self.thing = thing
+
+    async def __aenter__(self) -> Any:
+        return self.thing
+
+    async def __aexit__(self, *exc_info: Any) -> None:
+        await self.thing.aclose()
 
 
 def _normalize_callback_host_for_bind(host: str) -> str:
@@ -525,12 +538,12 @@ class OAuth(OAuthClientProvider):
             )
         try:
             # First attempt with potentially cached credentials
-            async with aclosing(super().async_auth_flow(request)) as gen:
+            async with _AsyncClosing(super().async_auth_flow(request)) as gen:
                 response = None
                 while True:
                     try:
                         # First iteration sends None, subsequent iterations send response
-                        yielded_request = await gen.asend(response)  # ty: ignore[invalid-argument-type]
+                        yielded_request = await gen.asend(response)
                         response = yield yielded_request
                     except StopAsyncIteration:
                         break
@@ -553,11 +566,11 @@ class OAuth(OAuthClientProvider):
             await self.token_storage_adapter.clear()
 
             # Retry with fresh registration
-            async with aclosing(super().async_auth_flow(request)) as gen:
+            async with _AsyncClosing(super().async_auth_flow(request)) as gen:
                 response = None
                 while True:
                     try:
-                        yielded_request = await gen.asend(response)  # ty: ignore[invalid-argument-type]
+                        yielded_request = await gen.asend(response)
                         response = yield yielded_request
                     except StopAsyncIteration:
                         break

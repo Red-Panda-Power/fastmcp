@@ -22,8 +22,8 @@ answer in-task input prompts) and returns a ``ClientExtension`` to register, or
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import TYPE_CHECKING
+# ruff: noqa: UP035 - Callable is evaluated in a module-level alias on Python 3.8.
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from mcp.client.extension import ClientExtension

@@ -291,8 +291,11 @@ class ClientGroup:
         skill_lists = await gather(
             client.list_skills(cache_mode=cache_mode) for _, client in clients
         )
+        if len(clients) != len(skill_lists):
+            raise RuntimeError("Each connected client must return one skills result")
         return {
-            name: skills for (name, _), skills in zip(clients, skill_lists, strict=True)
+            name: skills
+            for (name, _), skills in zip(clients, skill_lists)  # noqa: B905 - Python 3.8
         }
 
     async def get_skill(

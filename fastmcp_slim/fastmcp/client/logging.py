@@ -1,9 +1,12 @@
-from collections.abc import Awaitable, Callable
+from __future__ import annotations
+
+# ruff: noqa: UP035 - aliases are evaluated during Python 3.8 import.
 from logging import Logger
-from typing import TypeAlias
+from typing import Awaitable, Callable
 
 from mcp.client.session import LoggingFnT
 from mcp_types import LoggingMessageNotificationParams
+from typing_extensions import TypeAlias
 
 from fastmcp.utilities.logging import get_logger
 

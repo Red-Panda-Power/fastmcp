@@ -93,7 +93,7 @@ class SSETransport(ClientTransport):
                 if factory is not None:
                     auth.httpx_client_factory = factory
             resolved = auth
-        elif isinstance(
+        elif isinstance(  # noqa: UP038, RUF100 - Python 3.8
             auth, (ClientCredentialsOAuthProvider, PrivateKeyJWTOAuthProvider)
         ):
             auth._bind(self.url)

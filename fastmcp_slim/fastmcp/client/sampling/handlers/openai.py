@@ -1,5 +1,7 @@
 """OpenAI sampling handler for FastMCP."""
 
+from __future__ import annotations
+
 import json
 from collections.abc import Iterator, Sequence
 from typing import Any, Literal, cast, get_args

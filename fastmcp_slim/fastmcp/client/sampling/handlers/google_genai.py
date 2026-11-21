@@ -1,5 +1,7 @@
 """Google GenAI sampling handler for FastMCP."""
 
+from __future__ import annotations
+
 import base64
 from collections.abc import Mapping, Sequence
 from typing import Any, cast

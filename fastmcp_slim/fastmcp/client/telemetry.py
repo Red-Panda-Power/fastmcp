@@ -1,5 +1,7 @@
 """Client-side telemetry helpers."""
 
+from __future__ import annotations
+
 from collections.abc import Generator
 from contextlib import contextmanager
 

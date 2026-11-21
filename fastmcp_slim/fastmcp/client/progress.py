@@ -1,6 +1,9 @@
-from typing import TypeAlias
+from __future__ import annotations
 
 from mcp.shared.dispatcher import ProgressFnT
+
+# ruff: noqa: UP035 - TypeAlias is supplied by typing_extensions on Python 3.8.
+from typing_extensions import TypeAlias
 
 from fastmcp.utilities.logging import get_logger
 

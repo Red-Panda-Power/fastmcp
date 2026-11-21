@@ -247,7 +247,7 @@ class ClientSkillsMixin:
         for uri in sorted(skill_uris, key=lambda uri: (len(uri), uri)):
             if uri in supporting_uris:
                 continue
-            prefix = uri.removesuffix("SKILL.md")
+            prefix = uri[: -len("SKILL.md")]
             if f"{prefix}_manifest" not in resource_uris or not has_nested_candidate(
                 prefix
             ):

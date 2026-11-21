@@ -1,20 +1,25 @@
+from __future__ import annotations
+
+# ruff: noqa: UP006, UP007, UP035 - evaluated aliases must run on Python 3.8.
 import inspect
-from collections.abc import Awaitable, Callable
-from typing import TypeAlias, cast
+from typing import Awaitable, Callable, List, Union, cast
 
 import mcp_types
 import pydantic
 from mcp import ClientSession
 from mcp.client.session import ClientRequestContext, ListRootsFnT
+from typing_extensions import TypeAlias
 
 from fastmcp.client._sdk_context_shim import LifespanContextT, RequestContext
 
-RootsList: TypeAlias = list[str] | list[mcp_types.Root] | list[str | mcp_types.Root]
+RootsList: TypeAlias = Union[
+    List[str], List[mcp_types.Root], List[Union[str, mcp_types.Root]]
+]
 
-RootsHandler: TypeAlias = (
-    Callable[[RequestContext[ClientSession, LifespanContextT]], RootsList]
-    | Callable[[RequestContext[ClientSession, LifespanContextT]], Awaitable[RootsList]]
-)
+RootsHandler: TypeAlias = Union[
+    Callable[[RequestContext[ClientSession, LifespanContextT]], RootsList],
+    Callable[[RequestContext[ClientSession, LifespanContextT]], Awaitable[RootsList]],
+]
 
 
 def convert_roots_list(roots: RootsList) -> list[mcp_types.Root]:

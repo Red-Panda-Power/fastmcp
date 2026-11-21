@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from typing import Any, Generic, TypeAlias
+# ruff: noqa: UP006, UP007, UP035 - evaluated aliases must run on Python 3.8.
+from typing import Any, Awaitable, Callable, Dict, Generic, Type, Union
 
 import mcp_types
 from mcp import ClientSession
@@ -9,7 +9,7 @@ from mcp.client.session import ClientRequestContext, ElicitationFnT
 from mcp_types import ElicitRequestFormParams, ElicitRequestParams
 from mcp_types import ElicitResult as MCPElicitResult
 from pydantic_core import to_jsonable_python
-from typing_extensions import TypeVar
+from typing_extensions import TypeAlias, TypeVar
 
 from fastmcp.client._sdk_context_shim import LifespanContextT, RequestContext
 from fastmcp.utilities.json_schema_type import json_schema_to_type
@@ -26,12 +26,13 @@ class ElicitResult(MCPElicitResult, Generic[T]):
 ElicitationHandler: TypeAlias = Callable[
     [
         str,  # message
-        type[T]
-        | None,  # a class for creating a structured response (None for URL elicitation)
+        Union[
+            Type[T], None
+        ],  # a class for creating a structured response (None for URL elicitation)
         ElicitRequestParams,
         RequestContext[ClientSession, LifespanContextT],
     ],
-    Awaitable[T | dict[str, Any] | ElicitResult[T | dict[str, Any]]],
+    Awaitable[Union[T, Dict[str, Any], ElicitResult[Union[T, Dict[str, Any]]]]],
 ]
 
 
@@ -82,7 +83,7 @@ def create_elicitation_callback(
             if not isinstance(result, MCPElicitResult):
                 result = ElicitResult(action="accept", content=result)
             content = to_jsonable_python(result.content)
-            if not isinstance(content, dict | None):
+            if not isinstance(content, (dict, type(None))):  # noqa: UP038, RUF100 - Python 3.8
                 # Auto-wrap scalar values for ScalarElicitationType schemas
                 # (single "value" property). This lets handlers return T directly
                 # for ctx.elicit("msg", str/int/float/bool).

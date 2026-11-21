@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import contextlib
 from collections.abc import AsyncGenerator, Mapping, Sequence
