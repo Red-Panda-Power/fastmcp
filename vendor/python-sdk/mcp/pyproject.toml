@@ -50,4 +50,6 @@ build-backend = "hatchling.build"
 packages = ["mcp"]
 
 [tool.uv.sources]
+httpcore2 = { path = "../../httpx2/httpcore2", editable = true }
+httpx2 = { path = "../../httpx2/httpx2", editable = true }
 mcp-types = { path = "../mcp-types", editable = true }

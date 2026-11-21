@@ -4,6 +4,8 @@ This internal fork targets Python 3.8 while preserving the current FastMCP featu
 
 The MCP SDK and protocol type sources from upstream version 2.3.0 are now vendored under `vendor/python-sdk`. The local `mcp-types` package is selected by the root UV project and has focused Python 3.8 tests. The copied `mcp` SDK itself is still being ported and the root project still resolves the published SDK.
 
+HTTPX2 and HTTPCore2 2.12.0 are vendored under `vendor/httpx2` and are used by the vendored SDK's development project. Their isolated UV project tests the backport on Python 3.8 and 3.12, including HTTP/1.1, HTTP/2, SOCKS, TLS verification, WebSockets, cancellation, SSE and content decoding. On Python 3.8, the default TLS context uses the standard library because `truststore` requires Python 3.10; certificate and hostname verification remain enabled. The root FastMCP workspace still resolves the published HTTP transport until the SDK port is ready.
+
 The `prefab-ui` dependency is now restricted to Python 3.10 and newer; MCP Apps UI is unavailable on Python 3.8. The dependency audit below records the original constraints before this change.
 
 ## Dependency audit
