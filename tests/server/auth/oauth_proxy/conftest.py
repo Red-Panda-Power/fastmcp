@@ -1,5 +1,7 @@
 """Shared fixtures and helpers for OAuth proxy tests."""
 
+from __future__ import annotations
+
 import asyncio
 import secrets
 import time

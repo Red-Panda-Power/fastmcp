@@ -839,11 +839,11 @@ def _patch_client():
     def fake_build_client(resolved: Any, **kwargs: Any) -> Client:
         return Client(server)
 
-    with (
-        patch.object(client_module, "resolve_server_spec", side_effect=fake_resolve),
-        patch.object(client_module, "_build_client", side_effect=fake_build_client),
-    ):
-        yield
+    with patch.object(client_module, "resolve_server_spec", side_effect=fake_resolve):
+        with patch.object(
+            client_module, "_build_client", side_effect=fake_build_client
+        ):
+            yield
 
 
 class TestListCommandCLI:
