@@ -1,0 +1,578 @@
+"""Tests for OpenTelemetry tracing, span creation, and message handling."""
+
+import asyncio
+from datetime import datetime, timedelta, timezone
+
+import pytest
+from opentelemetry import trace
+from opentelemetry.sdk.trace import ReadableSpan, Span, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+    InMemorySpanExporter,
+)
+from opentelemetry.trace import StatusCode
+
+from docket import ConcurrencyLimit, CurrentDocket, Docket, Perpetual, Worker
+from docket.dependencies import ForcedRetry, Retry
+from docket.instrumentation import message_getter, message_setter
+
+tracer = trace.get_tracer(__name__)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def tracer_provider() -> TracerProvider:
+    """Sets up a "real" TracerProvider so that spans are recorded for the tests"""
+    provider = TracerProvider()
+    trace.set_tracer_provider(provider)
+    return provider
+
+
+@pytest.fixture
+def span_exporter(tracer_provider: TracerProvider):
+    """Attaches an in-memory exporter so tests can inspect completed spans."""
+    exporter = InMemorySpanExporter()
+    processor = SimpleSpanProcessor(exporter)
+    tracer_provider.add_span_processor(processor)
+    try:
+        yield exporter
+    finally:
+        processor.shutdown()
+        exporter.clear()
+
+
+async def test_executing_a_task_is_wrapped_in_a_span(docket: Docket, worker: Worker):
+    captured: list[Span] = []
+
+    async def the_task():
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+
+    run = await docket.add(the_task)()
+
+    await worker.run_until_finished()
+
+    assert len(captured) == 1
+    (task_span,) = captured
+    assert task_span is not None
+    assert isinstance(task_span, Span)
+
+    assert task_span.name == "the_task"
+    assert task_span.kind == trace.SpanKind.CONSUMER
+    assert task_span.attributes
+
+    print(task_span.attributes)
+
+    assert task_span.attributes["docket.name"] == docket.name
+    assert task_span.attributes["docket.task"] == "the_task"
+    assert task_span.attributes["docket.key"] == run.key
+    assert run.when is not None
+    assert task_span.attributes["docket.when"] == run.when.isoformat()
+    assert task_span.attributes["docket.attempt"] == 1
+    assert task_span.attributes["code.function.name"] == "the_task"
+
+
+async def test_task_spans_are_linked_to_the_originating_span(
+    docket: Docket, worker: Worker
+):
+    """Task execution spans should link back to the trace that scheduled them.
+
+    The link may point to either the originating span directly or to a child span
+    (like docket.add) within the same trace - what matters is traceability back
+    to the scheduling context.
+    """
+    captured: list[Span] = []
+
+    async def the_task():
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+
+    with tracer.start_as_current_span("originating_span") as originating_span:
+        await docket.add(the_task)()
+
+    assert isinstance(originating_span, Span)
+    assert originating_span.context
+
+    await worker.run_until_finished()
+
+    assert len(captured) == 1
+    (task_span,) = captured
+
+    assert isinstance(task_span, Span)
+    assert task_span.context
+
+    # Task execution creates a new trace (not a child of the scheduling trace)
+    assert task_span.context.trace_id != originating_span.context.trace_id
+
+    # The originating span should not have links (it's the caller, not the receiver)
+    assert not originating_span.links
+
+    # The task span should have a link back to the scheduling trace
+    assert task_span.links
+    assert len(task_span.links) == 1
+    (link,) = task_span.links
+
+    # The link should be to the same trace as the originating span
+    # (may be to originating_span or to a child like docket.add)
+    assert link.context.trace_id == originating_span.context.trace_id
+
+
+async def test_task_spans_can_be_parented_to_the_originating_span(docket: Docket):
+    """With parent_task_spans, the task span joins the trace that scheduled it."""
+    captured: list[Span] = []
+
+    async def the_task():
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+
+    with tracer.start_as_current_span("originating_span") as originating_span:
+        await docket.add(the_task)()
+
+    assert isinstance(originating_span, Span)
+    assert originating_span.context
+
+    async with Worker(docket, parent_task_spans=True) as worker:
+        with tracer.start_as_current_span("worker_loop") as worker_span:
+            await worker.run_until_finished()
+
+    (task_span,) = captured
+    assert task_span.context
+    assert task_span.parent
+
+    assert task_span.context.trace_id == originating_span.context.trace_id
+    assert task_span.context.trace_id != worker_span.get_span_context().trace_id
+    assert task_span.parent.trace_id == originating_span.context.trace_id
+    assert task_span.parent.is_remote
+
+    (link,) = task_span.links
+    assert link.context.span_id == task_span.parent.span_id
+
+
+async def test_parented_retries_nest_under_the_attempt_that_failed(docket: Docket):
+    """Each retry is rescheduled from inside the failed attempt, so with
+    parent_task_spans every attempt stays in the scheduling trace as a child of
+    the attempt before it."""
+    captured: list[Span] = []
+
+    async def the_failing_task(retry: Retry = Retry(attempts=3)):
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+        raise ValueError("fail")
+
+    with tracer.start_as_current_span("originating_span") as originating_span:
+        await docket.add(the_failing_task)()
+
+    async with Worker(docket, parent_task_spans=True) as worker:
+        await worker.run_until_finished()
+
+    first, second, third = captured
+    trace_id = originating_span.get_span_context().trace_id
+    assert {span.get_span_context().trace_id for span in captured} == {trace_id}
+    assert second.parent and second.parent.span_id == first.get_span_context().span_id
+    assert third.parent and third.parent.span_id == second.get_span_context().span_id
+
+
+async def test_parented_perpetual_task_parents_only_its_first_run(docket: Docket):
+    """A perpetual task's later runs are not scheduled from a traced span, so
+    each starts its own trace instead of growing the scheduling trace forever."""
+    captured: list[Span] = []
+
+    async def the_perpetual_task(
+        perpetual: Perpetual = Perpetual(every=timedelta(milliseconds=10)),
+    ):
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+        if len(captured) == 3:
+            perpetual.cancel()
+
+    with tracer.start_as_current_span("originating_span") as originating_span:
+        await docket.add(the_perpetual_task)()
+
+    async with Worker(docket, parent_task_spans=True) as worker:
+        await worker.run_until_finished()
+
+    first, *later = captured
+    trace_id = originating_span.get_span_context().trace_id
+    assert first.get_span_context().trace_id == trace_id
+    for span in later:
+        assert span.parent is None
+        assert span.get_span_context().trace_id != trace_id
+
+
+async def test_failed_task_span_has_error_status(docket: Docket, worker: Worker):
+    """When a task fails, its span should have ERROR status."""
+    captured: list[Span] = []
+
+    async def the_failing_task():
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+        raise ValueError("Task failed")
+
+    await docket.add(the_failing_task)()
+    await worker.run_until_finished()
+
+    assert len(captured) == 1
+    (task_span,) = captured
+
+    assert isinstance(task_span, Span)
+    assert task_span.status is not None
+    assert task_span.status.status_code == StatusCode.ERROR
+    assert task_span.status.description is not None
+    assert "Task failed" in task_span.status.description
+
+
+async def test_retried_task_spans_have_error_status(docket: Docket, worker: Worker):
+    """When a task fails and is retried, each failed attempt's span should have ERROR status."""
+    captured: list[Span] = []
+    attempt_count = 0
+
+    async def the_retrying_task(retry: Retry = Retry(attempts=3)):
+        nonlocal attempt_count
+        attempt_count += 1
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+
+        if attempt_count < 3:
+            raise ValueError(f"Attempt {attempt_count} failed")
+        # Third attempt succeeds
+
+    await docket.add(the_retrying_task)()
+    await worker.run_until_finished()
+
+    assert len(captured) == 3
+
+    # First two attempts should have ERROR status
+    for i in range(2):
+        span = captured[i]
+        assert isinstance(span, Span)
+        assert span.status is not None
+        assert span.status.status_code == StatusCode.ERROR
+        assert span.status.description is not None
+        assert f"Attempt {i + 1} failed" in span.status.description
+
+    # Third attempt should have OK status (or no status set, which is treated as OK)
+    success_span = captured[2]
+    assert isinstance(success_span, Span)
+    assert (
+        success_span.status is None or success_span.status.status_code == StatusCode.OK
+    )
+
+
+async def test_infinitely_retrying_task_spans_have_error_status(
+    docket: Docket, worker: Worker
+):
+    """When a task with infinite retries fails, each attempt's span should have ERROR status."""
+    captured: list[Span] = []
+    attempt_count = 0
+
+    async def the_infinite_retry_task(retry: Retry = Retry(attempts=None)):
+        nonlocal attempt_count
+        attempt_count += 1
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+        raise ValueError(f"Attempt {attempt_count} failed")
+
+    execution = await docket.add(the_infinite_retry_task)()
+
+    # Run worker for only 3 task executions of this specific task
+    await worker.run_at_most({execution.key: 3})
+
+    # All captured spans should have ERROR status
+    assert len(captured) == 3
+    for i, span in enumerate(captured):
+        assert isinstance(span, Span)
+        assert span.status is not None
+        assert span.status.status_code == StatusCode.ERROR
+        assert span.status.description is not None
+        assert f"Attempt {i + 1} failed" in span.status.description
+
+
+async def test_requested_retry_with_attempts_left_has_ok_status(
+    docket: Docket, worker: Worker
+):
+    """A retry the task asks for with Retry.after() is rescheduling, not a
+    failure, so its span is OK and records no exception."""
+    captured: list[Span] = []
+
+    async def the_polling_task(retry: Retry = Retry(attempts=3)):
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+        if len(captured) < 3:
+            retry.after(timedelta(0))
+
+    await docket.add(the_polling_task)()
+    await worker.run_until_finished()
+
+    assert len(captured) == 3
+    for span in captured[:2]:
+        assert span.status.status_code == StatusCode.OK
+        assert not span.events
+
+
+async def test_requested_retry_on_last_attempt_has_error_status(
+    docket: Docket, worker: Worker
+):
+    """When a requested retry has no attempts left, the task failed, so its
+    span is ERROR and records the exception."""
+    captured: list[Span] = []
+
+    async def the_polling_task(retry: Retry = Retry(attempts=2)):
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+        retry.after(timedelta(0))
+
+    await docket.add(the_polling_task)()
+    await worker.run_until_finished()
+
+    assert len(captured) == 2
+    first, last = captured
+    assert first.status.status_code == StatusCode.OK
+    assert not first.events
+    assert last.status.status_code == StatusCode.ERROR
+    assert [event.name for event in last.events] == ["exception"]
+    assert last.events[0].attributes
+    assert last.events[0].attributes["exception.type"] == (
+        f"{ForcedRetry.__module__}.{ForcedRetry.__qualname__}"
+    )
+
+
+@pytest.mark.parametrize(
+    "also_fail, status_code, event_names",
+    [
+        pytest.param(False, StatusCode.OK, [], id="retry-alone"),
+        pytest.param(True, StatusCode.ERROR, ["exception"], id="retry-and-failure"),
+    ],
+)
+async def test_requested_retry_inside_a_task_group(
+    docket: Docket,
+    worker: Worker,
+    also_fail: bool,
+    status_code: StatusCode,
+    event_names: list[str],
+):
+    """A retry requested in an asyncio.TaskGroup child arrives as an
+    ExceptionGroup.  Its span is OK when the retry is scheduled, and ERROR
+    when the group also holds any other exception."""
+    captured: list[Span] = []
+
+    async def ask_for_a_retry(retry: Retry) -> None:
+        retry.after(timedelta(0))
+
+    async def fail() -> None:
+        raise ValueError("a child failed")
+
+    async def the_grouped_task(retry: Retry = Retry(attempts=2)):
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+        if len(captured) == 1:
+            async with asyncio.TaskGroup() as group:
+                group.create_task(ask_for_a_retry(retry))
+                if also_fail:
+                    group.create_task(fail())
+
+    await docket.add(the_grouped_task)()
+    await worker.run_until_finished()
+
+    assert len(captured) == 2
+    assert captured[0].status.status_code == status_code
+    assert [event.name for event in captured[0].events] == event_names
+
+
+async def test_requested_retry_without_a_retry_dependency_has_error_status(
+    docket: Docket, worker: Worker
+):
+    """With no Retry to schedule it, a requested retry is a failure."""
+    captured: list[Span] = []
+
+    async def the_task_without_retry():
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append(span)
+        raise ForcedRetry()
+
+    await docket.add(the_task_without_retry)()
+    await worker.run_until_finished()
+
+    assert len(captured) == 1
+    (span,) = captured
+    assert span.status.status_code == StatusCode.ERROR
+    assert [event.name for event in span.events] == ["exception"]
+
+
+async def test_requested_retry_that_gives_way_to_a_replacement_has_ok_status(
+    docket: Docket, worker: Worker
+):
+    """When the task replaces its own key and then asks for a retry, the
+    retry gives way to the replacement and the span is OK."""
+    captured: list[tuple[str, Span]] = []
+
+    async def the_polling_task(
+        round: str,
+        retry: Retry = Retry(attempts=2),
+        docket: Docket = CurrentDocket(),
+    ):
+        span = trace.get_current_span()
+        assert isinstance(span, Span)
+        captured.append((round, span))
+        if round == "first":
+            soon = datetime.now(timezone.utc) + timedelta(milliseconds=200)
+            await docket.replace(the_polling_task, soon, "polling")("replacement")
+            retry.after(timedelta(0))
+
+    await docket.add(the_polling_task, key="polling")("first")
+    await worker.run_until_finished()
+
+    assert [round for round, _ in captured] == ["first", "replacement"]
+    first = captured[0][1]
+    assert first.status.status_code == StatusCode.OK
+    assert not first.events
+
+
+async def test_admission_blocked_span_has_ok_status(
+    docket: Docket, worker: Worker, span_exporter: InMemorySpanExporter
+):
+    """Tasks denied by admission control (e.g. ConcurrencyLimit) are rescheduled
+    flow-control events, not failures. Their spans must not be marked ERROR, or
+    APM error-rate monitors will fire on expected rescheduling activity.
+    """
+    body_entered = asyncio.Event()
+    release_body = asyncio.Event()
+
+    async def the_task(
+        customer_id: int,
+        concurrency: ConcurrencyLimit = ConcurrencyLimit(
+            "customer_id", max_concurrent=1
+        ),
+    ) -> None:
+        body_entered.set()
+        await release_body.wait()
+
+    # Schedule two tasks for the same key. With max_concurrent=1, exactly one
+    # will acquire the slot; the other will raise ConcurrencyBlocked from the
+    # dependency layer and be rescheduled by the worker.
+    await docket.add(the_task)(customer_id=1)
+    await docket.add(the_task)(customer_id=1)
+
+    worker_task = asyncio.create_task(worker.run_until_finished())
+    try:
+        await asyncio.wait_for(body_entered.wait(), timeout=5)
+        # Give the second task a chance to attempt admission and export its span
+        await asyncio.sleep(0.1)
+    finally:
+        release_body.set()
+        await worker_task
+
+    task_spans: list[ReadableSpan] = [
+        span for span in span_exporter.get_finished_spans() if span.name == "the_task"
+    ]
+
+    # We expect at least one admitted execution; the blocked execution may or
+    # may not have produced a completed span yet depending on timing. What
+    # matters is that no completed span is marked ERROR.
+    assert task_spans, "Expected at least one the_task span to be exported"
+    for span in task_spans:
+        assert span.status is not None
+        assert span.status.status_code != StatusCode.ERROR, (
+            f"Task span should not be ERROR (got description: "
+            f"{span.status.description!r})"
+        )
+
+
+async def test_add_many_emits_one_batch_span(
+    docket: Docket, span_exporter: InMemorySpanExporter
+):
+    """A batch add emits one docket.add_many span with a count attribute,
+    not one docket.add span per task -- span volume is itself overhead on
+    hot fan-out paths."""
+
+    async def the_task() -> None:
+        pass  # pragma: no cover
+
+    await docket.add_many(docket.call(the_task)() for _ in range(5))
+
+    spans = span_exporter.get_finished_spans()
+    (batch_span,) = [span for span in spans if span.name == "docket.add_many"]
+    assert batch_span.attributes
+    assert batch_span.attributes["docket.name"] == docket.name
+    assert batch_span.attributes["docket.batch.count"] == 5
+    assert batch_span.attributes["docket.batch.stricken"] == 0
+
+    assert not [span for span in spans if span.name == "docket.add"]
+
+
+async def test_replace_many_emits_one_batch_span(
+    docket: Docket, span_exporter: InMemorySpanExporter
+):
+    """A batch replace emits one docket.replace_many span, not N
+    docket.replace spans."""
+
+    async def the_task() -> None:
+        pass  # pragma: no cover
+
+    await docket.replace_many(
+        docket.call(the_task, key=f"replace-span-{index}")() for index in range(4)
+    )
+
+    spans = span_exporter.get_finished_spans()
+    (batch_span,) = [span for span in spans if span.name == "docket.replace_many"]
+    assert batch_span.attributes
+    assert batch_span.attributes["docket.name"] == docket.name
+    assert batch_span.attributes["docket.batch.count"] == 4
+    assert batch_span.attributes["docket.batch.stricken"] == 0
+
+    assert not [span for span in spans if span.name == "docket.replace"]
+
+
+async def test_message_getter_returns_none_for_missing_key():
+    """Should return None when a key is not present in the message."""
+
+    message = {b"existing_key": b"value"}
+    result = message_getter.get(message, "missing_key")
+
+    assert result is None
+
+
+async def test_message_getter_returns_decoded_value():
+    """Should return a list with the decoded value when a key is present."""
+
+    message = {b"key": b"value"}
+    result = message_getter.get(message, "key")
+
+    assert result == ["value"]
+
+
+async def test_message_getter_keys_returns_decoded_keys():
+    """Should return a list of all keys in the message as decoded strings."""
+
+    message = {b"key1": b"value1", b"key2": b"value2"}
+    result = message_getter.keys(message)
+
+    assert sorted(result) == ["key1", "key2"]
+
+
+async def test_message_setter_encodes_key_and_value():
+    """Should encode both key and value when setting a value in the message."""
+
+    message: dict[bytes, bytes] = {}
+    message_setter.set(message, "key", "value")
+
+    assert message == {b"key": b"value"}
+
+
+async def test_message_setter_overwrites_existing_value():
+    """Should overwrite an existing value when setting a value for an existing key."""
+
+    message = {b"key": b"old_value"}
+    message_setter.set(message, "key", "new_value")
+
+    assert message == {b"key": b"new_value"}
