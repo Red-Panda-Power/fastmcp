@@ -4,10 +4,12 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import sys
+import threading
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, cast
 
 import pydantic_core
 import pytest
@@ -41,6 +43,10 @@ class CustomModel(BaseModel):
     @model_serializer
     def serialize(self) -> dict[str, str]:
         return {"customValue": self.value}
+
+
+class AnyPayloadModel(BaseModel):
+    payload: Any
 
 
 @with_config(ConfigDict(serialize_by_alias=True))
@@ -129,8 +135,51 @@ def test_any_nested_containers_serialize_custom_models_once():
     assert calls == {"count": 1}
 
 
+def test_model_field_annotated_any_uses_nested_model_alias_policy():
+    value = AnyPayloadModel(
+        payload=AnyPayloadModel(payload=DefaultModel(value="nested"))
+    )
+
+    assert _serialize_to_jsonable(value, AnyPayloadModel) == {
+        "payload": {
+            "payload": {"value": "nested"},
+        }
+    }
+
+
+def test_schema_metadata_with_uncopyable_values_does_not_break_serialization():
+    lock = threading.Lock()
+
+    class LockMetadata:
+        @classmethod
+        def __get_pydantic_core_schema__(cls, source_type, handler):
+            schema = handler(source_type)
+            schema.setdefault("metadata", {})["lock"] = lock
+            return schema
+
+    class LockMetadataModel(BaseModel):
+        value: Annotated[str, LockMetadata] = Field(
+            json_schema_extra=cast(Any, {"lock": lock})
+        )
+
+    with pytest.raises(TypeError):
+        copy.deepcopy(get_cached_typeadapter(LockMetadataModel).core_schema)
+
+    assert _serialize_to_jsonable(
+        LockMetadataModel(value="safe"), LockMetadataModel
+    ) == {"value": "safe"}
+
+
+def test_cyclic_any_value_raises_pydantic_circular_reference_error():
+    value: Dict[str, Any] = {}
+    value["self"] = value
+
+    with pytest.raises(ValueError, match="[Cc]ircular reference"):
+        _serialize_to_jsonable(value, Any)
+
+
 @pytest.mark.skipif(sys.version_info < (3, 9), reason="Pydantic 2.10 path")
-def test_modern_python_keeps_the_original_any_serializer(monkeypatch):
+def test_modern_python_keeps_the_original_serializer(monkeypatch):
     value = AliasModel(value="nested", default=DefaultModel(value="default"))
 
     def dynamic_serializer_was_called(*args, **kwargs):
@@ -139,10 +188,15 @@ def test_modern_python_keeps_the_original_any_serializer(monkeypatch):
     monkeypatch.setattr(
         tool_base, "_get_dynamic_json_serializer", dynamic_serializer_was_called
     )
+    monkeypatch.setattr(
+        tool_base,
+        "_schema_contains_any",
+        dynamic_serializer_was_called,
+    )
     expected = json.loads(
         pydantic_core.SchemaSerializer(
-            get_cached_typeadapter(Any).core_schema,
+            get_cached_typeadapter(AliasModel).core_schema,
             config={"ser_json_inf_nan": "constants"},
         ).to_json(value)
     )
-    assert _serialize_to_jsonable(value, Any) == expected
+    assert _serialize_to_jsonable(value, AliasModel) == expected

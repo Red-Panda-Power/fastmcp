@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import inspect
 import json
 import math
@@ -113,7 +112,7 @@ def _get_json_serializer(annotation: Any) -> pydantic_core.SchemaSerializer:
     """
     schema = get_cached_typeadapter(annotation).core_schema
     if sys.version_info < (3, 9):  # noqa: UP036 - Python 3.8 compatibility
-        schema = copy.deepcopy(schema)
+        schema = _copy_core_schema(schema)
         _remove_serialization_aliases(schema, set())
     return pydantic_core.SchemaSerializer(
         schema, config={"ser_json_inf_nan": "constants"}
@@ -206,13 +205,68 @@ def _annotation_contains_any(annotation: Any) -> bool:
     return any(_annotation_contains_any(argument) for argument in get_args(annotation))
 
 
+def _copy_core_schema(value: Any, memo: dict[int, Any] | None = None) -> Any:
+    """Copy mutable Core schema containers without copying user metadata.
+
+    Core schemas may retain arbitrary user metadata, including objects that
+    deliberately cannot be deep-copied. Only dict/list/tuple containers are
+    changed by the compatibility pass, so opaque values can safely remain the
+    original object.
+    """
+    if memo is None:
+        memo = {}
+
+    value_id = id(value)
+    if value_id in memo:
+        return memo[value_id]
+
+    if isinstance(value, dict):
+        copied: dict[Any, Any] = {}
+        memo[value_id] = copied
+        copied.update(
+            (key, _copy_core_schema(item, memo)) for key, item in value.items()
+        )
+        return copied
+    if isinstance(value, list):
+        copied_list: list[Any] = []
+        memo[value_id] = copied_list
+        copied_list.extend(_copy_core_schema(item, memo) for item in value)
+        return copied_list
+    if isinstance(value, tuple):
+        copied_tuple = tuple(_copy_core_schema(item, memo) for item in value)
+        memo[value_id] = copied_tuple
+        return copied_tuple
+    return value
+
+
+def _schema_contains_any(schema: Any, visited: set[int] | None = None) -> bool:
+    """Return whether a Core schema contains an ``Any`` serializer node."""
+    if visited is None:
+        visited = set()
+    if isinstance(schema, dict):
+        schema_id = id(schema)
+        if schema_id in visited:
+            return False
+        visited.add(schema_id)
+        return schema.get("type") == "any" or any(
+            _schema_contains_any(value, visited) for value in schema.values()
+        )
+    if isinstance(schema, (list, tuple)):
+        return any(_schema_contains_any(value, visited) for value in schema)
+    return False
+
+
 def _is_model_value(value: Any) -> bool:
     return isinstance(value, BaseModel) or (
         hasattr(value, "__dataclass_fields__") and not isinstance(value, type)
     )
 
 
-def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
+def _specialize_any_schema(
+    schema: Any,
+    values: list[Any],
+    active_value_ids: set[int] | None = None,
+) -> None:
     """Replace Python 3.8 ``Any`` nodes with schemas for their runtime models.
 
     Pydantic Core 2.27 dispatches an ``Any`` value directly to the model's
@@ -223,6 +277,9 @@ def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
     if not isinstance(schema, dict) or not values:
         return
 
+    if active_value_ids is None:
+        active_value_ids = set()
+
     schema_type = schema.get("type")
     if schema_type == "any":
         model_values = [value for value in values if _is_model_value(value)]
@@ -232,9 +289,11 @@ def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
 
         choices = []
         for model_type, model_instances in models.items():
-            model_schema = copy.deepcopy(get_cached_typeadapter(model_type).core_schema)
+            model_schema = _copy_core_schema(
+                get_cached_typeadapter(model_type).core_schema
+            )
             _remove_serialization_aliases(model_schema, set())
-            _specialize_any_schema(model_schema, model_instances)
+            _specialize_any_schema(model_schema, model_instances, active_value_ids)
             choices.append(model_schema)
 
         sequence_values = [
@@ -247,7 +306,7 @@ def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
                 "type": "list",
                 "items_schema": {"type": "any"},
             }
-            _specialize_any_schema(sequence_schema, sequence_values)
+            _specialize_any_schema(sequence_schema, sequence_values, active_value_ids)
             choices.append(sequence_schema)
 
         mapping_values = [value for value in values if isinstance(value, dict)]
@@ -257,7 +316,7 @@ def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
                 "keys_schema": {"type": "any"},
                 "values_schema": {"type": "any"},
             }
-            _specialize_any_schema(mapping_schema, mapping_values)
+            _specialize_any_schema(mapping_schema, mapping_values, active_value_ids)
             choices.append(mapping_schema)
 
         known_values = len(model_values) + len(sequence_values) + len(mapping_values)
@@ -272,23 +331,38 @@ def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
         return
 
     if schema_type == "list":
+        container_ids = {
+            id(value)
+            for value in values
+            if isinstance(value, (list, tuple, set, frozenset))
+        }
+        if active_value_ids.intersection(container_ids):
+            # Leave a cycle to Pydantic Core's normal circular-reference
+            # handling. Recursing here would only loop while specializing.
+            return
+        active_value_ids = active_value_ids.union(container_ids)
         items = [
             item
             for value in values
             if isinstance(value, (list, tuple, set, frozenset))
             for item in value
         ]
-        _specialize_any_schema(schema.get("items_schema"), items)
+        _specialize_any_schema(schema.get("items_schema"), items, active_value_ids)
         return
 
     if schema_type == "dict":
+        container_ids = {id(value) for value in values if isinstance(value, dict)}
+        if active_value_ids.intersection(container_ids):
+            # See the corresponding list handling above.
+            return
+        active_value_ids = active_value_ids.union(container_ids)
         items = [
             item
             for value in values
             if isinstance(value, dict)
             for item in value.values()
         ]
-        _specialize_any_schema(schema.get("values_schema"), items)
+        _specialize_any_schema(schema.get("values_schema"), items, active_value_ids)
         return
 
     if schema_type in {"model", "dataclass"}:
@@ -298,6 +372,11 @@ def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
             for value in values
             if isinstance(model_type, type) and isinstance(value, model_type)
         ]
+        instance_ids = {id(instance) for instance in instances}
+        if active_value_ids.intersection(instance_ids):
+            # See the corresponding list handling above.
+            return
+        active_value_ids = active_value_ids.union(instance_ids)
         fields_schema = schema.get("schema", {}).get("fields", {})
         field_items = (
             fields_schema.items()
@@ -312,24 +391,26 @@ def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
                 for instance in instances
                 if hasattr(instance, name)
             ]
-            _specialize_any_schema(field.get("schema"), field_values)
+            _specialize_any_schema(field.get("schema"), field_values, active_value_ids)
         return
 
     if schema_type == "nullable":
         _specialize_any_schema(
-            schema.get("schema"), [value for value in values if value is not None]
+            schema.get("schema"),
+            [value for value in values if value is not None],
+            active_value_ids,
         )
         return
 
     if schema_type == "definitions":
-        _specialize_any_schema(schema.get("schema"), values)
+        _specialize_any_schema(schema.get("schema"), values, active_value_ids)
 
 
 def _get_dynamic_json_serializer(
     annotation: Any, data: Any
 ) -> pydantic_core.SchemaSerializer:
     """Build a one-off Python 3.8 serializer for runtime ``Any`` values."""
-    schema = copy.deepcopy(get_cached_typeadapter(annotation).core_schema)
+    schema = _copy_core_schema(get_cached_typeadapter(annotation).core_schema)
     _remove_serialization_aliases(schema, set())
     _specialize_any_schema(schema, [data])
     return pydantic_core.SchemaSerializer(
@@ -360,8 +441,17 @@ def _serialize_to_jsonable(data: Any, annotation: Any = Any) -> Any:
         except PydanticSchemaGenerationError:
             serializer_annotation = Any
 
-    if sys.version_info < (3, 9) and _annotation_contains_any(serializer_annotation):  # noqa: UP036 - Python 3.8 compatibility
-        serializer = _get_dynamic_json_serializer(serializer_annotation, data)
+    if sys.version_info < (3, 9):  # noqa: UP036 - Python 3.8 compatibility
+        schema_has_any = _annotation_contains_any(
+            serializer_annotation
+        ) or _schema_contains_any(
+            get_cached_typeadapter(serializer_annotation).core_schema
+        )
+        serializer = (
+            _get_dynamic_json_serializer(serializer_annotation, data)
+            if schema_has_any
+            else _get_json_serializer(serializer_annotation)
+        )
     else:
         serializer = _get_json_serializer(serializer_annotation)
 
