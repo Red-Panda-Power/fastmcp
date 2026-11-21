@@ -247,12 +247,10 @@ async def test_oauth_callback_port_in_use_fails_the_connection(
             transport=StreamableHttpTransport(streamable_http_server), auth=oauth
         )
 
-        with (
-            patch.object(oauth_module.webbrowser, "open"),
-            pytest.raises(RuntimeError, match="callback server could not start"),
-        ):
-            async with client:
-                pass
+        with patch.object(oauth_module.webbrowser, "open"):
+            with pytest.raises(RuntimeError, match="callback server could not start"):
+                async with client:
+                    pass
 
 
 class TestOAuthClientUrlHandling:
