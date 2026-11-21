@@ -103,6 +103,10 @@ code-mode = [
     "pydantic-monty-client==1.1.0; python_version < '3.11'",
     "pydantic-monty-runtime==1.1.0; python_version < '3.11'",
 ]
+fastapi = [
+    "fastapi>=0.115.12,<0.125.0; python_version < '3.11'",
+    "fastapi>=0.115.12; python_version >= '3.11'",
+]
 jev = ["typesafe-sdk>=0.5.7"]
 gemini = [
     "certifi>=2026.10.19; python_version >= '3.11'",
