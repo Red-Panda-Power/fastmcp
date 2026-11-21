@@ -66,5 +66,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell # See pyproject.toml for args
+        # Preserve upstream Rust identifiers and terminology in the vendored sandbox.
+        exclude: ^vendor/monty/(Cargo\.lock|crates/[^/]+/(src/.*\.rs|README\.md))$
         additional_dependencies:
           - tomli

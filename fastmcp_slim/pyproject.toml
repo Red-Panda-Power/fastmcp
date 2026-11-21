@@ -77,7 +77,12 @@ client = [
     "beartype>=0.23.0rc2; python_version >= '3.15'",
     "py-key-value-aio[filetree,memory]>=0.4.6,<0.6.0",
 ]
-code-mode = ["pydantic-monty>=1.1,<2"]
+code-mode = [
+    "pydantic-monty>=1.1,<2",
+    # UV source overrides must also cover the local metapackage's native parts.
+    "pydantic-monty-client==1.1.0; python_version < '3.9'",
+    "pydantic-monty-runtime==1.1.0; python_version < '3.9'",
+]
 jev = ["typesafe-sdk>=0.5.7"]
 gemini = ["certifi>=2026.10.19", "google-genai>=1.18.0", "jsonref>=1.1.0"]
 mcp = [

@@ -14,6 +14,8 @@ The SDK's Python 3.8 dependency set also uses local backports of `typing-inspect
 
 `py-key-value-aio` 0.4.6 is being backported under `vendor/py-key-value`. Its in-memory, file-tree, Pydantic, encryption, size-limit, and statistics paths have focused Python 3.8 tests; Redis and keyring are also exercised against test doubles. The package still needs its other backend extras audited and restored, and the root project continues to use the published package.
 
+Monty 1.1.0, used by code mode, is vendored under `vendor/monty`. The Python client and native sandbox worker were built from these sources with Python 3.8 on Windows. The isolated development installation passed 456 tests, including callbacks, host object policies, resource limits, and filesystem restrictions; its separate `--no-dev` installation runs sandboxed code without pytest. Python 3.12 passed the same tests with the backported Python sources and the published native extension. Root UV sources select the local copy for the Python 3.8 code-mode extra, but the full workspace is not yet installable on Python 3.8. Linux and macOS native builds and Monty's optional OpenTelemetry extra still require verification and compatibility work.
+
 The `prefab-ui` dependency is now restricted to Python 3.10 and newer; MCP Apps UI is unavailable on Python 3.8. The dependency audit below records the original constraints before this change.
 
 ## Dependency audit
@@ -49,6 +51,8 @@ An independent `uv pip install --dry-run --no-deps` check on Windows tested 68 d
 This check used the current declared constraints; it does not imply that every listed package lacks an older compatible release, nor that packages with a candidate work together or import successfully. Transitive dependencies, build dependencies beyond the declared requirements, and other target platforms still need review.
 
 For example, the current `pydantic>=2.12.0` constraint is incompatible with Python 3.8; UV resolved `pydantic==2.10.6` when that minimum was removed. Its API and behavior must be checked against the project and backported dependencies before changing the project requirement.
+
+The published `griffelib` requirement has no Python 3.8 release. As an initial compatibility check, `griffe==1.4.0` passed the 26 existing standalone docstring parsing tests on Python 3.8; integration through FastMCP's component and schema code remains to be tested before changing the requirement.
 
 ## Source audit
 

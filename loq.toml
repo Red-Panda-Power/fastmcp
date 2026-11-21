@@ -6,6 +6,216 @@ respect_gitignore = true
 
 exclude = ["**/uv.lock", ".git/**", "docs/**"]
 
+# Monty sources retain their upstream file boundaries.
+
+[[rules]]
+path = "vendor/monty/Cargo.lock"
+max_lines = 5687
+
+[[rules]]
+path = "vendor/monty/crates/monty-fs/src/overlay.rs"
+max_lines = 1569
+
+[[rules]]
+path = "vendor/monty/crates/monty-macros/src/from_args.rs"
+max_lines = 1221
+
+[[rules]]
+path = "vendor/monty/crates/monty-pool/src/checkout.rs"
+max_lines = 2257
+
+[[rules]]
+path = "vendor/monty/crates/monty-pool/src/telemetry/metrics.rs"
+max_lines = 1676
+
+[[rules]]
+path = "vendor/monty/crates/monty-pool/src/telemetry/tracing.rs"
+max_lines = 1484
+
+[[rules]]
+path = "vendor/monty/crates/monty-proto/proto/monty/v1/monty.proto"
+max_lines = 1070
+
+[[rules]]
+path = "vendor/monty/crates/monty-proto/src/generated/monty.v1.rs"
+max_lines = 1592
+
+[[rules]]
+path = "vendor/monty/crates/monty-proto/src/wire.rs"
+max_lines = 1276
+
+[[rules]]
+path = "vendor/monty/crates/monty-proto/src/worker.rs"
+max_lines = 1322
+
+[[rules]]
+path = "vendor/monty/crates/monty-python/python/pydantic_monty/_monty.pyi"
+max_lines = 1519
+
+[[rules]]
+path = "vendor/monty/crates/monty-python/python/pydantic_monty/os_access.py"
+max_lines = 1290
+
+[[rules]]
+path = "vendor/monty/crates/monty-python/src/pool.rs"
+max_lines = 2178
+
+[[rules]]
+path = "vendor/monty/crates/monty-python/src/snapshot.rs"
+max_lines = 1379
+
+[[rules]]
+path = "vendor/monty/crates/monty-types/src/object.rs"
+max_lines = 1761
+
+[[rules]]
+path = "vendor/monty/crates/monty-typeshed/vendor/typeshed/stdlib/builtins.pyi"
+max_lines = 1535
+
+[[rules]]
+path = "vendor/monty/crates/monty-typeshed/vendor/typeshed/stdlib/typing.pyi"
+max_lines = 1219
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/bytecode/compiler.rs"
+max_lines = 4084
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/bytecode/op.rs"
+max_lines = 1058
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/bytecode/vm/async_exec.rs"
+max_lines = 1155
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/bytecode/vm/call.rs"
+max_lines = 1284
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/bytecode/vm/mod.rs"
+max_lines = 2791
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/exception_private.rs"
+max_lines = 2837
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/fstring.rs"
+max_lines = 2385
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/heap/mod.rs"
+max_lines = 2675
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/heap_data.rs"
+max_lines = 1211
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/intern.rs"
+max_lines = 2434
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/modules/base64.rs"
+max_lines = 1286
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/modules/math.rs"
+max_lines = 1449
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/modules/random.rs"
+max_lines = 1647
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/object_bridge.rs"
+max_lines = 1127
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/parse.rs"
+max_lines = 2653
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/percent_format.rs"
+max_lines = 1052
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/prepare.rs"
+max_lines = 3939
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/repl.rs"
+max_lines = 1503
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/run_progress.rs"
+max_lines = 1234
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/bytes.rs"
+max_lines = 2452
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/datetime.rs"
+max_lines = 1537
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/deque.rs"
+max_lines = 1167
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/dict.rs"
+max_lines = 2453
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/file.rs"
+max_lines = 1378
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/list.rs"
+max_lines = 1271
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/long_int.rs"
+max_lines = 1075
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/namedtuple.rs"
+max_lines = 1317
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/set.rs"
+max_lines = 2020
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/str.rs"
+max_lines = 1999
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/type.rs"
+max_lines = 1067
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/types/unicode_type_data.rs"
+max_lines = 2000
+
+[[rules]]
+path = "vendor/monty/crates/monty/src/value.rs"
+max_lines = 2907
+
+[[rules]]
+path = "vendor/monty/tests/test_async.py"
+max_lines = 1260
+
+[[rules]]
+path = "vendor/monty/tests/test_class_instance.py"
+max_lines = 1302
+
+[[rules]]
+path = "vendor/monty/tests/test_os_access.py"
+max_lines = 1683
+
 # Upstream SDK sources and tests retain their original file boundaries.
 [[rules]]
 path = "vendor/pytest-retry/tests/test_retry_plugin.py"
