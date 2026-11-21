@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from key_value._typing_compat import runtime_typing as _py38_typing
+import asyncio
+import inspect
 from typing import Any, overload
 
 from typing_extensions import override
@@ -28,7 +30,17 @@ except ImportError:
         raise ImportError(msg) from redis_error
 
     _GLIDE_AVAILABLE = False
-    ValkeyClient = Redis
+    ValkeyClient = Any
+    # Keep postponed GLIDE annotations introspectable on Python 3.8. These
+    # names are never used to construct a GLIDE client in the fallback path.
+    ExpirySet = Any
+    ExpiryType = Any
+    GlideClient = Any
+    GlideClientConfiguration = Any
+    GlideClusterClient = Any
+    GlideClusterClientConfiguration = Any
+    NodeAddress = Any
+    ServerCredentials = Any
 else:
     _GLIDE_AVAILABLE = True
     ValkeyClient = _py38_typing.Union[GlideClient, GlideClusterClient]
@@ -84,14 +96,22 @@ async def _valkey_mget(client: ValkeyClient, keys: _py38_typing.List[str]) -> _p
     """Get multiple values from Valkey."""
     if _GLIDE_AVAILABLE:
         return await client.mget(keys=keys)  # pyright: ignore[reportArgumentType]
-    return await client.mget(keys=keys)  # pyright: ignore[reportArgumentType,reportUnknownMemberType]
+    # Redis Cluster rejects MGET when the keys map to different hash slots.
+    # Individual GETs preserve ordering and work for both standalone and
+    # clustered clients without requiring callers to add hash tags.
+    responses = await asyncio.gather(*(client.get(name=key) for key in keys))  # pyright: ignore[reportUnknownMemberType]
+    return list(responses)
 
 
 async def _valkey_delete(client: ValkeyClient, keys: _py38_typing.List[str]) -> int:
     """Delete one or more keys from Valkey."""
     if _GLIDE_AVAILABLE:
         return await client.delete(keys=keys)  # pyright: ignore[reportArgumentType]
-    return await client.delete(*keys)  # pyright: ignore[reportArgumentType,reportUnknownMemberType]
+    # DEL has the same cluster-slot constraint as MGET. Delete one key at a
+    # time in the fallback so multi-key operations remain usable with
+    # RedisCluster injections.
+    deleted = await asyncio.gather(*(client.delete(key) for key in keys))  # pyright: ignore[reportArgumentType,reportUnknownMemberType]
+    return sum(deleted)
 
 
 def _create_redis_valkey_client(
@@ -109,10 +129,10 @@ def _create_redis_valkey_client(
 async def _close_redis_valkey_client(client: Any) -> None:
     """Close Redis clients across the redis-py versions supported by Python 3.8."""
     aclose = getattr(client, "aclose", None)
-    if aclose is not None:
-        await aclose()
-        return
-    await client.close()
+    close = aclose if aclose is not None else client.close
+    result = close()
+    if inspect.isawaitable(result):
+        await result
 
 
 class ValkeyStore(BaseContextManagerStore, BaseStore):
@@ -300,10 +320,10 @@ class ValkeyStore(BaseContextManagerStore, BaseStore):
                 ExpirySet(expiry_type=ExpiryType.SEC, value=int(managed_entry.ttl)) if managed_entry.ttl else None
             )
             _ = await self._client.set(key=combo_key, value=json_value, expiry=expiry)
-        elif managed_entry.ttl is None:
+        elif not managed_entry.ttl:
             _ = await self._client.set(name=combo_key, value=json_value)  # pyright: ignore[reportUnknownMemberType]
         else:
-            _ = await self._client.set(name=combo_key, value=json_value, ex=max(int(managed_entry.ttl), 1))  # pyright: ignore[reportUnknownMemberType]
+            _ = await self._client.set(name=combo_key, value=json_value, ex=int(managed_entry.ttl))  # pyright: ignore[reportUnknownMemberType]
 
     @override
     async def _delete_managed_entry(self, *, key: str, collection: str) -> bool:
