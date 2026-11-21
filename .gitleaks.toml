@@ -17,7 +17,10 @@ paths = [
   '''(^|/)\.git/''',
   '''(^|/)dist/''',
   '''(^|/)build/''',
+  '''(^|/)[^/]+\.egg-info/''',
   '''(^|/)\.pytest_cache/''',
+  # Public test keys and example JWTs copied verbatim from the PyJWT sdist.
+  '''^vendor/pyjwt/(tests/(keys/[^/]+|test_advisory\.py|test_jwks_client\.py|test_algorithms\.py)|compat_tests/test_py38_runtime\.py|docs/(algorithms|usage)\.rst|README\.rst|CHANGELOG\.rst|PKG-INFO)$''',
   # Local env files are gitignored and routinely hold real credentials for
   # whatever provider a developer is testing against - never git-controlled,
   # so there's nothing here for the scan to protect against committing.
@@ -42,5 +45,6 @@ regexes = [
   '''f7207cf0a5c56081d275ebae4cf615249323385d''', # pinned git commit hash used as a test fixture id
   '''s3kr1t-material''',
   '''Ed25519PrivateKey''', # a type name, not a key
+  '''Ed448PrivateKey''', # a type name, not a key
   '''-----BEGIN PRIVATE KEY-----" in private_pem''', # test asserts a string literal, not an embedded key
 ]

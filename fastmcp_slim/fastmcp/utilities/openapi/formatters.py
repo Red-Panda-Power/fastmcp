@@ -1,5 +1,7 @@
 """Parameter formatting functions for OpenAPI operations."""
 
+from __future__ import annotations
+
 import json
 import logging
 from typing import Any
@@ -24,7 +26,7 @@ def format_array_parameter(
         String (comma-separated) or list (for query params with explode=True)
     """
     # For arrays of simple types (strings, numbers, etc.), join with commas
-    if all(isinstance(item, str | int | float | bool) for item in values):
+    if all(isinstance(item, (str, int, float, bool)) for item in values):
         return ",".join(str(v) for v in values)
 
     # For complex types, try to create a simpler representation

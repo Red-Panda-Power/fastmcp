@@ -322,6 +322,14 @@ path = "tests/utilities/openapi/test_director.py"
 max_lines = 1154
 
 [[rules]]
+path = "fastmcp_slim/fastmcp/utilities/json_schema.py"
+max_lines = 1044
+
+[[rules]]
+path = "fastmcp_slim/fastmcp/utilities/openapi/schemas.py"
+max_lines = 1059
+
+[[rules]]
 path = "fastmcp_slim/fastmcp/utilities/json_schema_type.py"
 max_lines = 1675
 

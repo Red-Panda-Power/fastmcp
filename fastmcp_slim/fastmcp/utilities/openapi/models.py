@@ -1,6 +1,10 @@
 """Intermediate Representation (IR) models for OpenAPI operations."""
 
+from __future__ import annotations
+
+import sys
 from typing import Any, Literal
+from typing import Dict as _LegacyDict  # noqa: UP035 - Python 3.8
 
 from pydantic import Field
 
@@ -11,7 +15,10 @@ HttpMethod = Literal[
     "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "TRACE"
 ]
 ParameterLocation = Literal["path", "query", "header", "cookie"]
-JsonSchema = dict[str, Any]
+if sys.version_info < (3, 9):  # noqa: UP036 - Python 3.8
+    JsonSchema = _LegacyDict[str, Any]  # noqa: UP006 - Python 3.8
+else:
+    JsonSchema = dict[str, Any]
 
 
 class ParameterInfo(FastMCPBaseModel):

@@ -12,7 +12,7 @@ repos:
       - id: prettier
         types_or: [yaml, json5]
         # Keep upstream licensing metadata and vendor hook configuration intact.
-        exclude: ^vendor/(burner-redis/THIRDPARTY\.yml|pydocket/\.pre-commit-config\.yaml)$
+        exclude: ^vendor/(burner-redis/THIRDPARTY\.yml|pydocket/\.pre-commit-config\.yaml|pyjwt/(\.pre-commit-config|\.readthedocs)\.yaml)$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
@@ -72,6 +72,6 @@ repos:
     hooks:
       - id: codespell # See pyproject.toml for args
         # Preserve upstream Rust identifiers and terminology in the vendored sandbox.
-        exclude: ^(vendor/monty/(Cargo\.lock|crates/[^/]+/(src/.*\.rs|README\.md))|vendor/burner-redis/tests/test_scripting\.py|vendor/pydocket/src/docket/_redis\.py)$
+        exclude: ^(vendor/monty/(Cargo\.lock|crates/[^/]+/(src/.*\.rs|README\.md))|vendor/burner-redis/tests/test_scripting\.py|vendor/pydocket/src/docket/_redis\.py|vendor/pyjwt/CHANGELOG\.rst)$
         additional_dependencies:
           - tomli

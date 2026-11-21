@@ -1,5 +1,7 @@
 """Schema manipulation utilities for OpenAPI operations."""
 
+from __future__ import annotations
+
 import re
 from collections import Counter
 from typing import Any
@@ -133,7 +135,7 @@ def _replace_ref_with_defs(
                 # Keep the whole pointer: one into a component, such as
                 # #/components/schemas/Pet/properties/status, has the same path
                 # under $defs.
-                pointer = ref_path.removeprefix("#/components/schemas/")
+                pointer = ref_path[len("#/components/schemas/") :]
                 schema["$ref"] = f"#/$defs/{pointer}"
             elif not ref_path.startswith("#/"):
                 raise ValueError(
@@ -312,7 +314,7 @@ def _allof_members(
         if isinstance(ref, str):
             for prefix in ("#/$defs/", "#/components/schemas/"):
                 if ref.startswith(prefix):
-                    name = ref.removeprefix(prefix)
+                    name = ref[len(prefix) :]
                     dependencies.add(name)
                     referenced = (
                         resolve_definition_pointer(schema_defs, name)
@@ -423,7 +425,7 @@ def _discriminator_target_name(target: str) -> str | None:
     """
     for prefix in ("#/$defs/", "#/components/schemas/"):
         if target.startswith(prefix):
-            return target.removeprefix(prefix) or None
+            return target[len(prefix) :] or None
     if target.startswith("#") or "/" in target:
         return None
     return target or None
@@ -976,7 +978,7 @@ def extract_output_schema_from_responses(
         ref_path = output_schema["$ref"]
         if ref_path.startswith("#/$defs/"):
             # Only a reference to a whole definition can be replaced by it.
-            schema_name = ref_path.removeprefix("#/$defs/")
+            schema_name = ref_path[len("#/$defs/") :]
             if schema_name in schema_definitions:
                 # Replace $ref with the actual schema definition
                 output_schema = _replace_ref_with_defs(schema_definitions[schema_name])

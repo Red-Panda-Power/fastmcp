@@ -1,5 +1,7 @@
 """OpenAPI parsing logic for converting OpenAPI specs to HTTPRoute objects."""
 
+from __future__ import annotations
+
 from typing import Any, Generic, TypeVar
 
 from openapi_pydantic import (
@@ -530,9 +532,7 @@ class OpenAPIParser(
                                 if isinstance(ref_str, str) and ref_str.startswith(
                                     "#/components/schemas/"
                                 ):
-                                    pointer = ref_str.removeprefix(
-                                        "#/components/schemas/"
-                                    )
+                                    pointer = ref_str[len("#/components/schemas/") :]
                                     # Only a whole component is a top-level
                                     # schema; a pointer into one is not.
                                     if "/" not in pointer:

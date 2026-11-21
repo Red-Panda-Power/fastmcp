@@ -164,7 +164,7 @@ def _within_inline_limits(root: dict[str, Any], *, follow_refs: bool) -> bool:
                     children = [*children, _resolve_local_ref(root, ref)]
             nodes, height = 1, 0
             for child in children:
-                if isinstance(child, dict | list):
+                if isinstance(child, (dict, list)):
                     child_nodes, child_height = measure(child, depth + 1)
                     nodes += child_nodes
                     height = max(height, child_height + 1)
@@ -1024,7 +1024,7 @@ def is_object_schema(
 
     # Walk the JSON Pointer path from the root schema, unescaping each
     # token per RFC 6901 (~1 → /, ~0 → ~).
-    pointer = ref.removeprefix("#/")
+    pointer = ref[len("#/") :]
     segments = pointer.split("/")
     target: Any = root_schema
     for segment in segments:

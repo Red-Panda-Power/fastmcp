@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import enum
 import re
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import field
 from re import Pattern
 from typing import TYPE_CHECKING, Literal
+from typing import Callable as _Callable  # noqa: UP035 - Python 3.8
 
 if TYPE_CHECKING:
     from fastmcp.server.providers.openapi.components import (
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         OpenAPITool,
     )
 
+from fastmcp.utilities._dataclasses import dataclass
 from fastmcp.utilities.logging import get_logger
 from fastmcp.utilities.openapi import HttpMethod, HTTPRoute
 
@@ -29,8 +30,8 @@ __all__ = [
 logger = get_logger(__name__)
 
 # Type definitions for the mapping functions
-RouteMapFn = Callable[[HTTPRoute, "MCPType"], "MCPType | None"]
-ComponentFn = Callable[
+RouteMapFn = _Callable[[HTTPRoute, "MCPType"], "MCPType | None"]
+ComponentFn = _Callable[
     [
         HTTPRoute,
         "OpenAPITool | OpenAPIResource | OpenAPIResourceTemplate",
@@ -59,15 +60,15 @@ class MCPType(enum.Enum):
 class RouteMap:
     """Mapping configuration for HTTP routes to FastMCP component types."""
 
+    mcp_type: MCPType = field(
+        metadata={"description": "The type of FastMCP component to create."},
+    )
     methods: list[HttpMethod] | Literal["*"] = field(default="*")
     pattern: Pattern[str] | str = field(default=r".*")
 
     tags: set[str] = field(
         default_factory=set,
         metadata={"description": "A set of tags to match. All tags must match."},
-    )
-    mcp_type: MCPType = field(
-        metadata={"description": "The type of FastMCP component to create."},
     )
     mcp_tags: set[str] = field(
         default_factory=set,

@@ -1,5 +1,7 @@
 """Request director using openapi-core for stateless HTTP request building."""
 
+from __future__ import annotations
+
 import io
 import json as _json
 import re
@@ -426,7 +428,7 @@ class RequestDirector:
                         files.extend((k, (None, item)) for item in v)
                     elif isinstance(v, tuple):
                         files.append((k, v))
-                    elif isinstance(v, bytes | io.IOBase):
+                    elif isinstance(v, (bytes, io.IOBase)):
                         # bytes and file-like objects are passed directly so
                         # httpx can transmit them as binary parts without
                         # stringifying to their Python repr.
@@ -455,7 +457,7 @@ class RequestDirector:
                     body, body_schema, encoding, definitions
                 )
             elif (
-                isinstance(body, dict | list)
+                isinstance(body, (dict, list))
                 or declared_content_type == "application/json"
                 or (
                     declared_content_type is not None
@@ -480,7 +482,7 @@ class RequestDirector:
                 # httpx rejects numbers and booleans as raw content
                 content = (
                     _query_scalar_to_str(body)
-                    if isinstance(body, bool | int | float)
+                    if isinstance(body, (bool, int, float))
                     else body
                 )
                 if raw_content_type is not None:
@@ -717,12 +719,12 @@ class RequestDirector:
                     parts.append(_query_scalar_to_str(k))
                     parts.append(_query_scalar_to_str(v))
             return ",".join(parts)
-        if isinstance(value, list | tuple):
+        if isinstance(value, (list, tuple)):
             # The simple style defines primitive items only; flatten a nested
             # list one level instead of leaking its Python repr.
             parts = []
             for v in value:
-                if isinstance(v, list | tuple):
+                if isinstance(v, (list, tuple)):
                     parts.extend(_query_scalar_to_str(i) for i in v)
                 else:
                     parts.append(_query_scalar_to_str(v))
@@ -764,12 +766,12 @@ class RequestDirector:
                 ev = self._encode_path_scalar(param_name, v)
                 parts.append(f"{ek}={ev}" if explode else f"{ek},{ev}")
             return ",".join(parts)
-        if isinstance(value, list | tuple):
+        if isinstance(value, (list, tuple)):
             # Mirror the header side: flatten a nested list one level instead
             # of leaking its Python repr onto the wire.
             parts = []
             for v in value:
-                if isinstance(v, list | tuple):
+                if isinstance(v, (list, tuple)):
                     parts.extend(self._encode_path_scalar(param_name, i) for i in v)
                 else:
                     parts.append(self._encode_path_scalar(param_name, v))

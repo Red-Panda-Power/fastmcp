@@ -6,6 +6,8 @@ to JSON Schema, inspired by py-openapi-schema-to-json-schema but optimized
 for our specific use case.
 """
 
+from __future__ import annotations
+
 from collections.abc import Iterator
 from typing import Any
 
