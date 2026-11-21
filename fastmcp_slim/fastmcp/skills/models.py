@@ -38,8 +38,10 @@ def _parse_resource_uri(uri: str) -> tuple[str, str, tuple[str, ...]]:
     return parsed.scheme.lower(), parsed.netloc, tuple(segments)
 
 
-class SkillFrontmatter(RootModel[dict[str, JsonValue]]):
+class SkillFrontmatter(RootModel):
     """Agent Skills frontmatter carried verbatim as JSON-compatible values."""
+
+    root: dict[str, JsonValue]
 
     @model_validator(mode="after")
     def validate_agent_skills_fields(self) -> SkillFrontmatter:
@@ -135,7 +137,7 @@ class SkillResource(BaseModel):
     @field_validator("size", mode="before")
     @classmethod
     def validate_size_type(cls, value: object) -> object:
-        if isinstance(value, bool) or not isinstance(value, int | float):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError("size must be a non-negative integer")
         if isinstance(value, float) and (
             not math.isfinite(value) or not value.is_integer()

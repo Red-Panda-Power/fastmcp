@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import os
 import shutil
 import tempfile
@@ -10,7 +11,7 @@ import warnings
 from collections.abc import Mapping
 from pathlib import Path, PureWindowsPath
 from types import MappingProxyType
-from typing import Any, Self, TypeGuard, cast
+from typing import Any, cast
 from urllib.parse import quote
 
 from pydantic import (
@@ -22,6 +23,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_core import CoreSchema, core_schema
+from typing_extensions import Self, TypeGuard  # noqa: UP035 - Python 3.8
 
 from fastmcp._warnings import FastMCPDeprecationWarning
 from fastmcp.skills._constants import MAX_SKILL_BYTES, MAX_SKILL_FILES
@@ -292,7 +294,10 @@ class Skill(metaclass=_SkillMeta):
     @classmethod
     def from_package(cls, package: str, path: str) -> Skill:
         """Load a skill folder shipped as package data, such as `("my_pkg", "skills/review")`."""
-        from importlib.resources import files as package_files
+        try:
+            from importlib.resources import files as package_files
+        except ImportError:  # pragma: no cover - Python 3.8
+            package_files = importlib.import_module("importlib_resources").files
 
         clean = _validate_relative_path(path)
         root = package_files(package).joinpath(*clean.split("/"))
