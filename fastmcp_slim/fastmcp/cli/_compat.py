@@ -80,6 +80,7 @@ def install_cyclopts_py38_annotation_support() -> None:
     if sys.version_info >= (3, 9):
         return
 
+    import cyclopts.core
     import cyclopts.utils
 
     if getattr(cyclopts.utils, "_fastmcp_py38_signature", None) is not None:
@@ -108,3 +109,24 @@ def install_cyclopts_py38_annotation_support() -> None:
 
     cyclopts.utils.signature = signature
     cyclopts.utils._fastmcp_py38_signature = original_signature
+
+    original_parse_known_args = cyclopts.App.parse_known_args
+
+    def parse_known_args(
+        app: Any,
+        tokens: Any = None,
+        *,
+        console: Any = None,
+    ) -> Any:
+        """Backport Cyclopts 4's ``--`` handling for ``fastmcp run``."""
+        normalized_tokens = cyclopts.core.normalize_tokens(tokens)
+        if "fastmcp" in app.name and normalized_tokens[:1] == ["run"]:
+            try:
+                separator_index = normalized_tokens.index("--", 1)
+            except ValueError:
+                pass
+            else:
+                normalized_tokens.pop(separator_index)
+        return original_parse_known_args(app, normalized_tokens, console=console)
+
+    cyclopts.App.parse_known_args = parse_known_args

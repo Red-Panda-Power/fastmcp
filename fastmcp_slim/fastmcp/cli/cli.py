@@ -49,6 +49,10 @@ app = cyclopts.App(
     default_parameter=Parameter(negative=()),
 )
 
+_server_args_parameter = cyclopts.Parameter(
+    allow_leading_hyphen=sys.version_info < (3, 9)
+)
+
 
 def _get_npx_command():
     """Get the correct npx command for the current platform."""
@@ -399,7 +403,7 @@ async def apps(
 @app.command
 async def run(
     server_spec: str | None = None,
-    *server_args: str,
+    *server_args: Annotated[str, _server_args_parameter],
     transport: Annotated[
         run_module.TransportType | None,
         cyclopts.Parameter(
