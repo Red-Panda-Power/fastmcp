@@ -7,6 +7,8 @@ Claude Code, Cursor, Gemini CLI, and Goose, as well as project-level
 or file path.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import sys

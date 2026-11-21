@@ -1,5 +1,7 @@
 """Generate a standalone CLI script and agent skill from an MCP server."""
 
+from __future__ import annotations
+
 import keyword
 import re
 import shlex
@@ -7,7 +9,7 @@ import sys
 import textwrap
 from collections import defaultdict
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 from urllib.parse import urlparse
 
 import cyclopts
@@ -16,6 +18,7 @@ import mcp_types
 import pydantic_core
 from mcp import MCPError
 from rich.console import Console
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.cli.client import _build_client, resolve_server_spec
 from fastmcp.client.auth.bearer import BearerAuth

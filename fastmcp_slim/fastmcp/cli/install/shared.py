@@ -1,5 +1,7 @@
 """Shared utilities for install commands."""
 
+from __future__ import annotations
+
 import json
 import ntpath
 import os

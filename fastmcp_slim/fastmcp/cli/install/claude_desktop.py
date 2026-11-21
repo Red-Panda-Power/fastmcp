@@ -1,12 +1,14 @@
 """Claude Desktop integration for FastMCP install using Cyclopts."""
 
+from __future__ import annotations
+
 import os
 import sys
 from pathlib import Path
-from typing import Annotated
 
 import cyclopts
 from rich import print
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.mcp_config import StdioMCPServer, update_config_file
 from fastmcp.utilities.logging import get_logger

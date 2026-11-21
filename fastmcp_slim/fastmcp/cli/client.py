@@ -1,5 +1,7 @@
 """Client-side CLI commands for querying and invoking MCP servers."""
 
+from __future__ import annotations
+
 import difflib
 import hashlib
 import json
@@ -7,7 +9,7 @@ import shlex
 import sys
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 import cyclopts
@@ -21,6 +23,7 @@ from key_value.aio.stores.filetree import (
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 from rich.console import Console
 from rich.markup import escape as escape_rich_markup
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp import settings
 from fastmcp.cli.discovery import DiscoveredServer, discover_servers, resolve_name

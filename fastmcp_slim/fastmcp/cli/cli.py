@@ -294,7 +294,9 @@ async def inspector(
         uv_cmd = config.environment.build_command(fastmcp_cmd)
 
         # Set marker to prevent infinite loops when subprocess calls FastMCP
-        env = dict(os.environ.items()) | env_vars | {"FASTMCP_UV_SPAWNED": "1"}
+        env = dict(os.environ)
+        env.update(env_vars)
+        env["FASTMCP_UV_SPAWNED"] = "1"
 
         # Run the MCP Inspector command
         process = subprocess.run(
@@ -735,7 +737,8 @@ async def run(
         cmd = config.environment.build_command(inner_cmd)
 
         # Set marker to prevent infinite loops when subprocess calls FastMCP again
-        env = os.environ | {"FASTMCP_UV_SPAWNED": "1"}
+        env = dict(os.environ)
+        env["FASTMCP_UV_SPAWNED"] = "1"
 
         # Run the command
         logger.debug(f"Running command: {' '.join(cmd)}")
@@ -908,7 +911,8 @@ async def inspect(
         import subprocess
 
         cmd = config.environment.build_command(inspect_command)
-        env = os.environ | {"FASTMCP_UV_SPAWNED": "1"}
+        env = dict(os.environ)
+        env["FASTMCP_UV_SPAWNED"] = "1"
         process = subprocess.run(cmd, check=True, env=env)
         sys.exit(process.returncode)
 
