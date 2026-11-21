@@ -49,6 +49,11 @@ class AnyPayloadModel(BaseModel):
     payload: Any
 
 
+class RecursiveAnyModel(BaseModel):
+    children: List[RecursiveAnyModel] = Field(default_factory=list)
+    payload: Any = None
+
+
 @with_config(ConfigDict(serialize_by_alias=True))
 @dataclass
 class AliasDataclass:
@@ -147,6 +152,19 @@ def test_model_field_annotated_any_uses_nested_model_alias_policy():
     }
 
 
+def test_recursive_model_definition_refs_specialize_any_fields():
+    value = RecursiveAnyModel(
+        children=[RecursiveAnyModel(payload=DefaultModel(value="nested"))]
+    )
+    schema = get_cached_typeadapter(RecursiveAnyModel).core_schema
+
+    assert schema["type"] == "definitions"
+    assert _serialize_to_jsonable(value, RecursiveAnyModel) == {
+        "children": [{"children": [], "payload": {"value": "nested"}}],
+        "payload": None,
+    }
+
+
 def test_schema_metadata_with_uncopyable_values_does_not_break_serialization():
     lock = threading.Lock()
 
@@ -176,6 +194,14 @@ def test_cyclic_any_value_raises_pydantic_circular_reference_error():
 
     with pytest.raises(ValueError, match="[Cc]ircular reference"):
         _serialize_to_jsonable(value, Any)
+
+
+def test_recursive_model_cycle_raises_pydantic_circular_reference_error():
+    value = RecursiveAnyModel()
+    value.children.append(value)
+
+    with pytest.raises(ValueError, match="[Cc]ircular reference"):
+        _serialize_to_jsonable(value, RecursiveAnyModel)
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason="Pydantic 2.10 path")

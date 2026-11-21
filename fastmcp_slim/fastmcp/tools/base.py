@@ -266,6 +266,7 @@ def _specialize_any_schema(
     schema: Any,
     values: list[Any],
     active_value_ids: set[int] | None = None,
+    definitions: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     """Replace Python 3.8 ``Any`` nodes with schemas for their runtime models.
 
@@ -279,6 +280,8 @@ def _specialize_any_schema(
 
     if active_value_ids is None:
         active_value_ids = set()
+    if definitions is None:
+        definitions = {}
 
     schema_type = schema.get("type")
     if schema_type == "any":
@@ -293,7 +296,9 @@ def _specialize_any_schema(
                 get_cached_typeadapter(model_type).core_schema
             )
             _remove_serialization_aliases(model_schema, set())
-            _specialize_any_schema(model_schema, model_instances, active_value_ids)
+            _specialize_any_schema(
+                model_schema, model_instances, active_value_ids, definitions
+            )
             choices.append(model_schema)
 
         sequence_values = [
@@ -306,7 +311,9 @@ def _specialize_any_schema(
                 "type": "list",
                 "items_schema": {"type": "any"},
             }
-            _specialize_any_schema(sequence_schema, sequence_values, active_value_ids)
+            _specialize_any_schema(
+                sequence_schema, sequence_values, active_value_ids, definitions
+            )
             choices.append(sequence_schema)
 
         mapping_values = [value for value in values if isinstance(value, dict)]
@@ -316,7 +323,9 @@ def _specialize_any_schema(
                 "keys_schema": {"type": "any"},
                 "values_schema": {"type": "any"},
             }
-            _specialize_any_schema(mapping_schema, mapping_values, active_value_ids)
+            _specialize_any_schema(
+                mapping_schema, mapping_values, active_value_ids, definitions
+            )
             choices.append(mapping_schema)
 
         known_values = len(model_values) + len(sequence_values) + len(mapping_values)
@@ -328,6 +337,18 @@ def _specialize_any_schema(
         else:
             schema.clear()
             schema.update({"type": "union", "choices": [*choices, {"type": "any"}]})
+        return
+
+    if schema_type in {"model-field", "default"}:
+        _specialize_any_schema(
+            schema.get("schema"), values, active_value_ids, definitions
+        )
+        return
+
+    if schema_type == "definition-ref":
+        definition = definitions.get(schema.get("schema_ref"))
+        if definition is not None:
+            _specialize_any_schema(definition, values, active_value_ids, definitions)
         return
 
     if schema_type == "list":
@@ -347,7 +368,9 @@ def _specialize_any_schema(
             if isinstance(value, (list, tuple, set, frozenset))
             for item in value
         ]
-        _specialize_any_schema(schema.get("items_schema"), items, active_value_ids)
+        _specialize_any_schema(
+            schema.get("items_schema"), items, active_value_ids, definitions
+        )
         return
 
     if schema_type == "dict":
@@ -362,7 +385,9 @@ def _specialize_any_schema(
             if isinstance(value, dict)
             for item in value.values()
         ]
-        _specialize_any_schema(schema.get("values_schema"), items, active_value_ids)
+        _specialize_any_schema(
+            schema.get("values_schema"), items, active_value_ids, definitions
+        )
         return
 
     if schema_type in {"model", "dataclass"}:
@@ -391,7 +416,9 @@ def _specialize_any_schema(
                 for instance in instances
                 if hasattr(instance, name)
             ]
-            _specialize_any_schema(field.get("schema"), field_values, active_value_ids)
+            _specialize_any_schema(
+                field.get("schema"), field_values, active_value_ids, definitions
+            )
         return
 
     if schema_type == "nullable":
@@ -399,11 +426,18 @@ def _specialize_any_schema(
             schema.get("schema"),
             [value for value in values if value is not None],
             active_value_ids,
+            definitions,
         )
         return
 
     if schema_type == "definitions":
-        _specialize_any_schema(schema.get("schema"), values, active_value_ids)
+        local_definitions = definitions.copy()
+        for definition in schema.get("definitions", []):
+            if isinstance(definition, dict) and isinstance(definition.get("ref"), str):
+                local_definitions[definition["ref"]] = definition
+        _specialize_any_schema(
+            schema.get("schema"), values, active_value_ids, local_definitions
+        )
 
 
 def _get_dynamic_json_serializer(
