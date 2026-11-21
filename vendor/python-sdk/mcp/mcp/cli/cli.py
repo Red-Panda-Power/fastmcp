@@ -1,12 +1,15 @@
 """MCP CLI tools."""
 
+from __future__ import annotations
+
 import importlib.metadata
 import importlib.util
 import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
+from typing_extensions import Annotated
 
 from mcp.server import MCPServer
 from mcp.server import Server as LowLevelServer

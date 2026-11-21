@@ -6,7 +6,7 @@ import json
 import logging
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from mcp.shared._dataclasses import dataclass
 from typing import Any, Final, Literal, Protocol
 
 import anyio

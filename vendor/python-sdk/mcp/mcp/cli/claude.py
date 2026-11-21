@@ -1,5 +1,7 @@
 """Claude app integration utilities."""
 
+from __future__ import annotations
+
 import importlib.metadata
 import json
 import os

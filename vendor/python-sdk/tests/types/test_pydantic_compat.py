@@ -8,6 +8,7 @@ from typing import get_args
 import pytest
 from pydantic import ConfigDict, Field, PydanticUserError, ValidationError
 
+from mcp_types import CLIENT_CAPABILITIES_META_KEY, PROTOCOL_VERSION_META_KEY, DiscoverRequest, RequestParams
 from mcp_types._pydantic_compat import BaseModel, TypeAdapter
 from mcp_types.methods import MONOLITH_RESULTS
 
@@ -67,3 +68,19 @@ def test_runtime_result_unions_keep_the_sdk_representation() -> None:
     assert {member.__name__ for member in get_args(result)} == {"CallToolResult", "InputRequiredResult"}
     if sys.version_info >= (3, 10):
         assert isinstance(result, types.UnionType)
+
+
+def test_request_metadata_preserves_reserved_and_custom_fields() -> None:
+    metadata = {
+        "progressToken": "progress-1",
+        PROTOCOL_VERSION_META_KEY: "2026-07-28",
+        CLIENT_CAPABILITIES_META_KEY: {"sampling": {}},
+        "example.test/custom": {"value": 3},
+    }
+    params = RequestParams.model_validate({"_meta": metadata}, by_name=False)
+    assert params.meta["progress_token"] == "progress-1"
+    assert params.meta["example.test/custom"] == {"value": 3}
+    assert params.model_dump(by_alias=True)["_meta"] == metadata
+
+    request = DiscoverRequest(params=params)
+    assert request.model_dump(by_alias=True)["params"]["_meta"] == metadata

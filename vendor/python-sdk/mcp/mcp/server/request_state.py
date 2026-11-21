@@ -29,6 +29,7 @@ from mcp_types.methods import INPUT_REQUIRED_METHODS, is_input_required
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import principal_components
 from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared.exceptions import MCPError
 
 __all__ = [
@@ -197,7 +198,7 @@ class AESGCMRequestStateCodec:
 
     def __init__(self, keys: Sequence[bytes | bytearray | str]) -> None:
         for i, key in enumerate(cast("Sequence[object]", keys)):
-            if not isinstance(key, bytes | bytearray | str):
+            if not isinstance(key, (bytes, bytearray, str)):
                 # Never coerce: bytes(32) would silently build an all-zero key.
                 raise TypeError(
                     f"request-state keys must be bytes, bytearray, or str; keys[{i}] is {type(key).__name__}"
@@ -254,7 +255,7 @@ _ENVELOPE_VERSION = 1
 _FUTURE_SKEW = 60.0
 _PRINCIPAL_LABEL = b"mcp/request-state/principal:"
 
-_RoundBinding = tuple[str, str, str | None]
+_RoundBinding = _runtime_typing.Tuple[str, str, _runtime_typing.Union[str, None]]
 """The (target, args-digest, principal) one round's envelope binds, computed once per round."""
 
 
@@ -383,9 +384,9 @@ class RequestStateBoundary:
             _reject(ctx.method, "malformed")
         now = time.time()
         # Accept-conditions are stated positively so a NaN claim fails the comparison and rejects.
-        if not isinstance(iat, int | float) or not (iat <= now + _FUTURE_SKEW):
+        if not isinstance(iat, (int, float)) or not (iat <= now + _FUTURE_SKEW):
             _reject(ctx.method, "minted in the future")
-        if not isinstance(exp, int | float) or not (now < exp):
+        if not isinstance(exp, (int, float)) or not (now < exp):
             _reject(ctx.method, "expired")
         target, args_digest = _request_identity(ctx.method, ctx.params)
         if claims.get("m") != ctx.method or claims.get("t") != target or claims.get("a") != args_digest:

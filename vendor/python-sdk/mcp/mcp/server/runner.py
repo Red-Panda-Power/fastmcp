@@ -17,7 +17,9 @@ import contextvars
 import logging
 from collections.abc import AsyncIterator, Awaitable, Mapping
 from contextlib import asynccontextmanager
-from dataclasses import KW_ONLY, dataclass, replace
+from dataclasses import replace
+
+from mcp.shared._dataclasses import KW_ONLY, dataclass
 from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any, Generic, cast
 
@@ -61,6 +63,8 @@ from mcp.server.context import CallNext, HandlerResult, ServerMiddleware, Server
 from mcp.server.models import InitializationOptions
 from mcp.server.session import ServerSession
 from mcp.shared._context_streams import ContextReceiveStream
+from mcp.shared._pydantic import validate_model
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared._stream_protocols import ReadStream, WriteStream
 from mcp.shared.dispatcher import CallOptions, DispatchContext, Dispatcher, OnNotify, OnRequest
 from mcp.shared.exceptions import MCPError, NoBackChannelError
@@ -120,7 +124,7 @@ def _dump_result(result: Any) -> dict[str, Any]:
         # Copied so callers own the returned dict: handlers and middleware may
         # retain the object they returned, and the outbound pipeline shapes the
         # wire form without reaching into anything the handler still holds.
-        return dict(cast(dict[str, Any], result))
+        return dict(cast("dict[str, Any]", result))
     raise TypeError(f"handler returned {type(result).__name__}; expected BaseModel, dict, or None")
 
 
@@ -213,7 +217,7 @@ class ServerRunner(Generic[LifespanT]):
                 raise MCPError(code=INVALID_PARAMS, message="Invalid request parameters", data="")
             # Absent params validate as {} (required fields still reject), so
             # the handler receives the model with its defaults, never None.
-            typed_params = entry.params_type.model_validate({} if params is None else params, by_name=False)
+            typed_params = validate_model(entry.params_type, {} if params is None else params, by_name=False)
             result = await entry.handler(ctx, typed_params)
             if isinstance(result, ErrorData):
                 # Raise inside the chain so middleware observes the failure.
@@ -274,7 +278,7 @@ class ServerRunner(Generic[LifespanT]):
                 return
             # Same absent-params contract as requests.
             try:
-                typed_params = entry.params_type.model_validate({} if params is None else params, by_name=False)
+                typed_params = validate_model(entry.params_type, {} if params is None else params, by_name=False)
             except ValidationError:
                 logger.warning("dropped %r: malformed params", method)
                 return
@@ -672,7 +676,7 @@ async def _replay_from_opening_request(
     lead: list[tuple[contextvars.Context, SessionMessage | Exception]] = []
     opening_request: JSONRPCRequest | None = None
     replay_send, replay_receive = anyio.create_memory_object_stream[
-        tuple[contextvars.Context, SessionMessage | Exception]
+        _runtime_typing.Tuple[contextvars.Context, _runtime_typing.Union[SessionMessage, Exception]]
     ]()
     replayed = ContextReceiveStream(replay_receive)
 

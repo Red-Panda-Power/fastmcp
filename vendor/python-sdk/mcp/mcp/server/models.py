@@ -2,6 +2,8 @@
 and tools.
 """
 
+from __future__ import annotations
+
 from mcp_types import Icon, ServerCapabilities
 from pydantic import BaseModel
 

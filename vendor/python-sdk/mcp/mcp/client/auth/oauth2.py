@@ -3,11 +3,14 @@
 Implements authorization code flow with PKCE and automatic token refresh.
 """
 
+from __future__ import annotations
+
 import base64
 import hashlib
 import logging
 import secrets
 import string
+import sys
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass, field
@@ -17,7 +20,12 @@ from urllib.parse import quote, urlencode, urljoin, urlparse
 import anyio
 import httpx2
 from mcp_types.version import is_version_at_least
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+
+if sys.version_info < (3, 9):
+    from mcp.shared._url_compat import AnyHttpUrl
+else:
+    from pydantic import AnyHttpUrl
 
 from mcp.client.auth.exceptions import OAuthFlowError, OAuthRegistrationError, OAuthTokenError
 from mcp.client.auth.utils import (

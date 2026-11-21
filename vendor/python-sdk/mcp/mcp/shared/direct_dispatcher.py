@@ -18,9 +18,8 @@ path) or chained as ``__cause__`` for in-process debugging.
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
 import anyio
 import anyio.abc
@@ -48,8 +47,8 @@ __all__ = ["DirectDispatcher", "create_direct_dispatcher_pair"]
 DIRECT_TRANSPORT_KIND = "direct"
 
 
-_Request = Callable[[str, Mapping[str, Any] | None, CallOptions | None], Awaitable[dict[str, Any]]]
-_Notify = Callable[[str, Mapping[str, Any] | None], Awaitable[None]]
+_Request = Callable[[str, Optional[Mapping[str, Any]], Optional[CallOptions]], Awaitable[Dict[str, Any]]]
+_Notify = Callable[[str, Optional[Mapping[str, Any]]], Awaitable[None]]
 
 
 @dataclass

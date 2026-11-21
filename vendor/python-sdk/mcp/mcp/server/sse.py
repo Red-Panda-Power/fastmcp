@@ -36,9 +36,11 @@ an empty Response() after the SSE connection ends to fix this.
 See SseServerTransport class documentation for more details.
 """
 
+from __future__ import annotations
+
 import logging
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Union
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
@@ -149,7 +151,7 @@ class SseServerTransport:
 
         logger.debug("Setting up SSE connection")
 
-        read_stream_writer, read_stream = create_context_streams[SessionMessage | Exception](0)
+        read_stream_writer, read_stream = create_context_streams[Union[SessionMessage, Exception]](0)
         write_stream, write_stream_reader = create_context_streams[SessionMessage](0)
 
         session_id = uuid4()

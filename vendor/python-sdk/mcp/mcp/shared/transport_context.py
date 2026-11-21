@@ -6,8 +6,11 @@ etc.). The dispatcher passes it through opaquely; only the layers above the
 dispatcher (`ServerRunner`, `Context`, user handlers) read its concrete fields.
 """
 
+from __future__ import annotations
+
 from collections.abc import Mapping
-from dataclasses import dataclass
+
+from mcp.shared._dataclasses import dataclass
 
 __all__ = ["TransportContext"]
 

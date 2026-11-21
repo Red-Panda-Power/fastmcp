@@ -16,9 +16,10 @@ See `JSONRPCDispatcher` for the production implementation and
 embedding a server in-process.
 """
 
+from __future__ import annotations
+
 import logging
-from collections.abc import Awaitable, Callable, Mapping
-from typing import Any, Protocol, TypedDict, TypeVar, runtime_checkable
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional, Protocol, TypedDict, TypeVar, runtime_checkable
 
 import anyio
 import anyio.abc
@@ -48,7 +49,7 @@ TransportT_co = TypeVar("TransportT_co", bound=TransportContext, covariant=True)
 
 def as_request_id(value: object) -> RequestId | None:
     """Narrow an untyped wire value to a `RequestId`, or None; rejects bool (True would alias request id 1)."""
-    if isinstance(value, str | int) and not isinstance(value, bool):
+    if isinstance(value, (str, int)) and not isinstance(value, bool):
         return value
     return None
 
@@ -224,13 +225,13 @@ class DispatchContext(Outbound, Protocol[TransportT_co]):
         ...
 
 
-OnRequest = Callable[[DispatchContext[TransportContext], str, Mapping[str, Any] | None], Awaitable[dict[str, Any]]]
+OnRequest = Callable[[DispatchContext[TransportContext], str, Optional[Mapping[str, Any]]], Awaitable[Dict[str, Any]]]
 """Handler for inbound requests: `(ctx, method, params) -> result`. Raise `MCPError` to send an error response."""
 
-OnNotify = Callable[[DispatchContext[TransportContext], str, Mapping[str, Any] | None], Awaitable[None]]
+OnNotify = Callable[[DispatchContext[TransportContext], str, Optional[Mapping[str, Any]]], Awaitable[None]]
 """Handler for inbound notifications: `(ctx, method, params)`."""
 
-OnNotifyIntercept = Callable[[str, Mapping[str, Any] | None], bool]
+OnNotifyIntercept = Callable[[str, Optional[Mapping[str, Any]]], bool]
 """Synchronous receive-order intercept for inbound notifications: `(method, params) -> consumed`.
 
 Runs before `on_notify` is scheduled so correlation state advances in wire order

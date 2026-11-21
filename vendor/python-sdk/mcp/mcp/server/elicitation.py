@@ -14,6 +14,7 @@ from pydantic_core import core_schema
 from typing_extensions import TypeAliasType
 
 from mcp.server.session import ServerSession
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 
 ElicitSchemaModelT = TypeVar("ElicitSchemaModelT", bound=BaseModel)
 _PRIMITIVE_SCHEMA_ADAPTER = TypeAdapter[PrimitiveSchemaDefinition](PrimitiveSchemaDefinition)
@@ -40,7 +41,7 @@ class CancelledElicitation(BaseModel):
 
 ElicitationResult = TypeAliasType(
     "ElicitationResult",
-    AcceptedElicitation[ElicitSchemaModelT] | DeclinedElicitation | CancelledElicitation,
+    _runtime_typing.Union[AcceptedElicitation[ElicitSchemaModelT], DeclinedElicitation, CancelledElicitation],
     type_params=(ElicitSchemaModelT,),
 )
 
@@ -51,7 +52,7 @@ class AcceptedUrlElicitation(BaseModel):
     action: Literal["accept"] = "accept"
 
 
-UrlElicitationResult = AcceptedUrlElicitation | DeclinedElicitation | CancelledElicitation
+UrlElicitationResult = _runtime_typing.Union[AcceptedUrlElicitation, DeclinedElicitation, CancelledElicitation]
 
 
 class _ElicitationJsonSchema(GenerateJsonSchema):

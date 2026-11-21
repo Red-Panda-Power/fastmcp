@@ -1,5 +1,7 @@
 """Utilities for OAuth 2.0 Resource Indicators (RFC 8707) and PKCE (RFC 7636)."""
 
+from __future__ import annotations
+
 import time
 from urllib.parse import urlparse, urlsplit, urlunsplit
 

@@ -9,8 +9,11 @@ elicitation, roots, ping) as typed methods.
 model. Gating (and `NoBackChannelError`) is the wrapped `Outbound`'s job.
 """
 
+from __future__ import annotations
+
+import sys
 from collections.abc import Mapping
-from typing import Any, cast, overload
+from typing import Any, Dict, cast, overload
 
 from mcp_types import (
     CreateMessageRequestParams,
@@ -37,7 +40,7 @@ from mcp.shared.exceptions import MCPDeprecationWarning
 
 __all__ = ["ClientPeer", "Meta"]
 
-Meta = dict[str, Any]
+Meta = dict[str, Any] if sys.version_info >= (3, 9) else Dict[str, Any]
 """Type alias for the `_meta` field carried on request/notification params."""
 
 

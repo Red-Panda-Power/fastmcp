@@ -6,7 +6,7 @@ import contextlib
 import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from mcp.shared._dataclasses import dataclass
 
 import anyio
 import httpx2
@@ -33,6 +33,7 @@ from pydantic import ValidationError
 from mcp.client._transport import TransportStreams
 from mcp.shared._compat import resync_tracer
 from mcp.shared._context_streams import ContextReceiveStream, ContextSendStream, create_context_streams
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared._httpx_utils import (
     create_mcp_http_client,
     redirect_location,
@@ -48,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 # TODO(Marcelo): Put the TransportStreams in a module under shared, so we can import here.
-SessionMessageOrError = SessionMessage | Exception
+SessionMessageOrError = _runtime_typing.Union[SessionMessage, Exception]
 StreamWriter = ContextSendStream[SessionMessageOrError]
 StreamReader = ContextReceiveStream[SessionMessage]
 
@@ -191,7 +192,7 @@ class StreamableHTTPTransport:
                 logger.debug(f"SSE message: {message}")
 
                 # If this is a response and we have original_request_id, replace it
-                if original_request_id is not None and isinstance(message, JSONRPCResponse | JSONRPCError):
+                if original_request_id is not None and isinstance(message, (JSONRPCResponse, JSONRPCError)):
                     message.id = original_request_id
 
                 session_message = SessionMessage(message)
@@ -203,7 +204,7 @@ class StreamableHTTPTransport:
 
                 # If this is a response or error return True indicating completion
                 # Otherwise, return False to continue listening
-                return isinstance(message, JSONRPCResponse | JSONRPCError)
+                return isinstance(message, (JSONRPCResponse, JSONRPCError))
 
             # Forwarding to a closed read stream lands here when the caller cancels mid-SSE
             # (BrokenResourceError, not a parse failure); coverage is timing-dependent in the
@@ -760,7 +761,7 @@ async def streamable_http_client(
         if not client_provided:
             await stack.enter_async_context(client)
 
-        read_stream_writer, read_stream = create_context_streams[SessionMessage | Exception](0)
+        read_stream_writer, read_stream = create_context_streams[SessionMessageOrError](0)
         write_stream, write_stream_reader = create_context_streams[SessionMessage](0)
 
         async with contextlib.AsyncExitStack() as stream_stack:

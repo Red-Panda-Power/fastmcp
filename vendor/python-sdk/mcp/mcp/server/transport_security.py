@@ -1,5 +1,7 @@
 """Request checks shared by the HTTP server transports: Host/Origin header validation and body size limits."""
 
+from __future__ import annotations
+
 import logging
 from collections import deque
 from typing import Final

@@ -19,6 +19,8 @@ carry) and the MCP server's resource identifier (the `resource` claim it must ca
 section 4.3), and returns the ID-JAG.
 """
 
+from __future__ import annotations
+
 import base64
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable

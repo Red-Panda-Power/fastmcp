@@ -55,7 +55,7 @@ class ResourceSecurity:
     comparisons (``"..\\x00" != ".."``) and can cause truncation in C
     extensions or subprocess calls."""
 
-    exempt_params: Set[str] = field(default_factory=frozenset[str])
+    exempt_params: Set[str] = field(default_factory=frozenset)
     """Parameter names to skip all checks for."""
 
     def validate(self, params: Mapping[str, str | list[str]]) -> str | None:

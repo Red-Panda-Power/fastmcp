@@ -15,6 +15,8 @@ The canonical safe pattern::
         return safe_join("/data/docs", path).read_text(encoding="utf-8")
 """
 
+from __future__ import annotations
+
 import string
 from pathlib import Path
 

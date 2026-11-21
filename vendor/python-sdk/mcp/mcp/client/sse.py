@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from contextlib import AsyncExitStack, asynccontextmanager
-from typing import Any
+from typing import Any, Union
 from urllib.parse import parse_qs, urljoin, urlparse
 
 import anyio
@@ -73,7 +73,7 @@ async def sse_client(
             event_source.response.raise_for_status()
             logger.debug("SSE connection established")
 
-            read_stream_writer, read_stream = create_context_streams[SessionMessage | Exception](0)
+            read_stream_writer, read_stream = create_context_streams[Union[SessionMessage, Exception]](0)
             write_stream, write_stream_reader = create_context_streams[SessionMessage](0)
 
             async def sse_reader(task_status: TaskStatus[str] = anyio.TASK_STATUS_IGNORED):

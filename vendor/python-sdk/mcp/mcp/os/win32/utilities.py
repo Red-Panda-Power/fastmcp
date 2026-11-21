@@ -1,5 +1,7 @@
 """Windows-specific functionality for stdio transport operations."""
 
+from __future__ import annotations
+
 import logging
 import shutil
 import subprocess
@@ -7,7 +9,10 @@ import sys
 import weakref
 from contextlib import suppress
 from pathlib import Path
-from typing import BinaryIO, TextIO, TypeAlias, cast
+from typing import BinaryIO, TextIO, cast
+from typing_extensions import TypeAlias
+
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 
 import anyio
 from anyio.abc import Process
@@ -130,7 +135,7 @@ class FallbackProcess:
 
 # The process handle stdio_client drives: anyio's Process, or the Popen-backed
 # fallback used on Windows event loops without async subprocess support.
-ServerProcess: TypeAlias = Process | FallbackProcess
+ServerProcess: TypeAlias = _runtime_typing.Union[Process, FallbackProcess]
 
 
 async def create_windows_process(

@@ -39,11 +39,11 @@ from __future__ import annotations
 import copy
 import logging
 import warnings
-from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
+from collections.abc import AsyncIterator, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from dataclasses import dataclass
+from mcp.shared._dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Generic, overload
+from typing import Any, Awaitable, Callable, Generic, overload
 
 import mcp_types as types
 from mcp_types.version import MODERN_PROTOCOL_VERSIONS

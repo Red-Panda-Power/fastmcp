@@ -4,9 +4,10 @@ This module defines a wrapper type that combines JSONRPCMessage with metadata
 to support transport-specific features like resumability.
 """
 
-from collections.abc import Awaitable, Callable
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Awaitable, Callable, Optional, Union
 
 from mcp_types import JSONRPCMessage, RequestId
 
@@ -52,7 +53,7 @@ class ServerMessageMetadata:
     can_send_request: bool = True
 
 
-MessageMetadata = ClientMessageMetadata | ServerMessageMetadata | None
+MessageMetadata = Optional[Union[ClientMessageMetadata, ServerMessageMetadata]]
 
 
 @dataclass

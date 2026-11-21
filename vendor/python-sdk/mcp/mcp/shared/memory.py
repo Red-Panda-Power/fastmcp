@@ -7,9 +7,11 @@ from contextlib import asynccontextmanager
 
 from mcp.shared._compat import resync_tracer
 from mcp.shared._context_streams import ContextReceiveStream, ContextSendStream, create_context_streams
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared.message import SessionMessage
 
-MessageStream = tuple[ContextReceiveStream[SessionMessage | Exception], ContextSendStream[SessionMessage | Exception]]
+_MessageOrError = _runtime_typing.Union[SessionMessage, Exception]
+MessageStream = _runtime_typing.Tuple[ContextReceiveStream[_MessageOrError], ContextSendStream[_MessageOrError]]
 
 
 @asynccontextmanager
@@ -21,8 +23,8 @@ async def create_client_server_memory_streams() -> AsyncGenerator[tuple[MessageS
         (read_stream, write_stream)
     """
     # Create streams for both directions
-    server_to_client_send, server_to_client_receive = create_context_streams[SessionMessage | Exception](1)
-    client_to_server_send, client_to_server_receive = create_context_streams[SessionMessage | Exception](1)
+    server_to_client_send, server_to_client_receive = create_context_streams[_MessageOrError](1)
+    client_to_server_send, client_to_server_receive = create_context_streams[_MessageOrError](1)
 
     client_streams = (server_to_client_receive, client_to_server_send)
     server_streams = (client_to_server_receive, server_to_client_send)

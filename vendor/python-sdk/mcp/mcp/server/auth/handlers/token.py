@@ -1,8 +1,12 @@
+from __future__ import annotations
 import base64
 import hashlib
 import time
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
+from typing_extensions import Annotated
+
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 
 from pydantic import AnyHttpUrl, AnyUrl, BaseModel, Field, TypeAdapter, ValidationError
 from starlette.requests import Request
@@ -60,7 +64,7 @@ class JwtBearerRequest(BaseModel):
 
 
 TokenRequest = Annotated[
-    AuthorizationCodeRequest | RefreshTokenRequest | JwtBearerRequest,
+    _runtime_typing.Union[AuthorizationCodeRequest, RefreshTokenRequest, JwtBearerRequest],
     Field(discriminator="grant_type"),
 ]
 token_request_adapter = TypeAdapter[TokenRequest](TokenRequest)

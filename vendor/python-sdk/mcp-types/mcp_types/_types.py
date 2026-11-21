@@ -8,6 +8,7 @@ the negotiated version. Per-field docstrings note version availability. The
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -97,6 +98,17 @@ class RequestParamsMeta(TypedDict, extra_items=Any):
     parameter is an opaque token that will be attached to any subsequent
     notifications. The receiver is not obligated to provide these notifications.
     """
+
+    if sys.version_info < (3, 9):
+
+        @classmethod
+        def __get_pydantic_core_schema__(cls, source_type: Any, handler: Any) -> dict[str, Any]:
+            # Pydantic 2.10 does not yet recognize TypedDict extra_items.
+            # Put this on the typed-dict schema itself so both validation and
+            # serialization retain arbitrary protocol metadata.
+            schema = handler(source_type)
+            schema["extra_behavior"] = "allow"
+            return schema
 
 
 class RequestParams(MCPModel):

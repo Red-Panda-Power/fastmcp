@@ -29,8 +29,8 @@ TypeScript and C# SDKs ship it as a standalone package.)
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import Any, Literal, TypeVar
+from collections.abc import Sequence
+from typing import Any, Callable, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -227,7 +227,7 @@ def client_supports_apps(ctx: Context[Any] | ServerRequestContext[Any, Any]) -> 
     if settings is None:
         return False
     mime_types = settings.get("mimeTypes")
-    return isinstance(mime_types, list | tuple) and APP_MIME_TYPE in mime_types
+    return isinstance(mime_types, (list, tuple)) and APP_MIME_TYPE in mime_types
 
 
 def _client_capabilities(ctx: Context[Any] | ServerRequestContext[Any, Any]) -> Any:

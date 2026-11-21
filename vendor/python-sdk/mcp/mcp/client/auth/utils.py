@@ -1,3 +1,4 @@
+from __future__ import annotations
 import re
 from typing import Any, cast
 from urllib.parse import urljoin, urlparse
@@ -309,7 +310,7 @@ async def handle_registration_response(response: Response) -> OAuthClientInforma
         # registered with (SEP-2352), stamped by the auth flow - never sourced from the
         # wire, so it is dropped before the body is parsed rather than trusted or cleared.
         if isinstance(body, dict):
-            cast(dict[str, Any], body).pop("issuer", None)
+            cast("dict[str, Any]", body).pop("issuer", None)
         return OAuthClientInformationFull.model_validate(body)
     except ValueError as e:
         # `from_json` reports malformed bytes/JSON as ValueError, and pydantic's

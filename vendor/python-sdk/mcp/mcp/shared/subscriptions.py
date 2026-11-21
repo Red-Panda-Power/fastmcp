@@ -9,6 +9,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp_types import (
     NotificationParams,
     PromptListChangedNotification,
@@ -59,7 +60,7 @@ class ResourceUpdated:
     uri: str
 
 
-ServerEvent = ToolsListChanged | PromptsListChanged | ResourcesListChanged | ResourceUpdated
+ServerEvent = _runtime_typing.Union[ToolsListChanged, PromptsListChanged, ResourcesListChanged, ResourceUpdated]
 """An event a server publishes for delivery to listen subscribers."""
 
 

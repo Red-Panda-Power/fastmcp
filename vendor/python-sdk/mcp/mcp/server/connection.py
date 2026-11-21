@@ -46,6 +46,7 @@ from mcp_types.version import LATEST_HANDSHAKE_VERSION, MODERN_PROTOCOL_VERSIONS
 from pydantic import BaseModel, ValidationError
 from typing_extensions import deprecated
 
+from mcp.shared._pydantic import validate_model
 from mcp.shared.dispatcher import CallOptions, Outbound
 from mcp.shared.exceptions import MCPDeprecationWarning, NoBackChannelError
 from mcp.shared.peer import Meta, dump_params
@@ -116,7 +117,7 @@ def _typed(model: type[_ModelT], raw: Any) -> _ModelT | None:
     which types the reserved `_meta` keys strictly.
     """
     try:
-        return model.model_validate(raw, by_name=False)
+        return validate_model(model, raw, by_name=False)
     except ValidationError:
         return None
 
@@ -396,7 +397,7 @@ class Connection:
             except KeyError:
                 pass
         cls = result_type if result_type is not None else _RESULT_FOR[type(req)]
-        return cls.model_validate(raw, by_name=False)
+        return validate_model(cls, raw, by_name=False)
 
     async def notify(self, method: str, params: Mapping[str, Any] | None, opts: CallOptions | None = None) -> None:
         """Send a best-effort notification on the standalone stream.

@@ -9,6 +9,8 @@ server: the server's `Context` extends this with `lifespan`/`connection`;
 `ClientContext` is just an alias.
 """
 
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import Any, Generic
 

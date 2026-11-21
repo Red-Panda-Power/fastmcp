@@ -7,6 +7,8 @@ Nothing in this module is public API: it may change or be removed without notice
 change with the client dispatcher work in https://github.com/modelcontextprotocol/python-sdk/pull/3517.
 """
 
+from __future__ import annotations
+
 import math
 from collections.abc import Iterator
 from contextlib import contextmanager

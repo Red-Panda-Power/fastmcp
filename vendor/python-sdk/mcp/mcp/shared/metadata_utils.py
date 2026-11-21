@@ -4,6 +4,8 @@ These utilities are primarily intended for client-side usage to properly display
 human-readable names in user interfaces in a spec-compliant way.
 """
 
+from __future__ import annotations
+
 from mcp_types import Implementation, Prompt, Resource, ResourceTemplate, Tool
 
 

@@ -1,6 +1,14 @@
+from __future__ import annotations
+
+import sys
 from typing import Any, Literal, cast
 
-from pydantic import AnyHttpUrl, AnyUrl, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+if sys.version_info < (3, 9):
+    from mcp.shared._url_compat import AnyHttpUrl, AnyUrl
+else:
+    from pydantic import AnyHttpUrl, AnyUrl
 
 # RFC 7523 JWT bearer grant; SEP-990 leg 2 uses this to present the ID-JAG.
 JWT_BEARER_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:jwt-bearer"
@@ -170,7 +178,7 @@ class OAuthClientInformationFull(OAuthClientMetadataBase):
         # list field (or read "" as an unrecognized method) and discard an already-provisioned
         # registration; a placeholder and an absent key mean the same thing.
         if isinstance(data, dict):
-            members = cast(dict[str, Any], data)
+            members = cast("dict[str, Any]", data)
             return {key: value for key, value in members.items() if value is not None and value != ""}
         return data
 

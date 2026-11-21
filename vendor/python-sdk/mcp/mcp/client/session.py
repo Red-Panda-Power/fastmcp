@@ -3,11 +3,10 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
-from functools import cache, reduce
-from operator import or_
-from types import TracebackType, UnionType
-from typing import TYPE_CHECKING, Annotated, Any, Final, Literal, Protocol, TypeAlias, cast, get_args, overload
+from mcp.shared._dataclasses import dataclass
+from functools import lru_cache
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, cast, get_args, get_origin, overload
 
 import anyio
 import anyio.abc
@@ -35,13 +34,16 @@ from mcp_types.version import (
     LATEST_MODERN_VERSION,
     MODERN_PROTOCOL_VERSIONS,
 )
-from pydantic import BaseModel, Discriminator, Tag, TypeAdapter, ValidationError
-from typing_extensions import Self, TypeVar, deprecated
+from pydantic import BaseModel, Discriminator, Tag, TypeAdapter as PydanticTypeAdapter, ValidationError
+from typing_extensions import Annotated, Self, TypeAlias, TypeVar, deprecated
+from typing_inspection.introspection import is_union_origin
 
 from mcp.client._transport import ReadStream, WriteStream
 from mcp.client.extension import NotificationBinding, ResultClaim, UnexpectedClaimedResult
 from mcp.client.subscriptions import ListenRoute
 from mcp.shared._compat import resync_tracer
+from mcp.shared._pydantic import TypeAdapter, validate_adapter, validate_model
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared.dispatcher import CallOptions, DispatchContext, Dispatcher, ProgressFnT, as_request_id
 from mcp.shared.exceptions import MCPDeprecationWarning, MCPError
 from mcp.shared.inbound import (
@@ -74,14 +76,14 @@ logger = logging.getLogger("client")
 def _clamp_inbound_ttl(raw: dict[str, Any]) -> None:
     """Floor a negative inbound `ttlMs` to 0 before `ge=0` validation fails the call (2026-07-28 caching SHOULD)."""
     ttl = raw.get("ttlMs")
-    if isinstance(ttl, int | float) and not isinstance(ttl, bool) and ttl < 0:
+    if isinstance(ttl, (int, float)) and not isinstance(ttl, bool) and ttl < 0:
         raw["ttlMs"] = 0
 
 
-@cache
-def _wire_fields(target: type[BaseModel] | UnionType) -> frozenset[str]:
+@lru_cache(maxsize=None)
+def _wire_fields(target: Any) -> frozenset[str]:
     """Top-level wire keys `target` declares (its members', for a union)."""
-    members: tuple[Any, ...] = get_args(target) if isinstance(target, UnionType) else (target,)
+    members: tuple[Any, ...] = get_args(target) if is_union_origin(get_origin(target)) else (target,)
     models = [m for m in members if isinstance(m, type) and issubclass(m, BaseModel)]
     fields: set[str] = set()
     for model in models:
@@ -89,7 +91,7 @@ def _wire_fields(target: type[BaseModel] | UnionType) -> frozenset[str]:
     return frozenset(fields)
 
 
-@cache
+@lru_cache(maxsize=None)
 def _later_revision_fields(method: str, version: str) -> frozenset[str]:
     """Result keys a revision newer than `version` declares for `method` but `version` doesn't.
 
@@ -229,7 +231,7 @@ class LoggingFnT(Protocol):
     async def __call__(self, params: types.LoggingMessageNotificationParams) -> None: ...  # pragma: no branch
 
 
-IncomingMessage: TypeAlias = types.ServerNotification | Exception
+IncomingMessage: TypeAlias = _runtime_typing.Union[types.ServerNotification, Exception]
 """What `message_handler` receives: the server notifications the session surfaces, plus transport-level exceptions.
 
 `notifications/cancelled` is applied by the dispatcher and never surfaced, and a
@@ -281,17 +283,19 @@ async def _default_logging_callback(
     pass
 
 
-ClientResponse: TypeAdapter[types.ClientResult | types.ErrorData] = TypeAdapter(types.ClientResult | types.ErrorData)
+ClientResponse: TypeAdapter[types.ClientResult | types.ErrorData] = TypeAdapter(
+    _runtime_typing.Union[types.ClientResult, types.ErrorData]
+)
 
 # Typed against the wide parse union so adopt-built claim adapters share this attribute type.
 _CallToolResultAdapter: TypeAdapter[types.CallToolResult | types.InputRequiredResult | types.Result] = TypeAdapter(
-    types.CallToolResult | types.InputRequiredResult
+    _runtime_typing.Union[types.CallToolResult, types.InputRequiredResult]
 )
 _GetPromptResultAdapter: TypeAdapter[types.GetPromptResult | types.InputRequiredResult] = TypeAdapter(
-    types.GetPromptResult | types.InputRequiredResult
+    _runtime_typing.Union[types.GetPromptResult, types.InputRequiredResult]
 )
 _ReadResourceResultAdapter: TypeAdapter[types.ReadResourceResult | types.InputRequiredResult] = TypeAdapter(
-    types.ReadResourceResult | types.InputRequiredResult
+    _runtime_typing.Union[types.ReadResourceResult, types.InputRequiredResult]
 )
 
 
@@ -334,10 +338,9 @@ def _build_call_tool_adapter(
             tag = getattr(value, "result_type", None)
         return tag if isinstance(tag, str) and tag in tags else core_arm
 
-    arms: list[Any] = [Annotated[types.CallToolResult | types.InputRequiredResult, Tag(core_arm)]]
+    arms: list[Any] = [Annotated[_runtime_typing.Union[types.CallToolResult, types.InputRequiredResult], Tag(core_arm)]]
     arms += [Annotated[claim.model, Tag(tag)] for tag, claim in active.items()]
-    # reduce(or_) rather than Union star-unpack, which needs py3.11+.
-    return TypeAdapter(Annotated[reduce(or_, arms), Discriminator(_route)])
+    return TypeAdapter(Annotated[_runtime_typing.Union[tuple(arms)], Discriminator(_route)])
 
 
 def _index_claims(
@@ -596,9 +599,9 @@ class ClientSession:
         # result type would otherwise apply that revision's constraints to them.
         if not (foreign := _later_revision_fields(method, version)).isdisjoint(raw):
             raw = {key: value for key, value in raw.items() if key not in foreign}
-        if isinstance(result_type, TypeAdapter):
-            return result_type.validate_python(raw, by_name=False)
-        return result_type.model_validate(raw, by_name=False)
+        if isinstance(result_type, PydanticTypeAdapter):
+            return validate_adapter(result_type, raw, by_name=False)
+        return validate_model(result_type, raw, by_name=False)
 
     async def send_notification(self, notification: types.ClientNotification) -> None:
         """Send a one-way notification. Usable before entering the context manager.
@@ -1104,7 +1107,7 @@ class ClientSession:
         # The input_required arm stays first; a claimed shape is terminal for the multi-round-trip driver.
         if isinstance(result, types.InputRequiredResult) and not allow_input_required:
             raise _input_required_unexpected("call_tool")
-        if not isinstance(result, types.CallToolResult | types.InputRequiredResult) and not allow_claimed:
+        if not isinstance(result, (types.CallToolResult, types.InputRequiredResult)) and not allow_claimed:
             raise UnexpectedClaimedResult(result)
         return result
 

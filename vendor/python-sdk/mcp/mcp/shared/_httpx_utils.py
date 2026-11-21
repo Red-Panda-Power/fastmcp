@@ -1,5 +1,7 @@
 """Utilities for creating and using httpx2 AsyncClient instances in the MCP transports."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager

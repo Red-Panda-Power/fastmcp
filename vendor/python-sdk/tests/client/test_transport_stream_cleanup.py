@@ -58,7 +58,7 @@ def _assert_no_memory_stream_leak() -> Iterator[None]:
 
 
 @pytest.mark.anyio
-async def test_sse_client_closes_all_streams_on_connection_error(free_tcp_port: int) -> None:
+async def test_sse_client_closes_all_streams_on_connection_error(unused_tcp_port: int) -> None:
     """sse_client creates streams only after the SSE connection succeeds, so a
     ConnectError propagates directly with nothing to leak.
 
@@ -67,7 +67,7 @@ async def test_sse_client_closes_all_streams_on_connection_error(free_tcp_port: 
     """
     with _assert_no_memory_stream_leak():
         with pytest.raises(httpx2.ConnectError):
-            async with sse_client(f"http://127.0.0.1:{free_tcp_port}/sse"):
+            async with sse_client(f"http://127.0.0.1:{unused_tcp_port}/sse"):
                 pytest.fail("should not reach here")  # pragma: no cover
 
 

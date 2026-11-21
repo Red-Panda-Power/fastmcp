@@ -1,5 +1,7 @@
 """Base classes and interfaces for MCPServer resources."""
 
+from __future__ import annotations
+
 import abc
 from typing import Any
 

@@ -21,7 +21,7 @@ max_lines = 1679
 
 [[rules]]
 path = "vendor/python-sdk/mcp-types/mcp_types/_types.py"
-max_lines = 2242
+max_lines = 2254
 
 [[rules]]
 path = "vendor/python-sdk/mcp-types/mcp_types/_v2025_11_25/__init__.py"
@@ -33,7 +33,7 @@ max_lines = 3645
 
 [[rules]]
 path = "vendor/python-sdk/mcp/mcp/client/session.py"
-max_lines = 1505
+max_lines = 1508
 
 [[rules]]
 path = "vendor/python-sdk/mcp/mcp/server/mcpserver/server.py"
@@ -41,11 +41,11 @@ max_lines = 1417
 
 [[rules]]
 path = "vendor/python-sdk/mcp/mcp/server/streamable_http.py"
-max_lines = 1135
+max_lines = 1138
 
 [[rules]]
 path = "vendor/python-sdk/mcp/mcp/shared/uri_template.py"
-max_lines = 1116
+max_lines = 1119
 
 [[rules]]
 path = "vendor/python-sdk/tests/client/test_caching.py"

@@ -2,21 +2,26 @@
 name = "mcp"
 version = "2.3.0"
 description = "Vendored Model Context Protocol SDK."
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 license = { file = "LICENSE" }
 authors = [{ name = "Model Context Protocol a Series of LF Projects, LLC." }]
 dependencies = [
     "anyio>=4.10; python_version >= '3.14'",
-    "anyio>=4.9; python_version < '3.14'",
+    "anyio>=4.5,<4.6; python_version < '3.9'",
+    "anyio>=4.9; python_version >= '3.9' and python_version < '3.14'",
+    "eval-type-backport>=0.4.0; python_version < '3.10'",
     "httpx2>=2.10.0",
     "jsonschema>=4.20.0",
     "mcp-types==2.3.0",
     "opentelemetry-api>=1.28.0",
-    "pydantic>=2.12.0",
-    "pyjwt[crypto]>=2.10.1",
+    "pydantic==2.10.6; python_version < '3.9'",
+    "pydantic>=2.12.0; python_version >= '3.9'",
+    "pyjwt[crypto]>=2.9,<2.10; python_version < '3.9'",
+    "pyjwt[crypto]>=2.10.1; python_version >= '3.9'",
     "python-multipart>=0.0.9",
     "pywin32>=311; sys_platform == 'win32'",
-    "sse-starlette>=3.0.0",
+    "sse-starlette>=3.7.0; python_version < '3.9'",
+    "sse-starlette>=3.0.0; python_version >= '3.9'",
     "starlette>=0.27; python_version < '3.14'",
     "starlette>=0.48.0; python_version >= '3.14'",
     "typing-extensions>=4.13.0",
@@ -38,6 +43,7 @@ Repository = "https://github.com/modelcontextprotocol/python-sdk"
 dev = [
     "inline-snapshot>=0.27.2",
     "pytest>=8.3.3,<9",
+    "pytest-asyncio>=0.23.8",
     "pytest-timeout>=2.4.0",
     "trio>=0.26.2",
 ]
@@ -53,3 +59,5 @@ packages = ["mcp"]
 httpcore2 = { path = "../../httpx2/httpcore2", editable = true }
 httpx2 = { path = "../../httpx2/httpx2", editable = true }
 mcp-types = { path = "../mcp-types", editable = true }
+sse-starlette = [{ path = "../../sse-starlette", editable = true, marker = "python_version < '3.9'" }]
+typing-inspection = [{ path = "../../typing-inspection", editable = true, marker = "python_version < '3.9'" }]

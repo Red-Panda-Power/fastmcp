@@ -6,6 +6,8 @@ Handlers reach it as `ctx.session` and use the typed helpers (`elicit_form`,
 `send_log_message`, ...) to call back to the client.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, TypeVar, overload
 
@@ -17,6 +19,7 @@ from typing_extensions import deprecated
 
 from mcp.server.connection import Connection, allowed_log_levels
 from mcp.server.validation import validate_sampling_tools, validate_tool_use_result_messages, wants_sampling_tools
+from mcp.shared._pydantic import validate_model
 from mcp.shared.dispatcher import CallOptions, DispatchContext, ProgressFnT
 from mcp.shared.exceptions import MCPDeprecationWarning
 from mcp.shared.message import ServerMessageMetadata
@@ -119,7 +122,7 @@ class ServerSession:
             _methods.validate_client_result(request.method, self.protocol_version, result)
         except KeyError:
             pass
-        return result_type.model_validate(result, by_name=False)
+        return validate_model(result_type, result, by_name=False)
 
     async def send_notification(
         self,

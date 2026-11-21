@@ -35,7 +35,7 @@ import logging
 import types
 import typing
 from collections.abc import Callable, Hashable, Mapping
-from typing import Annotated, Any, Generic, Literal, TypeGuard, get_args, get_origin
+from typing import Any, Generic, Literal, get_args, get_origin
 
 import anyio.to_thread
 from mcp_types import (
@@ -68,7 +68,7 @@ from mcp_types import (
 )
 from mcp_types.version import is_version_at_least
 from pydantic import BaseModel, ValidationError
-from typing_extensions import TypeVar
+from typing_extensions import Annotated, TypeGuard, TypeVar
 
 from mcp.server.elicitation import (
     AcceptedElicitation,
@@ -78,6 +78,7 @@ from mcp.server.elicitation import (
     render_elicitation_schema,
 )
 from mcp.server.mcpserver.context import Context
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.server.mcpserver.exceptions import InvalidSignature, ToolError
 from mcp.server.request_state import compact_json
 from mcp.server.validation import validate_tool_use_result_messages, wants_sampling_tools
@@ -161,7 +162,7 @@ class ListRoots:
     """A resolver's request for the client's roots via `roots/list`; the framework injects the `ListRootsResult`."""
 
 
-_Marker = Elicit[Any] | Sample | ListRoots
+_Marker = _runtime_typing.Union[Elicit[Any], Sample, ListRoots]
 """The request markers a resolver may return."""
 
 
@@ -295,7 +296,7 @@ def _check_elicit_return(return_annotation: Any, name: str) -> None:
         for c in candidates
         # Origin guard for 3.10: `dict[str, Any]` passes `isinstance(c, type)` there and would crash `issubclass`.
         if get_origin(c) is Elicit
-        or (get_origin(c) is None and isinstance(c, type) and issubclass(c, Elicit | Sample | ListRoots))
+        or (get_origin(c) is None and isinstance(c, type) and issubclass(c, (Elicit, Sample, ListRoots)))
     ]
     if len(arms) > 1:
         raise InvalidSignature(
@@ -305,7 +306,8 @@ def _check_elicit_return(return_annotation: Any, name: str) -> None:
 
 
 def _is_union(annotation: Any) -> bool:
-    return get_origin(annotation) in (typing.Union, types.UnionType)
+    origin = get_origin(annotation)
+    return origin is typing.Union or (hasattr(types, "UnionType") and origin is types.UnionType)
 
 
 def _wants_union(type_arg: Any) -> bool:
@@ -649,7 +651,7 @@ def _unwrap(outcome: ElicitationResult[Any], name: str) -> Any:
 
 
 def _is_marker(value: Any) -> TypeGuard[_Marker]:
-    return isinstance(value, Elicit | Sample | ListRoots)
+    return isinstance(value, (Elicit, Sample, ListRoots))
 
 
 def _accepted(data: Any) -> AcceptedElicitation[Any]:

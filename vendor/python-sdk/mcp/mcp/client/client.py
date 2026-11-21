@@ -5,10 +5,12 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
-from dataclasses import KW_ONLY, dataclass, field
-from typing import Any, Final, Literal, TypeVar, cast
+from dataclasses import field
+
+from mcp.shared._dataclasses import KW_ONLY, dataclass
+from typing import Any, Awaitable, Callable, Final, Literal, TypeVar, cast
 
 import anyio
 import anyio.lowlevel
@@ -68,6 +70,7 @@ from mcp.server import Server
 from mcp.server.mcpserver import MCPServer
 from mcp.server.runner import modern_on_request
 from mcp.shared.direct_dispatcher import create_direct_dispatcher_pair
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared.dispatcher import Dispatcher, ProgressFnT
 from mcp.shared.exceptions import MCPDeprecationWarning, MCPError
 from mcp.shared.extension import validate_extension_identifier
@@ -76,7 +79,7 @@ from mcp.shared.subscriptions import event_to_notification
 
 logger = logging.getLogger(__name__)
 
-ConnectMode = Literal["legacy", "auto"] | str
+ConnectMode = _runtime_typing.Union[Literal["legacy", "auto"], str]
 """``mode=`` value: ``"legacy"`` (initialize handshake), ``"auto"`` (discover, fall back to
 initialize), or a modern protocol-version string (adopt directly). The ``str`` arm is for
 forward-compat; ``Client.__post_init__`` rejects anything outside that set at construction."""

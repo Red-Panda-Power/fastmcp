@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
-from typing import Any, Generic, Protocol
+from collections.abc import Mapping
+from mcp.shared._dataclasses import dataclass
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
+from typing import Any, Awaitable, Callable, Generic, Protocol
 
 from mcp_types import LoggingLevel, RequestId, RequestParamsMeta
 from pydantic import BaseModel
@@ -23,7 +26,7 @@ logger = logging.getLogger(__name__)
 _logger = logger
 
 # Invariant: parametrizes a mutable dataclass field; dict default matches the default lifespan.
-LifespanContextT = TypeVar("LifespanContextT", default=dict[str, Any])
+LifespanContextT = TypeVar("LifespanContextT", default=_runtime_typing.Dict[str, Any])
 RequestT = TypeVar("RequestT", default=Any)
 
 
@@ -129,7 +132,7 @@ class Context(BaseContext[TransportContext], Generic[LifespanT_co]):
         await self.notify("notifications/message", params)
 
 
-HandlerResult = BaseModel | dict[str, Any] | None
+HandlerResult = _runtime_typing.Union[BaseModel, _runtime_typing.Dict[str, Any], None]
 """What a request handler (or middleware) may return. `ServerRunner` serializes
 all three to a result dict."""
 

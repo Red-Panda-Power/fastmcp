@@ -1056,7 +1056,7 @@ async def test_evict_key_on_an_unregistered_key_still_deletes_both_arms() -> Non
         ),
         (
             LoggingMessageNotification(params=LoggingMessageNotificationParams(level="info", data="x")),
-            set[tuple[str, str]](),
+            set(),
         ),
     ],
     ids=["tools-list-changed", "prompts-list-changed", "resources-list-changed", "resource-updated", "unrelated"],

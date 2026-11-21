@@ -48,8 +48,11 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Literal, TypeAlias, cast
+from typing import Literal, cast
+from typing_extensions import TypeAlias
 from urllib.parse import quote, unquote
+
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 
 __all__ = [
     "DEFAULT_MAX_TEMPLATE_LENGTH",
@@ -153,7 +156,7 @@ class _Expression:
     variables: list[Variable]
 
 
-_Part = str | _Expression
+_Part = _runtime_typing.Union[str, _Expression]
 
 
 @dataclass(frozen=True)
@@ -176,7 +179,7 @@ class _Cap:
     ifemp: bool = False
 
 
-_Atom: TypeAlias = _Lit | _Cap
+_Atom: TypeAlias = _runtime_typing.Union[_Lit, _Cap]
 
 
 def _is_greedy(var: Variable) -> bool:
@@ -193,7 +196,7 @@ def _is_str_sequence(value: object) -> bool:
     """Check if value is a non-string sequence whose items are all strings."""
     if isinstance(value, str) or not isinstance(value, Sequence):
         return False
-    seq = cast(Sequence[object], value)
+    seq = cast("Sequence[object]", value)
     return all(isinstance(item, str) for item in seq)
 
 

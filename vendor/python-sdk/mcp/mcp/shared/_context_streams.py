@@ -19,10 +19,12 @@ from typing import Any, Generic, TypeVar
 import anyio
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
+
 T = TypeVar("T")
 
 # Internal payload carried through the underlying raw stream.
-_Envelope = tuple[contextvars.Context, T]
+_Envelope = _runtime_typing.Tuple[contextvars.Context, T]
 
 
 class ContextSendStream(Generic[T]):
@@ -104,7 +106,7 @@ class ContextReceiveStream(Generic[T]):
 
 
 class create_context_streams(
-    tuple[ContextSendStream[T], ContextReceiveStream[T]],
+    _runtime_typing.Tuple[ContextSendStream[T], ContextReceiveStream[T]],
 ):
     """Create context-aware memory object streams.
 

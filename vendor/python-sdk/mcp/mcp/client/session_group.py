@@ -6,18 +6,21 @@ be connected to or disconnected from at any point after initialization.
 This abstraction can handle naming collisions using a custom user-provided hook.
 """
 
+from __future__ import annotations
+
 import contextlib
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Literal, TypeAlias, overload
+from typing import Any, Callable, Literal, overload
 
 import anyio
 import httpx2
 import mcp_types as types
 from pydantic import BaseModel, Field
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
+
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 
 import mcp
 from mcp.client.session import ElicitationFnT, ListRootsFnT, LoggingFnT, MessageHandlerFnT, SamplingFnT
@@ -67,7 +70,9 @@ class StreamableHttpParameters(BaseModel):
     max_sse_event_size: int | None = Field(default=DEFAULT_MAX_SSE_EVENT_SIZE, gt=0)
 
 
-ServerParameters: TypeAlias = StdioServerParameters | SseServerParameters | StreamableHttpParameters
+ServerParameters: TypeAlias = _runtime_typing.Union[
+    StdioServerParameters, SseServerParameters, StreamableHttpParameters
+]
 
 
 # Use dataclass instead of Pydantic BaseModel

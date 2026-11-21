@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextvars
 
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -7,7 +9,9 @@ from mcp.server.auth.provider import AccessToken
 
 # Create a contextvar to store the authenticated user
 # The default is None, indicating no authenticated user is present
-auth_context_var = contextvars.ContextVar[AuthenticatedUser | None]("auth_context", default=None)
+auth_context_var: contextvars.ContextVar[AuthenticatedUser | None] = contextvars.ContextVar(
+    "auth_context", default=None
+)
 
 
 def get_access_token() -> AccessToken | None:

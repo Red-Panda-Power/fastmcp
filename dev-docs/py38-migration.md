@@ -4,9 +4,11 @@ This internal fork targets Python 3.8 while preserving the current FastMCP featu
 
 Removing the Horizon commands does not revoke existing Horizon API keys or delete their local state. Earlier versions stored the key in `FASTMCP_HOME/cli/auth.json` and the selected host in `FASTMCP_HOME/cli/config.json`. Revoke any unused key through Horizon and remove those files if they are no longer needed. Other FastMCP authentication state is separate.
 
-The MCP SDK and protocol type sources from upstream version 2.3.0 are now vendored under `vendor/python-sdk`. The local `mcp-types` package is selected by the root UV project and has focused Python 3.8 tests. The copied `mcp` SDK itself is still being ported and the root project still resolves the published SDK.
+The MCP SDK and protocol type sources from upstream version 2.3.0 are vendored under `vendor/python-sdk`. The local `mcp-types` package is selected by the root UV project. The SDK's separate UV project now resolves and imports on Python 3.8, and tests cover client/server protocol calls, HTTP transport, authentication, and custom validation on Python 3.8 and 3.12. The SDK port is still being audited, and the root project still resolves the published SDK.
 
 HTTPX2 and HTTPCore2 2.12.0 are vendored under `vendor/httpx2` and are used by the vendored SDK's development project. Their isolated UV project tests the backport on Python 3.8 and 3.12, including HTTP/1.1, HTTP/2, SOCKS, TLS verification, WebSockets, cancellation, SSE and content decoding. On Python 3.8, the default TLS context uses the standard library because `truststore` requires Python 3.10; certificate and hostname verification remain enabled. The root FastMCP workspace still resolves the published HTTP transport until the SDK port is ready.
+
+The SDK's Python 3.8 dependency set also uses local backports of `typing-inspection` 0.4.2 and `sse-starlette` 3.7.0. The SDK's runtime-only UV installation excludes pytest and Trio, while its development environment includes them for the test suite. These checks do not establish that the FastMCP workspace itself can yet be installed on Python 3.8.
 
 The `prefab-ui` dependency is now restricted to Python 3.10 and newer; MCP Apps UI is unavailable on Python 3.8. The dependency audit below records the original constraints before this change.
 

@@ -6,16 +6,18 @@ The transport handles bidirectional communication using HTTP requests and
 responses, with streaming support for long-running operations.
 """
 
+from __future__ import annotations
+
 import logging
 import math
 import re
 from abc import ABC, abstractmethod
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from functools import partial
 from http import HTTPStatus
-from typing import Any, Final
+from typing import Any, Awaitable, Callable, Final
 
 import anyio
 import pydantic_core
@@ -44,6 +46,7 @@ from starlette.types import Receive, Scope, Send
 from mcp.server.transport_security import TransportSecurityMiddleware, TransportSecuritySettings
 from mcp.shared._context_streams import ContextReceiveStream, ContextSendStream, create_context_streams
 from mcp.shared._stream_protocols import ReadStream, WriteStream
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared.inbound import MCP_PROTOCOL_VERSION_HEADER
 from mcp.shared.message import CloseSSEStreamCallback, ServerMessageMetadata, SessionMessage
 
@@ -81,7 +84,7 @@ SESSION_ID_PATTERN = re.compile(r"^[\x21-\x7E]+$")
 StreamId = str
 EventId = str
 # An SSE event-dict as accepted by sse-starlette (`event`, `data`, `id`, `retry`).
-SSEEvent = dict[str, Any]
+SSEEvent = _runtime_typing.Dict[str, Any]
 
 
 def check_accept_headers(request: Request) -> tuple[bool, bool]:
@@ -367,7 +370,7 @@ class StreamableHTTPServerTransport:
                     await sse_stream_writer.send(priming_event)
                 async for event_message in request_stream_reader:
                     await sse_stream_writer.send(self._create_event_data(event_message))
-                    if isinstance(event_message.message, JSONRPCResponse | JSONRPCError):
+                    if isinstance(event_message.message, (JSONRPCResponse, JSONRPCError)):
                         break
         except anyio.ClosedResourceError:  # pragma: lax no cover
             logger.debug("SSE stream closed by close_sse_stream()")
@@ -1041,7 +1044,7 @@ class StreamableHTTPServerTransport:
 
         # Create the memory streams for this connection
 
-        read_stream_writer, read_stream = create_context_streams[SessionMessage | Exception](0)
+        read_stream_writer, read_stream = create_context_streams[_runtime_typing.Union[SessionMessage, Exception]](0)
         write_stream, write_stream_reader = create_context_streams[SessionMessage](0)
 
         # Store the streams
@@ -1062,7 +1065,7 @@ class StreamableHTTPServerTransport:
                         # Check if this is a response with a known request id.
                         # Null-id errors (e.g., parse errors) fall through to
                         # the GET stream since they can't be correlated.
-                        if isinstance(message, JSONRPCResponse | JSONRPCError) and message.id is not None:
+                        if isinstance(message, (JSONRPCResponse, JSONRPCError)) and message.id is not None:
                             target_request_id = str(message.id)
                         # Extract related_request_id from meta if it exists
                         elif (

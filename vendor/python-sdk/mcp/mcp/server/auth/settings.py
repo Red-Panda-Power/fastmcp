@@ -1,3 +1,4 @@
+from __future__ import annotations
 import warnings
 
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, model_validator

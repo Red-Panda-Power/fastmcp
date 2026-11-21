@@ -11,6 +11,8 @@ Also hosts the shared header-value codec and the `x-mcp-header` schema
 validator so client emit and server validate read the same source of truth.
 """
 
+from __future__ import annotations
+
 import base64
 import binascii
 import re
@@ -132,18 +134,18 @@ def _walk_schema_positions(root: Any) -> Iterator[tuple[tuple[str, ...] | None, 
         path, node = stack.pop()
         if not isinstance(node, dict):
             continue
-        schema = cast(dict[str, Any], node)
+        schema = cast("dict[str, Any]", node)
         yield path, schema
         for kw, val in schema.items():
             if kw == "properties" and isinstance(val, dict):
-                for name, sub in cast(dict[str, Any], val).items():
+                for name, sub in cast("dict[str, Any]", val).items():
                     stack.append(((*path, name) if path is not None else None, sub))
             elif kw in _SUBSCHEMA_SINGLE:
                 stack.append((None, val))
             elif kw in _SUBSCHEMA_LIST and isinstance(val, list):
-                stack.extend((None, sub) for sub in cast(list[Any], val))
+                stack.extend((None, sub) for sub in cast("list[Any]", val))
             elif kw in _SUBSCHEMA_MAP and isinstance(val, dict):
-                stack.extend((None, sub) for sub in cast(dict[str, Any], val).values())
+                stack.extend((None, sub) for sub in cast("dict[str, Any]", val).values())
 
 
 def encode_header_value(value: str) -> str:
@@ -265,7 +267,7 @@ def _render_header_scalar(value: Any) -> str | None:
     """
     if isinstance(value, bool):
         return "true" if value else "false"
-    if not isinstance(value, str | int | float):
+    if not isinstance(value, (str, int, float)):
         return None
     try:
         return str(value)

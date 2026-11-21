@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import functools
 import inspect
-from collections.abc import Awaitable, Callable
-from typing import Any, TypeGuard, TypeVar, overload
+from typing import Any, Awaitable, Callable, TypeVar, overload
+from typing_extensions import TypeGuard
 
 T = TypeVar("T")
 

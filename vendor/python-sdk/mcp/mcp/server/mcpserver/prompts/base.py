@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Awaitable, Callable, Sequence
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Literal, Sequence, get_args
+from typing_extensions import Annotated
 
 import anyio.to_thread
 import pydantic_core
@@ -15,6 +15,7 @@ from mcp.server.mcpserver.utilities.context_injection import find_context_parame
 from mcp.server.mcpserver.utilities.func_metadata import func_metadata
 from mcp.server.mcpserver.utilities.types import Audio, Image
 from mcp.shared._callable_inspection import is_async_callable
+from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared.exceptions import MCPError
 
 if TYPE_CHECKING:
@@ -67,12 +68,12 @@ class AssistantMessage(Message):
 # Both classes accept either role, so the first arm always matches: validate left to right rather than
 # trying both (which converted - and for path-backed Image/Audio, read - the content twice).
 message_validator: TypeAdapter[UserMessage | AssistantMessage] = TypeAdapter(
-    Annotated[UserMessage | AssistantMessage, Field(union_mode="left_to_right")]
+    Annotated[_runtime_typing.Union[UserMessage, AssistantMessage], Field(union_mode="left_to_right")]
 )
 
-_PromptResultItem = str | ContentBlock | Image | Audio | Message | dict[str, Any]
-SyncPromptResult = _PromptResultItem | InputRequiredResult | Sequence[_PromptResultItem]
-PromptResult = SyncPromptResult | Awaitable[SyncPromptResult]
+_PromptResultItem = _runtime_typing.Union[str, ContentBlock, Image, Audio, Message, _runtime_typing.Dict[str, Any]]
+SyncPromptResult = _runtime_typing.Union[_PromptResultItem, InputRequiredResult, Sequence[_PromptResultItem]]
+PromptResult = _runtime_typing.Union[SyncPromptResult, Awaitable[SyncPromptResult]]
 
 
 class PromptArgument(BaseModel):
@@ -190,7 +191,7 @@ class Prompt(BaseModel):
                 return result
 
             # Validate messages
-            if not isinstance(result, list | tuple):
+            if not isinstance(result, (list, tuple)):
                 result = [result]
 
             # Convert result to messages
@@ -200,7 +201,7 @@ class Prompt(BaseModel):
                     messages.append(msg)
                 elif isinstance(msg, dict):
                     messages.append(message_validator.validate_python(msg))
-                elif isinstance(msg, str | ContentBlock | Image | Audio):  # bare content is one user message
+                elif isinstance(msg, (str, *get_args(ContentBlock), Image, Audio)):  # bare content is one user message
                     messages.append(UserMessage(msg))
                 else:  # pragma: no cover
                     content = pydantic_core.to_json(msg, fallback=str, indent=2).decode()

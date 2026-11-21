@@ -11,6 +11,8 @@ Example:
     ```
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import threading
@@ -18,7 +20,7 @@ from collections.abc import Callable
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from io import TextIOWrapper
-from typing import BinaryIO, Literal, TextIO
+from typing import BinaryIO, Literal, TextIO, Union
 
 import anyio
 import anyio.lowlevel
@@ -178,7 +180,7 @@ async def stdio_server(stdin: anyio.AsyncFile[str] | None = None, stdout: anyio.
             stdout_buffer, restore_stdout = _claim_fd(1, sys.stdout, "wb", _open_stdout_diversion)
             stdout = anyio.wrap_file(_UnownedTextWrapper(stdout_buffer, encoding="utf-8"))
 
-        read_stream_writer, read_stream = create_context_streams[SessionMessage | Exception](0)
+        read_stream_writer, read_stream = create_context_streams[Union[SessionMessage, Exception]](0)
         write_stream, write_stream_reader = create_context_streams[SessionMessage](0)
 
         async def stdin_reader():

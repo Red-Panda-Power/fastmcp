@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import base64
 import inspect
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Iterable, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from typing import Any, Generic, Literal, TypeVar, cast, overload
+from typing import Any, Callable, Generic, Literal, TypeVar, cast, overload
 
 import anyio
 import pydantic_core
@@ -606,7 +606,7 @@ class MCPServer(Generic[LifespanResultT]):
                 return resource
             # Checked at runtime because a Resource subclass may not honour the annotation.
             content = cast(object, await resource.read())
-            if not isinstance(content, str | bytes):
+            if not isinstance(content, (str, bytes)):
                 raise TypeError(f"Resource.read() must return str or bytes, not {type(content).__name__}")
             return [ReadResourceContents(content=content, mime_type=resource.mime_type, meta=resource.meta)]
         except (MCPError, ResourceError):

@@ -1,11 +1,11 @@
+from __future__ import annotations
 import functools
 import inspect
 import json
 import sys
 from collections.abc import Awaitable, Callable, Sequence
 from itertools import chain
-from types import GenericAlias
-from typing import Annotated, Any, Union, cast, get_args, get_origin
+from typing import Any, ForwardRef, Union, cast, get_args, get_origin
 
 import anyio
 import anyio.to_thread
@@ -17,13 +17,12 @@ from pydantic import (
     Field,
     PrivateAttr,
     PydanticUserError,
-    TypeAdapter,
     WithJsonSchema,
     create_model,
 )
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaWarningKind
-from typing_extensions import NotRequired, ReadOnly, TypedDict, deprecated, get_type_hints, is_typeddict
+from typing_extensions import Annotated, NotRequired, ReadOnly, TypedDict, deprecated, get_type_hints, is_typeddict
 from typing_inspection.introspection import (
     UNKNOWN,
     AnnotationSource,
@@ -32,12 +31,49 @@ from typing_inspection.introspection import (
     is_union_origin,
 )
 
+try:
+    from types import GenericAlias
+except ImportError:  # GenericAlias was added in Python 3.9.
+
+    class GenericAlias:
+        pass
+
+
 from mcp.server.mcpserver.exceptions import InvalidSignature
+from mcp.shared._pydantic import TypeAdapter
 from mcp.server.mcpserver.utilities.logging import get_logger
 from mcp.server.mcpserver.utilities.types import Audio, Image
 from mcp.shared.exceptions import MCPDeprecationWarning
 
 logger = get_logger(__name__)
+
+
+def _signature_with_evaluated_annotations(func: Callable[..., Any]) -> inspect.Signature:
+    if sys.version_info >= (3, 10):
+        return inspect.signature(func, eval_str=True)
+
+    from eval_type_backport import eval_type_backport
+
+    sig = inspect.signature(func)
+    target = func
+    while isinstance(target, functools.partial):
+        target = target.func
+    if not inspect.isfunction(target) and not inspect.ismethod(target):
+        target = target.__call__
+    target = inspect.unwrap(target)
+    globalns = getattr(target, "__globals__", {})
+
+    def evaluate(annotation: Any) -> Any:
+        if not isinstance(annotation, str):
+            return annotation
+        return eval_type_backport(ForwardRef(annotation), globalns=globalns)
+
+    return sig.replace(
+        parameters=[
+            parameter.replace(annotation=evaluate(parameter.annotation)) for parameter in sig.parameters.values()
+        ],
+        return_annotation=evaluate(sig.return_annotation),
+    )
 
 
 def _is_input_required_type(obj: Any) -> bool:
@@ -88,7 +124,7 @@ def _inline_root_ref(schema: dict[str, Any]) -> dict[str, Any]:
     ref = schema.get("$ref")
     if not isinstance(ref, str) or not ref.startswith(_LOCAL_DEFS_PREFIX):
         return schema
-    definition = cast(dict[str, Any], schema["$defs"][ref.removeprefix(_LOCAL_DEFS_PREFIX)])
+    definition = cast("dict[str, Any]", schema["$defs"][ref[len(_LOCAL_DEFS_PREFIX) :]])
     siblings = {key: value for key, value in schema.items() if key != "$ref"}
     return {**definition, **siblings}
 
@@ -158,7 +194,7 @@ class FuncMetadata(BaseModel):
         `arguments` is the output of `validate_arguments`. A sync function runs on a
         worker thread.
         """
-        kwargs = arguments | (arguments_to_pass_directly or {})
+        kwargs = {**arguments, **(arguments_to_pass_directly or {})}
         if fn_is_async:
             return await fn(**kwargs)
         return await anyio.to_thread.run_sync(functools.partial(fn, **kwargs))
@@ -258,7 +294,7 @@ class FuncMetadata(BaseModel):
                     # Not JSON, or JSON the parser refuses (over-long integers, deep
                     # nesting): leave the string for validation to accept or reject.
                     continue
-                if isinstance(pre_parsed, str | int | float):
+                if isinstance(pre_parsed, (str, int, float)):
                     # This is likely that the raw value is e.g. `"hello"` which we
                     # Should really be parsed as '"hello"' in Python - but if we parse
                     # it as JSON it'll turn into just 'hello'. So we skip it.
@@ -319,7 +355,7 @@ def func_metadata(
         - wrap_output: Whether the function result needs to be wrapped in `{"result": ...}` for structured output.
     """
     try:
-        sig = inspect.signature(func, eval_str=True)
+        sig = _signature_with_evaluated_annotations(func)
     except NameError as e:  # pragma: no cover
         # This raise could perhaps be skipped, and we (MCPServer) just call
         # model_rebuild right before using it 🤷
@@ -353,7 +389,10 @@ def func_metadata(
                 param.default,
             )
         else:
-            dynamic_pydantic_model_params[field_name] = Annotated[(annotation, *field_metadata, Field(**field_kwargs))]
+            dynamic_pydantic_model_params[field_name] = (
+                Annotated[(annotation, *field_metadata, Field(**field_kwargs))],
+                ...,
+            )
 
     arguments_model = create_model(
         f"{func.__name__}Arguments",
@@ -520,7 +559,7 @@ def _create_output_model(original_annotation: Any, type_expr: Any, func_name: st
 
     # Handle regular type objects
     elif isinstance(type_expr, type):
-        type_annotation = cast(type[Any], type_expr)
+        type_annotation = cast("type[Any]", type_expr)
 
         # Case 1: BaseModel subclasses (can be used directly)
         if issubclass(type_annotation, BaseModel):
@@ -573,7 +612,7 @@ def _create_model_from_class(cls: type[Any], type_hints: dict[str, Any]) -> type
 
         default = getattr(cls, field_name, _no_default)
         if default is _no_default:
-            model_fields[field_name] = field_type
+            model_fields[field_name] = (field_type, ...)
         else:
             model_fields[field_name] = (field_type, default)
 
@@ -618,7 +657,7 @@ def _create_wrapped_model(func_name: str, annotation: Any) -> type[BaseModel]:
     """
     model_name = f"{func_name}Output"
 
-    return create_model(model_name, result=annotation)
+    return create_model(model_name, result=(annotation, ...))
 
 
 def _convert_to_content(result: Any) -> list[ContentBlock]:
@@ -632,7 +671,7 @@ def _convert_to_content(result: Any) -> list[ContentBlock]:
     if result is None:  # pragma: no cover
         return []
 
-    if isinstance(result, ContentBlock):
+    if isinstance(result, get_args(ContentBlock)):
         return [result]
 
     if isinstance(result, Image):
@@ -641,7 +680,7 @@ def _convert_to_content(result: Any) -> list[ContentBlock]:
     if isinstance(result, Audio):
         return [result.to_audio_content()]
 
-    if isinstance(result, list | tuple):
+    if isinstance(result, (list, tuple)):
         return list(
             chain.from_iterable(
                 _convert_to_content(item)

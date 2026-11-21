@@ -113,7 +113,7 @@ class UrlElicitationRequiredError(MCPError):
         if error.code != URL_ELICITATION_REQUIRED:
             raise ValueError(f"Expected error code {URL_ELICITATION_REQUIRED}, got {error.code}")
 
-        data = cast(dict[str, Any], error.data or {})
-        raw_elicitations = cast(list[dict[str, Any]], data.get("elicitations", []))
+        data = cast("dict[str, Any]", error.data or {})
+        raw_elicitations = cast("list[dict[str, Any]]", data.get("elicitations", []))
         elicitations = [ElicitRequestURLParams.model_validate(e) for e in raw_elicitations]
         return cls(elicitations, error.message)

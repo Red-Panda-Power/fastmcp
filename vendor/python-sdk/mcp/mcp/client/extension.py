@@ -8,7 +8,7 @@ capability ad, use `advertise()`.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from mcp.shared._dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, Generic, Literal, TypeVar, get_args
 
 from mcp_types import CORE_RESULT_TYPES, CallToolResult, InputRequiredResult, Result

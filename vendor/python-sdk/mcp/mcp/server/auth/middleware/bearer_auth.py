@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import time
@@ -85,7 +87,10 @@ class BearerAuthBackend(AuthenticationBackend):
             token_resource = str(AnyHttpUrl(resource or ""))
         except ValidationError:
             return False
-        return token_resource.removesuffix("/") == str(self.resource_server_url).removesuffix("/")
+        resource_server = str(self.resource_server_url)
+        token_resource = token_resource[:-1] if token_resource.endswith("/") else token_resource
+        resource_server = resource_server[:-1] if resource_server.endswith("/") else resource_server
+        return token_resource == resource_server
 
 
 class RequireAuthMiddleware:

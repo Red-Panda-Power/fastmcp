@@ -6,6 +6,8 @@ Provides OAuth providers for machine-to-machine authentication flows:
   (typically using a pre-built JWT from workload identity federation)
 """
 
+from __future__ import annotations
+
 import time
 import warnings
 from collections.abc import Awaitable, Callable
