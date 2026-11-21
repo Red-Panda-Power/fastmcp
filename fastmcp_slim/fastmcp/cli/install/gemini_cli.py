@@ -1,13 +1,15 @@
 """Gemini CLI integration for FastMCP install using Cyclopts."""
 
+from __future__ import annotations
+
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Annotated
 
 import cyclopts
 from rich import print
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.utilities.logging import get_logger
 from fastmcp.utilities.mcp_server_config.v1.environments.uv import UVEnvironment

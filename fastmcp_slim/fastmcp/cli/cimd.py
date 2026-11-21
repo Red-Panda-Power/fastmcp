@@ -6,10 +6,10 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Annotated
 
 import cyclopts
 from rich.console import Console
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.server.auth.cimd import (
     CIMDFetcher,

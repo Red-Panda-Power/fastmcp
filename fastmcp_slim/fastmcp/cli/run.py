@@ -459,9 +459,8 @@ async def run_with_reload(
             )
 
             # Watch for either: file changes OR process death
-            watch_task = asyncio.create_task(
-                anext(aiter(awatch(*watch_paths, watch_filter=_watch_filter)))  # ty: ignore[invalid-argument-type]
-            )
+            watcher = awatch(*watch_paths, watch_filter=_watch_filter)
+            watch_task = asyncio.create_task(watcher.__anext__())
             wait_task = asyncio.create_task(process.wait())
             shutdown_task = asyncio.create_task(shutdown_event.wait())
 
@@ -490,9 +489,8 @@ async def run_with_reload(
                     logger.info("Server exited, waiting for file change...")
 
                 # Wait for file change or shutdown (avoid hot loop on crash)
-                watch_task = asyncio.create_task(
-                    anext(aiter(awatch(*watch_paths, watch_filter=_watch_filter)))  # ty: ignore[invalid-argument-type]
-                )
+                watcher = awatch(*watch_paths, watch_filter=_watch_filter)
+                watch_task = asyncio.create_task(watcher.__anext__())
                 shutdown_task = asyncio.create_task(shutdown_event.wait())
                 done, pending = await asyncio.wait(
                     [watch_task, shutdown_task],

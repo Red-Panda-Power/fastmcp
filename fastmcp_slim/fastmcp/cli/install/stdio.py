@@ -1,14 +1,16 @@
 """Stdio command generation for FastMCP install using Cyclopts."""
 
+from __future__ import annotations
+
 import builtins
 import shlex
 import sys
 from pathlib import Path
-from typing import Annotated
 
 import cyclopts
 import pyperclip
 from rich import print as rich_print
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.utilities.logging import get_logger
 from fastmcp.utilities.mcp_server_config.v1.environments.uv import UVEnvironment
