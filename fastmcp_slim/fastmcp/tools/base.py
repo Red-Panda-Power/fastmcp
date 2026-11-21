@@ -4,6 +4,7 @@ import copy
 import inspect
 import json
 import math
+import sys
 from collections.abc import Callable
 from functools import lru_cache
 from typing import (
@@ -110,8 +111,10 @@ def _get_json_serializer(annotation: Any) -> pydantic_core.SchemaSerializer:
     The schema is the annotation's own, so custom serializers and explicit
     per-model policies keep control of their output.
     """
-    schema = copy.deepcopy(get_cached_typeadapter(annotation).core_schema)
-    _remove_serialization_aliases(schema, set())
+    schema = get_cached_typeadapter(annotation).core_schema
+    if sys.version_info < (3, 9):  # noqa: UP036 - Python 3.8 compatibility
+        schema = copy.deepcopy(schema)
+        _remove_serialization_aliases(schema, set())
     return pydantic_core.SchemaSerializer(
         schema, config={"ser_json_inf_nan": "constants"}
     )
@@ -203,31 +206,135 @@ def _annotation_contains_any(annotation: Any) -> bool:
     return any(_annotation_contains_any(argument) for argument in get_args(annotation))
 
 
-def _restore_dynamic_model_policies(serialized: Any, data: Any) -> Any:
-    """Re-serialize model values that pass through an ``Any`` schema.
+def _is_model_value(value: Any) -> bool:
+    return isinstance(value, BaseModel) or (
+        hasattr(value, "__dataclass_fields__") and not isinstance(value, type)
+    )
 
-    An ``Any`` node has no child schema to adjust ahead of time. Re-running the
-    concrete model's copied schema preserves model and field serializers while
-    giving that model its own alias policy. Primitive JSON and arbitrary custom
-    serializer output are otherwise left unchanged.
+
+def _specialize_any_schema(schema: Any, values: list[Any]) -> None:
+    """Replace Python 3.8 ``Any`` nodes with schemas for their runtime models.
+
+    Pydantic Core 2.27 dispatches an ``Any`` value directly to the model's
+    built-in serializer, which unconditionally uses aliases. Substituting the
+    concrete model schema before the single serialization pass preserves the
+    model's custom serializer while applying its explicit alias policy.
     """
-    if isinstance(data, BaseModel) or (
-        hasattr(data, "__dataclass_fields__") and not isinstance(data, type)
-    ):
-        serializer = _get_json_serializer(type(data))
-        return json.loads(serializer.to_json(data, fallback=str))
-    if isinstance(serialized, list) and isinstance(data, (list, tuple, set, frozenset)):
-        return [
-            _restore_dynamic_model_policies(value, item)
-            for value, item in zip(serialized, data)
+    if not isinstance(schema, dict) or not values:
+        return
+
+    schema_type = schema.get("type")
+    if schema_type == "any":
+        model_values = [value for value in values if _is_model_value(value)]
+        models: dict[type[Any], list[Any]] = {}
+        for value in model_values:
+            models.setdefault(type(value), []).append(value)
+
+        choices = []
+        for model_type, model_instances in models.items():
+            model_schema = copy.deepcopy(get_cached_typeadapter(model_type).core_schema)
+            _remove_serialization_aliases(model_schema, set())
+            _specialize_any_schema(model_schema, model_instances)
+            choices.append(model_schema)
+
+        sequence_values = [
+            value
+            for value in values
+            if isinstance(value, (list, tuple, set, frozenset))
         ]
-    if isinstance(serialized, dict) and isinstance(data, dict):
-        raw_items = iter(data.items())
-        return {
-            key: _restore_dynamic_model_policies(value, next(raw_items)[1])
-            for key, value in serialized.items()
-        }
-    return serialized
+        if sequence_values:
+            sequence_schema: dict[str, Any] = {
+                "type": "list",
+                "items_schema": {"type": "any"},
+            }
+            _specialize_any_schema(sequence_schema, sequence_values)
+            choices.append(sequence_schema)
+
+        mapping_values = [value for value in values if isinstance(value, dict)]
+        if mapping_values:
+            mapping_schema: dict[str, Any] = {
+                "type": "dict",
+                "keys_schema": {"type": "any"},
+                "values_schema": {"type": "any"},
+            }
+            _specialize_any_schema(mapping_schema, mapping_values)
+            choices.append(mapping_schema)
+
+        known_values = len(model_values) + len(sequence_values) + len(mapping_values)
+        if not choices:
+            return
+        if len(choices) == 1 and known_values == len(values):
+            schema.clear()
+            schema.update(choices[0])
+        else:
+            schema.clear()
+            schema.update({"type": "union", "choices": [*choices, {"type": "any"}]})
+        return
+
+    if schema_type == "list":
+        items = [
+            item
+            for value in values
+            if isinstance(value, (list, tuple, set, frozenset))
+            for item in value
+        ]
+        _specialize_any_schema(schema.get("items_schema"), items)
+        return
+
+    if schema_type == "dict":
+        items = [
+            item
+            for value in values
+            if isinstance(value, dict)
+            for item in value.values()
+        ]
+        _specialize_any_schema(schema.get("values_schema"), items)
+        return
+
+    if schema_type in {"model", "dataclass"}:
+        model_type = schema.get("cls")
+        instances = [
+            value
+            for value in values
+            if isinstance(model_type, type) and isinstance(value, model_type)
+        ]
+        fields_schema = schema.get("schema", {}).get("fields", {})
+        field_items = (
+            fields_schema.items()
+            if isinstance(fields_schema, dict)
+            else ((field.get("name"), field) for field in fields_schema)
+        )
+        for name, field in field_items:
+            if not isinstance(name, str) or not isinstance(field, dict):
+                continue
+            field_values = [
+                getattr(instance, name)
+                for instance in instances
+                if hasattr(instance, name)
+            ]
+            _specialize_any_schema(field.get("schema"), field_values)
+        return
+
+    if schema_type == "nullable":
+        _specialize_any_schema(
+            schema.get("schema"), [value for value in values if value is not None]
+        )
+        return
+
+    if schema_type == "definitions":
+        _specialize_any_schema(schema.get("schema"), values)
+
+
+def _get_dynamic_json_serializer(
+    annotation: Any, data: Any
+) -> pydantic_core.SchemaSerializer:
+    """Build a one-off Python 3.8 serializer for runtime ``Any`` values."""
+    schema = copy.deepcopy(get_cached_typeadapter(annotation).core_schema)
+    _remove_serialization_aliases(schema, set())
+    _specialize_any_schema(schema, [data])
+    return pydantic_core.SchemaSerializer(
+        schema, config={"ser_json_inf_nan": "constants"}
+    )
 
 
 def _serialize_to_jsonable(data: Any, annotation: Any = Any) -> Any:
@@ -245,21 +352,24 @@ def _serialize_to_jsonable(data: Any, annotation: Any = Any) -> Any:
         or annotation is ...
         or isinstance(annotation, str)
     ):
-        serializer = _get_json_serializer(Any)
+        serializer_annotation = Any
     else:
         try:
-            serializer = _get_json_serializer(annotation)
+            get_cached_typeadapter(annotation)
+            serializer_annotation = annotation
         except PydanticSchemaGenerationError:
-            serializer = _get_json_serializer(Any)
+            serializer_annotation = Any
+
+    if sys.version_info < (3, 9) and _annotation_contains_any(serializer_annotation):  # noqa: UP036 - Python 3.8 compatibility
+        serializer = _get_dynamic_json_serializer(serializer_annotation, data)
+    else:
+        serializer = _get_json_serializer(serializer_annotation)
 
     payload = serializer.to_json(data)
     value = json.loads(payload)
     # Only walk the structure when a NaN/Infinity token was emitted; the
     # substring check keeps clean results on the cheap path.
     if b"NaN" in payload or b"Infinity" in payload:
-        _reject_nonfinite(value)
-    if _annotation_contains_any(annotation):
-        value = _restore_dynamic_model_policies(value, data)
         _reject_nonfinite(value)
     return value
 
