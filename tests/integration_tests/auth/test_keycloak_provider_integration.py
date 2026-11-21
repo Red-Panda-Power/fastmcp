@@ -245,37 +245,35 @@ class TestKeycloakProviderEnvironmentConfiguration:
             "FASTMCP_SERVER_AUTH_KEYCLOAK_REQUIRED_SCOPES": "openid,profile,email,custom:scope",
         }
 
-        with (
-            patch.dict(os.environ, env_vars),
-            patch("httpx2.get") as mock_get,
-        ):
-            mock_response = Mock()
-            mock_response.json.return_value = {
-                "issuer": TEST_REALM_URL,
-                "authorization_endpoint": f"{TEST_REALM_URL}/protocol/openid-connect/auth",
-                "token_endpoint": f"{TEST_REALM_URL}/protocol/openid-connect/token",
-                "jwks_uri": f"{TEST_REALM_URL}/.well-known/jwks.json",
-            }
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
+        with patch.dict(os.environ, env_vars):
+            with patch("httpx2.get") as mock_get:
+                mock_response = Mock()
+                mock_response.json.return_value = {
+                    "issuer": TEST_REALM_URL,
+                    "authorization_endpoint": f"{TEST_REALM_URL}/protocol/openid-connect/auth",
+                    "token_endpoint": f"{TEST_REALM_URL}/protocol/openid-connect/token",
+                    "jwks_uri": f"{TEST_REALM_URL}/.well-known/jwks.json",
+                }
+                mock_response.raise_for_status.return_value = None
+                mock_get.return_value = mock_response
 
-            # Explicitly read from environment and pass to provider
-            provider = KeycloakAuthProvider(
-                realm_url=os.environ["FASTMCP_SERVER_AUTH_KEYCLOAK_REALM_URL"],
-                base_url=os.environ["FASTMCP_SERVER_AUTH_KEYCLOAK_BASE_URL"],
-                required_scopes=os.environ[
-                    "FASTMCP_SERVER_AUTH_KEYCLOAK_REQUIRED_SCOPES"
-                ],
-            )
+                # Explicitly read from environment and pass to provider
+                provider = KeycloakAuthProvider(
+                    realm_url=os.environ["FASTMCP_SERVER_AUTH_KEYCLOAK_REALM_URL"],
+                    base_url=os.environ["FASTMCP_SERVER_AUTH_KEYCLOAK_BASE_URL"],
+                    required_scopes=os.environ[
+                        "FASTMCP_SERVER_AUTH_KEYCLOAK_REQUIRED_SCOPES"
+                    ],
+                )
 
-            assert provider.realm_url == TEST_REALM_URL
-            assert str(provider.base_url) == TEST_BASE_URL + "/"
-            assert provider.token_verifier.required_scopes == [
-                "openid",
-                "profile",
-                "email",
-                "custom:scope",
-            ]
+                assert provider.realm_url == TEST_REALM_URL
+                assert str(provider.base_url) == TEST_BASE_URL + "/"
+                assert provider.token_verifier.required_scopes == [
+                    "openid",
+                    "profile",
+                    "email",
+                    "custom:scope",
+                ]
 
     @pytest.mark.skip(
         reason="Mock conflicts with ASGI transport - verified working in production"
@@ -293,68 +291,67 @@ class TestKeycloakProviderEnvironmentConfiguration:
             "FASTMCP_SERVER_AUTH_KEYCLOAK_REQUIRED_SCOPES": "openid,profile,email,api:read,api:write",
         }
 
-        with (
-            patch.dict(os.environ, production_env),
-            patch("httpx2.get") as mock_get,
-        ):
-            mock_response = Mock()
-            mock_response.json.return_value = {
-                "issuer": "https://auth.company.com/realms/production",
-                "authorization_endpoint": "https://auth.company.com/realms/production/protocol/openid-connect/auth",
-                "token_endpoint": "https://auth.company.com/realms/production/protocol/openid-connect/token",
-                "jwks_uri": "https://auth.company.com/realms/production/.well-known/jwks.json",
-                "registration_endpoint": "https://auth.company.com/realms/production/clients-registrations/openid-connect",
-            }
-            mock_response.raise_for_status.return_value = None
-            mock_get.return_value = mock_response
-
-            # Explicitly read from environment and pass to provider
-            provider = KeycloakAuthProvider(
-                realm_url=os.environ["FASTMCP_SERVER_AUTH_KEYCLOAK_REALM_URL"],
-                base_url=os.environ["FASTMCP_SERVER_AUTH_KEYCLOAK_BASE_URL"],
-                required_scopes=os.environ[
-                    "FASTMCP_SERVER_AUTH_KEYCLOAK_REQUIRED_SCOPES"
-                ],
-            )
-            mcp = FastMCP("production-server", auth=provider)
-            mcp_http_app = mcp.http_app()
-
-            with patch("httpx2.AsyncClient") as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client_class.return_value.__aenter__.return_value = mock_client
-
-                mock_metadata = Mock()
-                mock_metadata.status_code = 200
-                mock_metadata.json.return_value = {
+        with patch.dict(os.environ, production_env):
+            with patch("httpx2.get") as mock_get:
+                mock_response = Mock()
+                mock_response.json.return_value = {
                     "issuer": "https://auth.company.com/realms/production",
                     "authorization_endpoint": "https://auth.company.com/realms/production/protocol/openid-connect/auth",
                     "token_endpoint": "https://auth.company.com/realms/production/protocol/openid-connect/token",
                     "jwks_uri": "https://auth.company.com/realms/production/.well-known/jwks.json",
                     "registration_endpoint": "https://auth.company.com/realms/production/clients-registrations/openid-connect",
                 }
-                mock_metadata.raise_for_status = Mock()
-                mock_client.get.return_value = mock_metadata
+                mock_response.raise_for_status.return_value = None
+                mock_get.return_value = mock_response
 
-                async with httpx2.AsyncClient(
-                    transport=httpx2.ASGITransport(app=mcp_http_app),
-                    base_url="https://api.company.com",
-                ) as client:
-                    # Test discovery endpoints work
-                    response = await client.get(
-                        "/.well-known/oauth-authorization-server"
-                    )
-                    assert response.status_code == 200
-                    data = response.json()
+                # Explicitly read from environment and pass to provider
+                provider = KeycloakAuthProvider(
+                    realm_url=os.environ["FASTMCP_SERVER_AUTH_KEYCLOAK_REALM_URL"],
+                    base_url=os.environ["FASTMCP_SERVER_AUTH_KEYCLOAK_BASE_URL"],
+                    required_scopes=os.environ[
+                        "FASTMCP_SERVER_AUTH_KEYCLOAK_REQUIRED_SCOPES"
+                    ],
+                )
+                mcp = FastMCP("production-server", auth=provider)
+                mcp_http_app = mcp.http_app()
 
-                    # Minimal proxy: endpoints from Keycloak but registration_endpoint rewritten
-                    assert (
-                        data["issuer"] == "https://auth.company.com/realms/production"
-                    )
-                    assert (
-                        data["authorization_endpoint"]
-                        == "https://auth.company.com/realms/production/protocol/openid-connect/auth"
-                    )
-                    assert (
-                        data["registration_endpoint"]
-                        == "https://api.company.com/register"
-                    )  # Our DCR proxy
+                with patch("httpx2.AsyncClient") as mock_client_class:
+                    mock_client = AsyncMock()
+                    mock_client_class.return_value.__aenter__.return_value = mock_client
+
+                    mock_metadata = Mock()
+                    mock_metadata.status_code = 200
+                    mock_metadata.json.return_value = {
+                        "issuer": "https://auth.company.com/realms/production",
+                        "authorization_endpoint": "https://auth.company.com/realms/production/protocol/openid-connect/auth",
+                        "token_endpoint": "https://auth.company.com/realms/production/protocol/openid-connect/token",
+                        "jwks_uri": "https://auth.company.com/realms/production/.well-known/jwks.json",
+                        "registration_endpoint": "https://auth.company.com/realms/production/clients-registrations/openid-connect",
+                    }
+                    mock_metadata.raise_for_status = Mock()
+                    mock_client.get.return_value = mock_metadata
+
+                    async with httpx2.AsyncClient(
+                        transport=httpx2.ASGITransport(app=mcp_http_app),
+                        base_url="https://api.company.com",
+                    ) as client:
+                        # Test discovery endpoints work
+                        response = await client.get(
+                            "/.well-known/oauth-authorization-server"
+                        )
+                        assert response.status_code == 200
+                        data = response.json()
+
+                        # Minimal proxy: endpoints from Keycloak but registration_endpoint rewritten
+                        assert (
+                            data["issuer"]
+                            == "https://auth.company.com/realms/production"
+                        )
+                        assert (
+                            data["authorization_endpoint"]
+                            == "https://auth.company.com/realms/production/protocol/openid-connect/auth"
+                        )
+                        assert (
+                            data["registration_endpoint"]
+                            == "https://api.company.com/register"
+                        )  # Our DCR proxy

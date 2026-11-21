@@ -426,13 +426,11 @@ class TestOAuthProxyRefreshErrors:
         oauth_client = AsyncMock()
         oauth_client.refresh_token = AsyncMock(side_effect=upstream_error)
 
-        with (
-            patch.object(
-                proxy, "_create_upstream_oauth_client", return_value=oauth_client
-            ),
-            pytest.raises(TokenError) as exc_info,
+        with patch.object(
+            proxy, "_create_upstream_oauth_client", return_value=oauth_client
         ):
-            await proxy.exchange_refresh_token(client, refresh_token, ["read"])
+            with pytest.raises(TokenError) as exc_info:
+                await proxy.exchange_refresh_token(client, refresh_token, ["read"])
 
         assert exc_info.value.error == "invalid_grant"
         assert exc_info.value.error_description == "Upstream refresh token was rejected"
@@ -445,13 +443,11 @@ class TestOAuthProxyRefreshErrors:
         oauth_client = AsyncMock()
         oauth_client.refresh_token = AsyncMock(side_effect=upstream_error)
 
-        with (
-            patch.object(
-                proxy, "_create_upstream_oauth_client", return_value=oauth_client
-            ),
-            pytest.raises(OAuthError) as exc_info,
+        with patch.object(
+            proxy, "_create_upstream_oauth_client", return_value=oauth_client
         ):
-            await proxy.exchange_refresh_token(client, refresh_token, ["read"])
+            with pytest.raises(OAuthError) as exc_info:
+                await proxy.exchange_refresh_token(client, refresh_token, ["read"])
 
         assert exc_info.value is upstream_error
 
@@ -461,13 +457,11 @@ class TestOAuthProxyRefreshErrors:
         oauth_client = AsyncMock()
         oauth_client.refresh_token = AsyncMock(side_effect=upstream_error)
 
-        with (
-            patch.object(
-                proxy, "_create_upstream_oauth_client", return_value=oauth_client
-            ),
-            pytest.raises(RuntimeError) as exc_info,
+        with patch.object(
+            proxy, "_create_upstream_oauth_client", return_value=oauth_client
         ):
-            await proxy.exchange_refresh_token(client, refresh_token, ["read"])
+            with pytest.raises(RuntimeError) as exc_info:
+                await proxy.exchange_refresh_token(client, refresh_token, ["read"])
 
         assert exc_info.value is upstream_error
 
@@ -1263,43 +1257,41 @@ class TestFastMCPAccessTokenExpiry:
             ]
         )
 
-        with (
-            patch.object(
-                proxy, "_create_upstream_oauth_client", return_value=mock_oauth_client
-            ),
-            patch.object(proxy, "_extract_upstream_claims", extract),
+        with patch.object(
+            proxy, "_create_upstream_oauth_client", return_value=mock_oauth_client
         ):
-            client, result = await self._exchange(proxy)
-            assert result.refresh_token is not None
+            with patch.object(proxy, "_extract_upstream_claims", extract):
+                client, result = await self._exchange(proxy)
+                assert result.refresh_token is not None
 
-            # Force the stored upstream access token to be expired.
-            access_jti = proxy.jwt_issuer.verify_token(result.access_token)["jti"]
-            jti_mapping = await proxy._jti_mapping_store.get(key=access_jti)
-            assert jti_mapping is not None
-            stored = await proxy._upstream_token_store.get(
-                key=jti_mapping.upstream_token_id
-            )
-            assert stored is not None
-            stored.expires_at = time.time() - 60
-            await proxy._upstream_token_store.put(
-                key=jti_mapping.upstream_token_id, value=stored, ttl=one_day
-            )
+                # Force the stored upstream access token to be expired.
+                access_jti = proxy.jwt_issuer.verify_token(result.access_token)["jti"]
+                jti_mapping = await proxy._jti_mapping_store.get(key=access_jti)
+                assert jti_mapping is not None
+                stored = await proxy._upstream_token_store.get(
+                    key=jti_mapping.upstream_token_id
+                )
+                assert stored is not None
+                stored.expires_at = time.time() - 60
+                await proxy._upstream_token_store.put(
+                    key=jti_mapping.upstream_token_id, value=stored, ttl=one_day
+                )
 
-            loaded = await proxy.load_access_token(result.access_token)
-            assert loaded is not None
-            assert loaded.claims["upstream_claims"] == {"roles": ["reader"]}
+                loaded = await proxy.load_access_token(result.access_token)
+                assert loaded is not None
+                assert loaded.claims["upstream_claims"] == {"roles": ["reader"]}
 
-            refreshed = await proxy.exchange_refresh_token(
-                client=client,
-                refresh_token=RefreshToken(
-                    token=result.refresh_token,
-                    client_id="test-client",
+                refreshed = await proxy.exchange_refresh_token(
+                    client=client,
+                    refresh_token=RefreshToken(
+                        token=result.refresh_token,
+                        client_id="test-client",
+                        scopes=["read", "write"],
+                    ),
                     scopes=["read", "write"],
-                ),
-                scopes=["read", "write"],
-            )
-            new_token = await proxy.load_access_token(refreshed.access_token)
-            old_token = await proxy.load_access_token(result.access_token)
+                )
+                new_token = await proxy.load_access_token(refreshed.access_token)
+                old_token = await proxy.load_access_token(result.access_token)
 
         assert extract.await_count == 3
         assert new_token is not None
@@ -1331,22 +1323,20 @@ class TestFastMCPAccessTokenExpiry:
         )
         extract = AsyncMock(side_effect=RuntimeError("claims hook failed"))
 
-        with (
-            patch.object(
-                proxy, "_create_upstream_oauth_client", return_value=mock_oauth_client
-            ),
-            patch.object(proxy, "_extract_upstream_claims", extract),
-            pytest.raises(RuntimeError, match="claims hook failed"),
+        with patch.object(
+            proxy, "_create_upstream_oauth_client", return_value=mock_oauth_client
         ):
-            await proxy.exchange_refresh_token(
-                client=client,
-                refresh_token=RefreshToken(
-                    token=result.refresh_token,
-                    client_id="test-client",
-                    scopes=["read", "write"],
-                ),
-                scopes=["read", "write"],
-            )
+            with patch.object(proxy, "_extract_upstream_claims", extract):
+                with pytest.raises(RuntimeError, match="claims hook failed"):
+                    await proxy.exchange_refresh_token(
+                        client=client,
+                        refresh_token=RefreshToken(
+                            token=result.refresh_token,
+                            client_id="test-client",
+                            scopes=["read", "write"],
+                        ),
+                        scopes=["read", "write"],
+                    )
 
         stored = await proxy._upstream_token_store.get(
             key=jti_mapping.upstream_token_id
@@ -1922,13 +1912,11 @@ class TestTransparentUpstreamRefresh:
             side_effect=Exception("refresh token rotated by another worker")
         )
 
-        with (
-            patch.object(
-                proxy, "_create_upstream_oauth_client", return_value=mock_oauth_client
-            ),
-            patch.object(proxy._upstream_token_store, "get", side_effect=mock_get),
+        with patch.object(
+            proxy, "_create_upstream_oauth_client", return_value=mock_oauth_client
         ):
-            result = await proxy.load_access_token(fastmcp_jwt)
+            with patch.object(proxy._upstream_token_store, "get", side_effect=mock_get):
+                result = await proxy.load_access_token(fastmcp_jwt)
 
         assert result is not None
         assert result.token == "refreshed-upstream-access"
@@ -2011,14 +1999,12 @@ class TestTransparentUpstreamRefresh:
         )
         extract = AsyncMock(return_value={"sub": "user-123", "roles": ["reader"]})
 
-        with (
-            patch.object(
-                proxy, "_create_upstream_oauth_client", return_value=mock_oauth_client
-            ),
-            patch.object(proxy, "_extract_upstream_claims", extract),
+        with patch.object(
+            proxy, "_create_upstream_oauth_client", return_value=mock_oauth_client
         ):
-            result = await proxy.load_access_token(fastmcp_jwt)
-            later = await proxy.load_access_token(fastmcp_jwt)
+            with patch.object(proxy, "_extract_upstream_claims", extract):
+                result = await proxy.load_access_token(fastmcp_jwt)
+                later = await proxy.load_access_token(fastmcp_jwt)
 
         mock_oauth_client.refresh_token.assert_called_once()
         assert result is not None

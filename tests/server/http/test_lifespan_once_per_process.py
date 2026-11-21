@@ -93,14 +93,12 @@ async def test_http_user_lifespan_fires_once_across_sessions():
             assert exit_count == 0
 
         # Overlapping sessions must also observe a single, still-open lifespan.
-        async with (
-            Client(StreamableHttpTransport(mcp_url)) as c1,
-            Client(StreamableHttpTransport(mcp_url)) as c2,
-        ):
-            assert (await c1.call_tool("ping", {})).data == "pong"
-            assert (await c2.call_tool("ping", {})).data == "pong"
-            assert proxy_enter_count == 1
-            assert exit_count == 0
+        async with Client(StreamableHttpTransport(mcp_url)) as c1:
+            async with Client(StreamableHttpTransport(mcp_url)) as c2:
+                assert (await c1.call_tool("ping", {})).data == "pong"
+                assert (await c2.call_tool("ping", {})).data == "pong"
+                assert proxy_enter_count == 1
+                assert exit_count == 0
 
     # The session manager entered the lifespan exactly once across every
     # session, and the user lifespan was entered once and exited once at

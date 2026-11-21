@@ -1269,18 +1269,16 @@ async def test_multi_server_timeout_propagation():
         return_value=(AsyncMock(), AsyncMock(), FastMCP(name="MockProxy"))
     )
 
-    with (
-        patch.object(transport, "_create_proxy", mock_create_proxy),
-        patch(
+    with patch.object(transport, "_create_proxy", mock_create_proxy):
+        with patch(
             "fastmcp.client.transports.FastMCPTransport.connect_session"
-        ) as mock_connect,
-    ):
-        mock_session = AsyncMock()
-        mock_connect.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_connect.return_value.__aexit__ = AsyncMock(return_value=None)
+        ) as mock_connect:
+            mock_session = AsyncMock()
+            mock_connect.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_connect.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        async with transport.connect_session(read_timeout_seconds=timeout):
-            pass
+            async with transport.connect_session(read_timeout_seconds=timeout):
+                pass
 
     # Verify _create_proxy was called with the timeout for each server
     assert mock_create_proxy.call_count == 2

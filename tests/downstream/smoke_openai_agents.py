@@ -222,28 +222,30 @@ async def main() -> None:
         ("proxy", "FastMCP proxy", MCPServerStreamableHttp),
     ):
         # The SDK's SSE reader logs a traceback when a session closes mid-stream.
-        with (
-            report.transport(label),
-            serve(transport) as server,
-            quiet("mcp.client.sse", "openai.agents"),
-        ):
+        with report.transport(label):
+            with serve(transport) as server:
+                with quiet("mcp.client.sse", "openai.agents"):
 
-            async def rejects_missing_token() -> None:
-                try:
-                    async with server_class({"url": server.url}) as mcp:
-                        await mcp.list_tools()
-                except Exception:
-                    return
-                raise AssertionError("listed tools without a bearer token")
+                    async def rejects_missing_token() -> None:
+                        try:
+                            async with server_class({"url": server.url}) as mcp:
+                                await mcp.list_tools()
+                        except Exception:
+                            return
+                        raise AssertionError("listed tools without a bearer token")
 
-            await report.check("rejects missing bearer token", rejects_missing_token)
-            await exercise(
-                report,
-                lambda server_class=server_class, server=server, **kw: server_class(
-                    {"url": server.url, "headers": server.headers}, **kw
-                ),
-                gaps=PROXY_GAPS if transport == "proxy" else None,
-            )
+                    await report.check(
+                        "rejects missing bearer token", rejects_missing_token
+                    )
+                    await exercise(
+                        report,
+                        lambda server_class=server_class, server=server, **kw: (
+                            server_class(
+                                {"url": server.url, "headers": server.headers}, **kw
+                            )
+                        ),
+                        gaps=PROXY_GAPS if transport == "proxy" else None,
+                    )
 
     report.finish()
 

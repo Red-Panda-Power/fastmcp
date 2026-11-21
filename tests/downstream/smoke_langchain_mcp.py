@@ -351,20 +351,20 @@ async def main() -> None:
         ),
     ):
         # The SDK's SSE reader logs a traceback when a check cancels a call on purpose.
-        with (
-            report.transport(label),
-            serve(transport) as server,
-            quiet("mcp.client.sse"),
-        ):
-            await exercise(
-                report, server.url, gaps=gaps, auth=server.token, **client_kwargs
-            )
+        with report.transport(label):
+            with serve(transport) as server:
+                with quiet("mcp.client.sse"):
+                    await exercise(
+                        report,
+                        server.url,
+                        gaps=gaps,
+                        auth=server.token,
+                        **client_kwargs,
+                    )
 
-    with (
-        report.transport("ClientGroup: legacy HTTP + modern stdio"),
-        serve("http") as server,
-    ):
-        await exercise_group(report, server.url, server.token)
+    with report.transport("ClientGroup: legacy HTTP + modern stdio"):
+        with serve("http") as server:
+            await exercise_group(report, server.url, server.token)
 
     report.finish()
 

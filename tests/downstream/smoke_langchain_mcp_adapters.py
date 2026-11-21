@@ -235,30 +235,34 @@ async def main() -> None:
         ("proxy", "FastMCP proxy", "streamable_http"),
     ):
         # The SDK's SSE reader logs a traceback when a session closes mid-stream.
-        with (
-            report.transport(label),
-            serve(transport) as server,
-            quiet("mcp.client.sse"),
-        ):
+        with report.transport(label):
+            with serve(transport) as server:
+                with quiet("mcp.client.sse"):
 
-            async def rejects_missing_token() -> None:
-                client = MultiServerMCPClient(
-                    {"smoke": {"transport": kind, "url": server.url}}
-                )
-                try:
-                    await client.get_tools()
-                except BaseException as error:
-                    if isinstance(error, KeyboardInterrupt):
-                        raise
-                    return
-                raise AssertionError("listed tools without a bearer token")
+                    async def rejects_missing_token() -> None:
+                        client = MultiServerMCPClient(
+                            {"smoke": {"transport": kind, "url": server.url}}
+                        )
+                        try:
+                            await client.get_tools()
+                        except BaseException as error:
+                            if isinstance(error, KeyboardInterrupt):
+                                raise
+                            return
+                        raise AssertionError("listed tools without a bearer token")
 
-            await report.check("rejects missing bearer token", rejects_missing_token)
-            await exercise(
-                report,
-                {"transport": kind, "url": server.url, "headers": server.headers},
-                gaps=LEGACY_PROXY_GAPS if transport == "proxy" else None,
-            )
+                    await report.check(
+                        "rejects missing bearer token", rejects_missing_token
+                    )
+                    await exercise(
+                        report,
+                        {
+                            "transport": kind,
+                            "url": server.url,
+                            "headers": server.headers,
+                        },
+                        gaps=LEGACY_PROXY_GAPS if transport == "proxy" else None,
+                    )
 
     report.finish()
 

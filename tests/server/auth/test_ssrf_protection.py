@@ -230,148 +230,140 @@ class TestSSRFSafeFetch:
         """Verify connection uses pinned IP, not re-resolved DNS."""
         resolved_ip = "93.184.216.34"
 
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=[resolved_ip],
-            ),
-            patch("httpx2.AsyncClient") as mock_client_class,
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=[resolved_ip],
         ):
-            mock_stream = MagicMock()
-            mock_stream.status_code = 200
-            mock_stream.headers = {"content-length": "15"}
-            mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
-            mock_stream.__aexit__ = AsyncMock(return_value=None)
+            with patch("httpx2.AsyncClient") as mock_client_class:
+                mock_stream = MagicMock()
+                mock_stream.status_code = 200
+                mock_stream.headers = {"content-length": "15"}
+                mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+                mock_stream.__aexit__ = AsyncMock(return_value=None)
 
-            async def aiter_bytes():
-                yield b'{"data": "test"}'
+                async def aiter_bytes():
+                    yield b'{"data": "test"}'
 
-            mock_stream.aiter_bytes = aiter_bytes
+                mock_stream.aiter_bytes = aiter_bytes
 
-            mock_client = AsyncMock()
-            mock_client.stream = MagicMock(return_value=mock_stream)
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+                mock_client = AsyncMock()
+                mock_client.stream = MagicMock(return_value=mock_stream)
+                mock_client.__aenter__.return_value = mock_client
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+                mock_client_class.return_value = mock_client
 
-            await ssrf_safe_fetch("https://example.com/api")
+                await ssrf_safe_fetch("https://example.com/api")
 
-            # Verify URL contains pinned IP
-            call_args = mock_client.stream.call_args
-            url_called = call_args[0][1]
-            assert resolved_ip in url_called
+                # Verify URL contains pinned IP
+                call_args = mock_client.stream.call_args
+                url_called = call_args[0][1]
+                assert resolved_ip in url_called
 
     async def test_fallback_to_second_ip(self):
         """If the first IP fails, the next resolved IP should be tried."""
         resolved_ips = ["2001:4860:4860::8888", "93.184.216.34"]
 
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=resolved_ips,
-            ),
-            patch("httpx2.AsyncClient") as mock_client_class,
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=resolved_ips,
         ):
-            request = httpx2.Request("GET", "https://example.com/api")
+            with patch("httpx2.AsyncClient") as mock_client_class:
+                request = httpx2.Request("GET", "https://example.com/api")
 
-            first_client = AsyncMock()
-            first_client.stream = MagicMock(
-                side_effect=httpx2.RequestError("boom", request=request)
-            )
-            first_client.__aenter__.return_value = first_client
-            first_client.__aexit__ = AsyncMock(return_value=None)
+                first_client = AsyncMock()
+                first_client.stream = MagicMock(
+                    side_effect=httpx2.RequestError("boom", request=request)
+                )
+                first_client.__aenter__.return_value = first_client
+                first_client.__aexit__ = AsyncMock(return_value=None)
 
-            mock_stream = MagicMock()
-            mock_stream.status_code = 200
-            mock_stream.headers = {"content-length": "2"}
-            mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
-            mock_stream.__aexit__ = AsyncMock(return_value=None)
+                mock_stream = MagicMock()
+                mock_stream.status_code = 200
+                mock_stream.headers = {"content-length": "2"}
+                mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+                mock_stream.__aexit__ = AsyncMock(return_value=None)
 
-            async def aiter_bytes():
-                yield b"ok"
+                async def aiter_bytes():
+                    yield b"ok"
 
-            mock_stream.aiter_bytes = aiter_bytes
+                mock_stream.aiter_bytes = aiter_bytes
 
-            second_client = AsyncMock()
-            second_client.stream = MagicMock(return_value=mock_stream)
-            second_client.__aenter__.return_value = second_client
-            second_client.__aexit__ = AsyncMock(return_value=None)
+                second_client = AsyncMock()
+                second_client.stream = MagicMock(return_value=mock_stream)
+                second_client.__aenter__.return_value = second_client
+                second_client.__aexit__ = AsyncMock(return_value=None)
 
-            mock_client_class.side_effect = [first_client, second_client]
+                mock_client_class.side_effect = [first_client, second_client]
 
-            content = await ssrf_safe_fetch("https://example.com/api")
-            assert content == b"ok"
+                content = await ssrf_safe_fetch("https://example.com/api")
+                assert content == b"ok"
 
-            call_args = second_client.stream.call_args
-            url_called = call_args[0][1]
-            assert resolved_ips[1] in url_called
+                call_args = second_client.stream.call_args
+                url_called = call_args[0][1]
+                assert resolved_ips[1] in url_called
 
     async def test_host_header_set(self):
         """Verify Host header is set to original hostname."""
         resolved_ip = "93.184.216.34"
         original_host = "example.com"
 
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=[resolved_ip],
-            ),
-            patch("httpx2.AsyncClient") as mock_client_class,
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=[resolved_ip],
         ):
-            mock_stream = MagicMock()
-            mock_stream.status_code = 200
-            mock_stream.headers = {"content-length": "15"}
-            mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
-            mock_stream.__aexit__ = AsyncMock(return_value=None)
+            with patch("httpx2.AsyncClient") as mock_client_class:
+                mock_stream = MagicMock()
+                mock_stream.status_code = 200
+                mock_stream.headers = {"content-length": "15"}
+                mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+                mock_stream.__aexit__ = AsyncMock(return_value=None)
 
-            async def aiter_bytes():
-                yield b'{"data": "test"}'
+                async def aiter_bytes():
+                    yield b'{"data": "test"}'
 
-            mock_stream.aiter_bytes = aiter_bytes
+                mock_stream.aiter_bytes = aiter_bytes
 
-            mock_client = AsyncMock()
-            mock_client.stream = MagicMock(return_value=mock_stream)
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+                mock_client = AsyncMock()
+                mock_client.stream = MagicMock(return_value=mock_stream)
+                mock_client.__aenter__.return_value = mock_client
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+                mock_client_class.return_value = mock_client
 
-            await ssrf_safe_fetch(f"https://{original_host}/api")
+                await ssrf_safe_fetch(f"https://{original_host}/api")
 
-            # Verify Host header
-            call_kwargs = mock_client.stream.call_args[1]
-            assert call_kwargs["headers"]["Host"] == original_host
+                # Verify Host header
+                call_kwargs = mock_client.stream.call_args[1]
+                assert call_kwargs["headers"]["Host"] == original_host
 
     async def test_response_size_limit(self):
         """Verify response size limit is enforced via streaming."""
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=["93.184.216.34"],
-            ),
-            patch("httpx2.AsyncClient") as mock_client_class,
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=["93.184.216.34"],
         ):
-            # Response larger than default 5KB (no Content-Length, so streaming enforces)
-            mock_stream = MagicMock()
-            mock_stream.status_code = 200
-            mock_stream.headers = {}  # No Content-Length to force streaming check
-            mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
-            mock_stream.__aexit__ = AsyncMock(return_value=None)
+            with patch("httpx2.AsyncClient") as mock_client_class:
+                # Response larger than default 5KB (no Content-Length, so streaming enforces)
+                mock_stream = MagicMock()
+                mock_stream.status_code = 200
+                mock_stream.headers = {}  # No Content-Length to force streaming check
+                mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+                mock_stream.__aexit__ = AsyncMock(return_value=None)
 
-            async def aiter_bytes():
-                # Yield 10KB total
-                for _ in range(10):
-                    yield b"x" * 1024
+                async def aiter_bytes():
+                    # Yield 10KB total
+                    for _ in range(10):
+                        yield b"x" * 1024
 
-            mock_stream.aiter_bytes = aiter_bytes
+                mock_stream.aiter_bytes = aiter_bytes
 
-            mock_client = AsyncMock()
-            mock_client.stream = MagicMock(return_value=mock_stream)
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+                mock_client = AsyncMock()
+                mock_client.stream = MagicMock(return_value=mock_stream)
+                mock_client.__aenter__.return_value = mock_client
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+                mock_client_class.return_value = mock_client
 
-            with pytest.raises(SSRFFetchError, match="too large"):
-                await ssrf_safe_fetch("https://example.com/api")
+                with pytest.raises(SSRFFetchError, match="too large"):
+                    await ssrf_safe_fetch("https://example.com/api")
 
     async def test_overall_timeout_bounds_dns_resolution(self):
         """A slow DNS lookup must not outlive overall_timeout."""
@@ -480,40 +472,38 @@ class TestIPv6URLFormatting:
         """Verify IPv6 addresses are properly bracketed in pinned URLs."""
         resolved_ipv6 = "2001:4860:4860::8888"
 
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=[resolved_ipv6],
-            ),
-            patch("httpx2.AsyncClient") as mock_client_class,
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=[resolved_ipv6],
         ):
-            mock_stream = MagicMock()
-            mock_stream.status_code = 200
-            mock_stream.headers = {"content-length": "10"}
-            mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
-            mock_stream.__aexit__ = AsyncMock(return_value=None)
+            with patch("httpx2.AsyncClient") as mock_client_class:
+                mock_stream = MagicMock()
+                mock_stream.status_code = 200
+                mock_stream.headers = {"content-length": "10"}
+                mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+                mock_stream.__aexit__ = AsyncMock(return_value=None)
 
-            async def aiter_bytes():
-                yield b'{"key": 1}'
+                async def aiter_bytes():
+                    yield b'{"key": 1}'
 
-            mock_stream.aiter_bytes = aiter_bytes
+                mock_stream.aiter_bytes = aiter_bytes
 
-            mock_client = AsyncMock()
-            mock_client.stream = MagicMock(return_value=mock_stream)
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+                mock_client = AsyncMock()
+                mock_client.stream = MagicMock(return_value=mock_stream)
+                mock_client.__aenter__.return_value = mock_client
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+                mock_client_class.return_value = mock_client
 
-            await ssrf_safe_fetch("https://example.com/api")
+                await ssrf_safe_fetch("https://example.com/api")
 
-            # Verify the URL contains bracketed IPv6 address
-            call_args = mock_client.stream.call_args
-            url_called = call_args[0][1]
+                # Verify the URL contains bracketed IPv6 address
+                call_args = mock_client.stream.call_args
+                url_called = call_args[0][1]
 
-            # IPv6 should be bracketed: https://[2001:4860:4860::8888]:443/path
-            assert f"[{resolved_ipv6}]" in url_called, (
-                f"Expected bracketed IPv6 [{resolved_ipv6}] in URL, got {url_called}"
-            )
+                # IPv6 should be bracketed: https://[2001:4860:4860::8888]:443/path
+                assert f"[{resolved_ipv6}]" in url_called, (
+                    f"Expected bracketed IPv6 [{resolved_ipv6}] in URL, got {url_called}"
+                )
 
 
 class TestStreamingResponseSizeLimit:
@@ -521,72 +511,68 @@ class TestStreamingResponseSizeLimit:
 
     async def test_size_limit_enforced_during_streaming(self):
         """Verify that size limit is enforced as chunks are received, not after."""
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=["93.184.216.34"],
-            ),
-            patch("httpx2.AsyncClient") as mock_client_class,
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=["93.184.216.34"],
         ):
-            chunks_yielded = []
+            with patch("httpx2.AsyncClient") as mock_client_class:
+                chunks_yielded = []
 
-            async def aiter_bytes():
-                # Yield chunks that exceed the limit
-                for i in range(10):
-                    chunk = b"x" * 1024  # 1KB per chunk
-                    chunks_yielded.append(chunk)
-                    yield chunk
+                async def aiter_bytes():
+                    # Yield chunks that exceed the limit
+                    for i in range(10):
+                        chunk = b"x" * 1024  # 1KB per chunk
+                        chunks_yielded.append(chunk)
+                        yield chunk
 
-            mock_stream = MagicMock()
-            mock_stream.status_code = 200
-            mock_stream.headers = {}  # No content-length to force streaming check
-            mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
-            mock_stream.__aexit__ = AsyncMock(return_value=None)
-            mock_stream.aiter_bytes = aiter_bytes
+                mock_stream = MagicMock()
+                mock_stream.status_code = 200
+                mock_stream.headers = {}  # No content-length to force streaming check
+                mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+                mock_stream.__aexit__ = AsyncMock(return_value=None)
+                mock_stream.aiter_bytes = aiter_bytes
 
-            mock_client = AsyncMock()
-            mock_client.stream = MagicMock(return_value=mock_stream)
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+                mock_client = AsyncMock()
+                mock_client.stream = MagicMock(return_value=mock_stream)
+                mock_client.__aenter__.return_value = mock_client
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+                mock_client_class.return_value = mock_client
 
-            with pytest.raises(SSRFFetchError, match="too large"):
-                await ssrf_safe_fetch("https://example.com/api", max_size=5120)
+                with pytest.raises(SSRFFetchError, match="too large"):
+                    await ssrf_safe_fetch("https://example.com/api", max_size=5120)
 
-            # Verify we stopped after exceeding the limit (should be ~6 chunks for 5KB limit)
-            # This confirms we're enforcing during streaming, not after downloading all
-            assert len(chunks_yielded) <= 7, (
-                f"Downloaded {len(chunks_yielded)} chunks (expected <=7 for streaming enforcement)"
-            )
+                # Verify we stopped after exceeding the limit (should be ~6 chunks for 5KB limit)
+                # This confirms we're enforcing during streaming, not after downloading all
+                assert len(chunks_yielded) <= 7, (
+                    f"Downloaded {len(chunks_yielded)} chunks (expected <=7 for streaming enforcement)"
+                )
 
     async def test_content_length_header_checked_first(self):
         """Verify Content-Length header is checked before streaming."""
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=["93.184.216.34"],
-            ),
-            patch("httpx2.AsyncClient") as mock_client_class,
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=["93.184.216.34"],
         ):
-            mock_stream = MagicMock()
-            mock_stream.status_code = 200
-            mock_stream.headers = {"content-length": "10240"}  # 10KB
-            mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
-            mock_stream.__aexit__ = AsyncMock(return_value=None)
+            with patch("httpx2.AsyncClient") as mock_client_class:
+                mock_stream = MagicMock()
+                mock_stream.status_code = 200
+                mock_stream.headers = {"content-length": "10240"}  # 10KB
+                mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+                mock_stream.__aexit__ = AsyncMock(return_value=None)
 
-            # aiter_bytes should never be called if Content-Length is checked
-            mock_stream.aiter_bytes = MagicMock(
-                side_effect=AssertionError("Should not stream")
-            )
+                # aiter_bytes should never be called if Content-Length is checked
+                mock_stream.aiter_bytes = MagicMock(
+                    side_effect=AssertionError("Should not stream")
+                )
 
-            mock_client = AsyncMock()
-            mock_client.stream = MagicMock(return_value=mock_stream)
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+                mock_client = AsyncMock()
+                mock_client.stream = MagicMock(return_value=mock_stream)
+                mock_client.__aenter__.return_value = mock_client
+                mock_client.__aexit__ = AsyncMock(return_value=None)
+                mock_client_class.return_value = mock_client
 
-            with pytest.raises(SSRFFetchError, match="too large"):
-                await ssrf_safe_fetch("https://example.com/api", max_size=5120)
+                with pytest.raises(SSRFFetchError, match="too large"):
+                    await ssrf_safe_fetch("https://example.com/api", max_size=5120)
 
 
 class TestProxyMode:
@@ -626,12 +612,10 @@ class TestProxyMode:
         """Proxy mode returns resolved_ips=[] without resolving or blocklisting, and
         carries the configured proxy URL for the fetch to use."""
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy.internal:3128")
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("fastmcp.server.auth.ssrf.resolve_hostname") as mock_resolve,
-            patch("fastmcp.server.auth.ssrf.is_ip_allowed") as mock_blocklist,
-        ):
-            result = await validate_url("https://example.com/path")
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("fastmcp.server.auth.ssrf.resolve_hostname") as mock_resolve:
+                with patch("fastmcp.server.auth.ssrf.is_ip_allowed") as mock_blocklist:
+                    result = await validate_url("https://example.com/path")
 
         assert result.resolved_ips == []
         assert result.original_url == "https://example.com/path"
@@ -675,12 +659,10 @@ class TestProxyMode:
         ever constructed — the request never leaves the process with the blocklist
         disabled.
         """
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("httpx2.AsyncClient") as mock_client_class,
-        ):
-            with pytest.raises(SSRFError, match="no HTTPS_PROXY/ALL_PROXY"):
-                await ssrf_safe_fetch("https://example.com/api")
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("httpx2.AsyncClient") as mock_client_class:
+                with pytest.raises(SSRFError, match="no HTTPS_PROXY/ALL_PROXY"):
+                    await ssrf_safe_fetch("https://example.com/api")
 
         mock_client_class.assert_not_called()
 
@@ -694,12 +676,12 @@ class TestProxyMode:
         """
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy.internal:3128")
         mock_client = _mock_httpx_client()
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("fastmcp.server.auth.ssrf.resolve_hostname") as mock_resolve,
-            patch("httpx2.AsyncClient", return_value=mock_client) as mock_client_class,
-        ):
-            content = await ssrf_safe_fetch("https://example.com/api")
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("fastmcp.server.auth.ssrf.resolve_hostname") as mock_resolve:
+                with patch(
+                    "httpx2.AsyncClient", return_value=mock_client
+                ) as mock_client_class:
+                    content = await ssrf_safe_fetch("https://example.com/api")
 
         assert content == b"ok"
         mock_resolve.assert_not_called()
@@ -726,12 +708,12 @@ class TestProxyMode:
         """ALL_PROXY routes the fetch when HTTPS_PROXY is not set."""
         monkeypatch.setenv("ALL_PROXY", "http://all-proxy.internal:3128")
         mock_client = _mock_httpx_client()
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("fastmcp.server.auth.ssrf.resolve_hostname"),
-            patch("httpx2.AsyncClient", return_value=mock_client) as mock_client_class,
-        ):
-            content = await ssrf_safe_fetch("https://example.com/api")
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("fastmcp.server.auth.ssrf.resolve_hostname"):
+                with patch(
+                    "httpx2.AsyncClient", return_value=mock_client
+                ) as mock_client_class:
+                    content = await ssrf_safe_fetch("https://example.com/api")
 
         assert content == b"ok"
         client_kwargs = mock_client_class.call_args[1]
@@ -743,12 +725,12 @@ class TestProxyMode:
         monkeypatch.setenv("HTTPS_PROXY", "http://https-proxy.internal:3128")
         monkeypatch.setenv("ALL_PROXY", "http://all-proxy.internal:3128")
         mock_client = _mock_httpx_client()
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("fastmcp.server.auth.ssrf.resolve_hostname"),
-            patch("httpx2.AsyncClient", return_value=mock_client) as mock_client_class,
-        ):
-            await ssrf_safe_fetch("https://example.com/api")
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("fastmcp.server.auth.ssrf.resolve_hostname"):
+                with patch(
+                    "httpx2.AsyncClient", return_value=mock_client
+                ) as mock_client_class:
+                    await ssrf_safe_fetch("https://example.com/api")
 
         proxy_used = mock_client_class.call_args[1]["proxy"]
         assert proxy_used == "http://https-proxy.internal:3128"
@@ -763,12 +745,12 @@ class TestProxyMode:
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy.internal:3128")
         monkeypatch.setenv("NO_PROXY", "example.com")
         mock_client = _mock_httpx_client()
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("fastmcp.server.auth.ssrf.resolve_hostname"),
-            patch("httpx2.AsyncClient", return_value=mock_client) as mock_client_class,
-        ):
-            content = await ssrf_safe_fetch("https://example.com/api")
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("fastmcp.server.auth.ssrf.resolve_hostname"):
+                with patch(
+                    "httpx2.AsyncClient", return_value=mock_client
+                ) as mock_client_class:
+                    content = await ssrf_safe_fetch("https://example.com/api")
 
         assert content == b"ok"
         client_kwargs = mock_client_class.call_args[1]
@@ -781,15 +763,16 @@ class TestProxyMode:
 
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy.internal:3128")
         mock_client = _mock_httpx_client()
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("fastmcp.server.auth.ssrf.resolve_hostname"),
-            patch("httpx2.AsyncClient", return_value=mock_client),
-        ):
-            await ssrf_safe_fetch_response(
-                "https://example.com/api",
-                request_headers={"If-None-Match": "etag", "Host": "evil.example"},
-            )
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("fastmcp.server.auth.ssrf.resolve_hostname"):
+                with patch("httpx2.AsyncClient", return_value=mock_client):
+                    await ssrf_safe_fetch_response(
+                        "https://example.com/api",
+                        request_headers={
+                            "If-None-Match": "etag",
+                            "Host": "evil.example",
+                        },
+                    )
 
         sent_headers = mock_client.stream.call_args[1]["headers"]
         assert sent_headers["If-None-Match"] == "etag"
@@ -800,25 +783,21 @@ class TestProxyMode:
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy.internal:3128")
         big_chunks = [b"x" * 1024 for _ in range(10)]
         mock_client = _mock_httpx_client(headers={}, body_chunks=big_chunks)
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("fastmcp.server.auth.ssrf.resolve_hostname"),
-            patch("httpx2.AsyncClient", return_value=mock_client),
-        ):
-            with pytest.raises(SSRFFetchError, match="too large"):
-                await ssrf_safe_fetch("https://example.com/api", max_size=5120)
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("fastmcp.server.auth.ssrf.resolve_hostname"):
+                with patch("httpx2.AsyncClient", return_value=mock_client):
+                    with pytest.raises(SSRFFetchError, match="too large"):
+                        await ssrf_safe_fetch("https://example.com/api", max_size=5120)
 
     async def test_fetch_status_check_preserved(self, monkeypatch):
         """Proxy mode still rejects non-allowed status codes."""
         monkeypatch.setenv("HTTPS_PROXY", "http://proxy.internal:3128")
         mock_client = _mock_httpx_client(status_code=404, body_chunks=[b"no"])
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("fastmcp.server.auth.ssrf.resolve_hostname"),
-            patch("httpx2.AsyncClient", return_value=mock_client),
-        ):
-            with pytest.raises(SSRFFetchError, match="HTTP 404"):
-                await ssrf_safe_fetch("https://example.com/api")
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch("fastmcp.server.auth.ssrf.resolve_hostname"):
+                with patch("httpx2.AsyncClient", return_value=mock_client):
+                    with pytest.raises(SSRFFetchError, match="HTTP 404"):
+                        await ssrf_safe_fetch("https://example.com/api")
 
     async def test_gaierror_repro_succeeds_through_proxy(self, monkeypatch):
         """Reproduces issue #4292: on a host with no external DNS at all (every
@@ -838,11 +817,11 @@ class TestProxyMode:
         monkeypatch.setattr(socket, "getaddrinfo", _no_dns)
 
         mock_client = _mock_httpx_client()
-        with (
-            temporary_settings(ssrf_trust_proxy=True),
-            patch("httpx2.AsyncClient", return_value=mock_client) as mock_client_class,
-        ):
-            content = await ssrf_safe_fetch("https://example.com/api")
+        with temporary_settings(ssrf_trust_proxy=True):
+            with patch(
+                "httpx2.AsyncClient", return_value=mock_client
+            ) as mock_client_class:
+                content = await ssrf_safe_fetch("https://example.com/api")
 
         assert content == b"ok"
         client_kwargs = mock_client_class.call_args[1]
@@ -855,15 +834,15 @@ class TestProxyMode:
         apply, and no explicit proxy is passed to the client."""
         resolved_ip = "93.184.216.34"
         mock_client = _mock_httpx_client()
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=[resolved_ip],
-            ) as mock_resolve,
-            patch("httpx2.AsyncClient", return_value=mock_client) as mock_client_class,
-        ):
-            assert fastmcp.settings.ssrf_trust_proxy is False
-            await ssrf_safe_fetch("https://example.com/api")
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=[resolved_ip],
+        ) as mock_resolve:
+            with patch(
+                "httpx2.AsyncClient", return_value=mock_client
+            ) as mock_client_class:
+                assert fastmcp.settings.ssrf_trust_proxy is False
+                await ssrf_safe_fetch("https://example.com/api")
 
         mock_resolve.assert_called_once()
 
@@ -887,15 +866,15 @@ class TestProxyMode:
         monkeypatch.setenv("NO_PROXY", "localhost,127.0.0.1,::1")
         resolved_ip = "93.184.216.34"
         mock_client = _mock_httpx_client()
-        with (
-            patch(
-                "fastmcp.server.auth.ssrf.resolve_hostname",
-                return_value=[resolved_ip],
-            ) as mock_resolve,
-            patch("httpx2.AsyncClient", return_value=mock_client) as mock_client_class,
-        ):
-            assert fastmcp.settings.ssrf_trust_proxy is False
-            await ssrf_safe_fetch("https://example.com/api")
+        with patch(
+            "fastmcp.server.auth.ssrf.resolve_hostname",
+            return_value=[resolved_ip],
+        ) as mock_resolve:
+            with patch(
+                "httpx2.AsyncClient", return_value=mock_client
+            ) as mock_client_class:
+                assert fastmcp.settings.ssrf_trust_proxy is False
+                await ssrf_safe_fetch("https://example.com/api")
 
         mock_resolve.assert_called_once()
         assert mock_client_class.call_args[1]["proxy"] is None
