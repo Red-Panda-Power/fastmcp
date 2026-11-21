@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from cyclopts.exceptions import UnknownCommandError
 
 from fastmcp.cli.cli import app
 from fastmcp.cli.install.shared import parse_env_var
@@ -39,9 +38,24 @@ class TestMainCLI:
         assert exc_info.value.code == 1
 
     @pytest.mark.parametrize("name", ["login", "logout", "whoami"])
-    def test_horizon_account_commands_are_unavailable(self, name: str) -> None:
-        with pytest.raises(UnknownCommandError):
-            app.parse_args([name], exit_on_error=False, print_error=False)
+    def test_horizon_account_commands_are_top_level(self, name: str) -> None:
+        parsed = app.parse_args(
+            [name, "--json"], exit_on_error=False, print_error=False
+        )
+        command, bound = parsed[:2]
+
+        assert command.__name__ == name  # type: ignore[attr-defined]  # ty:ignore[missing-attribute]
+        assert bound.arguments == {"json_output": True}
+
+    def test_login_accepts_a_horizon_host(self) -> None:
+        parsed = app.parse_args(
+            ["login", "--host", "https://dev.horizon.prefect.io"],
+            exit_on_error=False,
+            print_error=False,
+        )
+        _, bound = parsed[:2]
+
+        assert bound.arguments == {"host": "https://dev.horizon.prefect.io"}
 
 
 class TestVersionCommand:

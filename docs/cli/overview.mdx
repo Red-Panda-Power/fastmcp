@@ -26,6 +26,9 @@ fastmcp --help
 | [`generate-cli`](/cli/generate-cli) | Scaffold a standalone typed CLI from a server's tool schemas |
 | [`project prepare`](/cli/running#pre-building-environments) | Pre-install dependencies into a reusable uv project |
 | [`auth cimd`](/cli/auth) | Create and validate CIMD documents for OAuth |
+| `login` | Sign in to FastMCP Gateway with a browser device flow |
+| `whoami` | Show the current FastMCP Gateway account |
+| `logout` | Revoke the current FastMCP Gateway key and remove the local credential |
 | `version` | Print version info (`--copy` to copy to clipboard) |
 
 ## Server Targets
@@ -78,6 +81,22 @@ fastmcp call cursor:weather get_forecast city=London
 Run [`fastmcp discover`](/cli/client#discovering-configured-servers) to see what's available on your machine.
 
 ## Authentication
+
+### FastMCP Gateway account
+
+Use the account commands to manage the credential for FastMCP Gateway.
+
+```bash
+fastmcp login
+fastmcp whoami
+fastmcp logout
+```
+
+`fastmcp login` uses `HORIZON_API_KEY` or a valid stored key when one is available. When it needs a new key, it presents a verification URL and code, then opens a browser from an interactive terminal. You can complete the code flow in another browser when the local browser cannot open.
+
+Login stores only the personal FastMCP Gateway API key; it does not select or store a deployment organization. `fastmcp logout` attempts to revoke its stored key and always removes the local credential. Use `--json` for stable command output; JSON login writes the verification challenge to stderr and the final result to stdout without opening a browser.
+
+Set `HORIZON_API_KEY` for CI or another non-interactive environment. Environment credentials take precedence and are never written to the local credential file. When that variable controls the session, logout does not revoke or remove a credential; remove it from the environment to sign out.
 
 When targeting an HTTP URL, the CLI enables OAuth authentication by default. If the server requires it, you'll be guided through the flow (typically opening a browser). If it doesn't, the setup is a silent no-op.
 
