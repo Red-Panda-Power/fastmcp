@@ -1,7 +1,6 @@
 """Core JSON schema type conversion tests."""
 
 import dataclasses
-import sys
 import warnings
 from dataclasses import Field
 from enum import Enum
@@ -322,67 +321,13 @@ class TestConstrainedTypes:
         "values",
         [
             [1, True],
-            pytest.param(
-                [True, 1],
-                marks=pytest.mark.xfail(
-                    condition=sys.version_info < (3, 9),
-                    reason=(
-                        "Pydantic 2.10, the final Python 3.8-compatible release, "
-                        "normalizes equal boolean and numeric literals"
-                    ),
-                ),
-            ),
+            [True, 1],
             [0, False],
-            pytest.param(
-                [False, 0],
-                marks=pytest.mark.xfail(
-                    condition=sys.version_info < (3, 9),
-                    reason=(
-                        "Pydantic 2.10, the final Python 3.8-compatible release, "
-                        "normalizes equal boolean and numeric literals"
-                    ),
-                ),
-            ),
-            pytest.param(
-                [1.0, True],
-                marks=pytest.mark.xfail(
-                    condition=sys.version_info < (3, 9),
-                    reason=(
-                        "Pydantic 2.10, the final Python 3.8-compatible release, "
-                        "normalizes equal boolean and numeric literals"
-                    ),
-                ),
-            ),
-            pytest.param(
-                [True, 1.0],
-                marks=pytest.mark.xfail(
-                    condition=sys.version_info < (3, 9),
-                    reason=(
-                        "Pydantic 2.10, the final Python 3.8-compatible release, "
-                        "normalizes equal boolean and numeric literals"
-                    ),
-                ),
-            ),
-            pytest.param(
-                [0.0, False],
-                marks=pytest.mark.xfail(
-                    condition=sys.version_info < (3, 9),
-                    reason=(
-                        "Pydantic 2.10, the final Python 3.8-compatible release, "
-                        "normalizes equal boolean and numeric literals"
-                    ),
-                ),
-            ),
-            pytest.param(
-                [False, 0.0],
-                marks=pytest.mark.xfail(
-                    condition=sys.version_info < (3, 9),
-                    reason=(
-                        "Pydantic 2.10, the final Python 3.8-compatible release, "
-                        "normalizes equal boolean and numeric literals"
-                    ),
-                ),
-            ),
+            [False, 0],
+            [1.0, True],
+            [True, 1.0],
+            [0.0, False],
+            [False, 0.0],
         ],
     )
     def test_mixed_boolean_numeric_enums_preserve_value_types(
