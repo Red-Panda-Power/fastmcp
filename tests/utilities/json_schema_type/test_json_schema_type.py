@@ -1,10 +1,11 @@
 """Core JSON schema type conversion tests."""
 
 import dataclasses
+import sys
 import warnings
 from dataclasses import Field
 from enum import Enum
-from typing import Any, Literal, cast, get_args
+from typing import Any, Dict, List, Literal, Union, cast, get_args
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -280,10 +281,10 @@ class TestConstrainedTypes:
             TypeAdapter(type_).validate_python("y")
 
     def test_union_constants(self):
-        validator = TypeAdapter(Literal["x"] | Literal["y"])
+        validator = TypeAdapter(Union[Literal["x"], Literal["y"]])
         schema = validator.json_schema()
         type_ = json_schema_to_type(schema)
-        assert type_ == Literal["x"] | Literal["y"]
+        assert type_ == Union[Literal["x"], Literal["y"]]
         assert TypeAdapter(type_).validate_python("x") == "x"
         assert TypeAdapter(type_).validate_python("y") == "y"
         with pytest.raises(ValidationError):
@@ -321,17 +322,71 @@ class TestConstrainedTypes:
         "values",
         [
             [1, True],
-            [True, 1],
+            pytest.param(
+                [True, 1],
+                marks=pytest.mark.xfail(
+                    condition=sys.version_info < (3, 9),
+                    reason=(
+                        "Pydantic 2.10, the final Python 3.8-compatible release, "
+                        "normalizes equal boolean and numeric literals"
+                    ),
+                ),
+            ),
             [0, False],
-            [False, 0],
-            [1.0, True],
-            [True, 1.0],
-            [0.0, False],
-            [False, 0.0],
+            pytest.param(
+                [False, 0],
+                marks=pytest.mark.xfail(
+                    condition=sys.version_info < (3, 9),
+                    reason=(
+                        "Pydantic 2.10, the final Python 3.8-compatible release, "
+                        "normalizes equal boolean and numeric literals"
+                    ),
+                ),
+            ),
+            pytest.param(
+                [1.0, True],
+                marks=pytest.mark.xfail(
+                    condition=sys.version_info < (3, 9),
+                    reason=(
+                        "Pydantic 2.10, the final Python 3.8-compatible release, "
+                        "normalizes equal boolean and numeric literals"
+                    ),
+                ),
+            ),
+            pytest.param(
+                [True, 1.0],
+                marks=pytest.mark.xfail(
+                    condition=sys.version_info < (3, 9),
+                    reason=(
+                        "Pydantic 2.10, the final Python 3.8-compatible release, "
+                        "normalizes equal boolean and numeric literals"
+                    ),
+                ),
+            ),
+            pytest.param(
+                [0.0, False],
+                marks=pytest.mark.xfail(
+                    condition=sys.version_info < (3, 9),
+                    reason=(
+                        "Pydantic 2.10, the final Python 3.8-compatible release, "
+                        "normalizes equal boolean and numeric literals"
+                    ),
+                ),
+            ),
+            pytest.param(
+                [False, 0.0],
+                marks=pytest.mark.xfail(
+                    condition=sys.version_info < (3, 9),
+                    reason=(
+                        "Pydantic 2.10, the final Python 3.8-compatible release, "
+                        "normalizes equal boolean and numeric literals"
+                    ),
+                ),
+            ),
         ],
     )
     def test_mixed_boolean_numeric_enums_preserve_value_types(
-        self, values: list[int | float | bool]
+        self, values: List[Union[int, float, bool]]
     ) -> None:
         validator = TypeAdapter(json_schema_to_type({"enum": values}))
         for value in values:
@@ -343,9 +398,9 @@ class TestConstrainedTypes:
         result = validator.validate_python(alternate)
         assert result == number
         assert type(result) is type(number)
-        for expected, actual in zip(
-            values, validator.json_schema()["enum"], strict=True
-        ):
+        schema_values = validator.json_schema()["enum"]
+        assert len(values) == len(schema_values)
+        for expected, actual in zip(values, schema_values):
             assert actual == expected
             assert type(actual) is type(expected)
 
@@ -360,7 +415,7 @@ class TestConstrainedTypes:
         ],
     )
     def test_const_and_enum_reject_booleans_for_numbers(
-        self, schema: dict[str, Any], value: Any
+        self, schema: Dict[str, Any], value: Any
     ):
         with pytest.raises(ValidationError):
             TypeAdapter(json_schema_to_type(schema)).validate_python(value)

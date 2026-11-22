@@ -7,11 +7,12 @@ implementation handled. Since we're now using standard pydantic functionality, t
 may be redundant with pydantic's own tests and could potentially be removed in the future.
 """
 
-from typing import Annotated
+from typing import Dict, List, Union
 
 import annotated_types
 import pytest
 from pydantic import BaseModel, Field
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp.utilities.json_schema import compress_schema
 from fastmcp.utilities.types import get_cached_typeadapter
@@ -34,7 +35,7 @@ class SomeInputModelB(BaseModel):
 # Define additional models needed in tests
 class SomeComplexModel(BaseModel):
     x: int
-    y: dict[int, str]
+    y: Dict[int, str]
 
 
 class ClassWithMethods:
@@ -54,10 +55,10 @@ def complex_arguments_fn(
     an_int: int,
     must_be_none: None,
     must_be_none_dumb_annotation: Annotated[None, "blah"],
-    list_of_ints: list[int],
+    list_of_ints: List[int],
     # list[str] | str is an interesting case because if it comes in as JSON like
     # "[\"a\", \"b\"]" then it will be naively parsed as a string.
-    list_str_or_str: list[str] | str,
+    list_str_or_str: Union[List[str], str],
     an_int_annotated_with_field: Annotated[
         int, Field(description="An int with a field")
     ],

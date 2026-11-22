@@ -1,10 +1,13 @@
 """Tests for container types in JSON schema conversion."""
 
+from __future__ import annotations
+
+import sys
 from collections import UserDict
 from dataclasses import Field, dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Any
+from typing import Any, Dict, List, Optional, Union
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -13,6 +16,9 @@ from fastmcp.utilities import json_schema_type as schema_types
 from fastmcp.utilities.json_schema_type import (
     json_schema_to_type,
 )
+
+RuntimeDict = dict if sys.version_info >= (3, 9) else Dict
+RuntimeList = list if sys.version_info >= (3, 9) else List
 
 
 def get_dataclass_field(type: type, field_name: str) -> Field:
@@ -279,18 +285,21 @@ class TestObjectTypes:
         "input_type, expected_type",
         [
             # Plain dict becomes dict[str, Any] (JSON Schema accurate)
-            (dict, dict[str, Any]),
+            (dict, RuntimeDict[str, Any]),
             # dict[str, Any] stays the same
-            (dict[str, Any], dict[str, Any]),
+            (RuntimeDict[str, Any], RuntimeDict[str, Any]),
             # Simple typed dicts work correctly
-            (dict[str, str], dict[str, str]),
-            (dict[str, int], dict[str, int]),
+            (RuntimeDict[str, str], RuntimeDict[str, str]),
+            (RuntimeDict[str, int], RuntimeDict[str, int]),
             # Union value types work
-            (dict[str, str | int], dict[str, str | int]),
+            (RuntimeDict[str, Union[str, int]], RuntimeDict[str, Union[str, int]]),
             # Key types are constrained to str in JSON Schema
-            (dict[int, list[str]], dict[str, list[str]]),
+            (RuntimeDict[int, RuntimeList[str]], RuntimeDict[str, RuntimeList[str]]),
             # Union key types become str (JSON Schema limitation)
-            (dict[str | int, str | None], dict[str, str | None]),
+            (
+                RuntimeDict[Union[str, int], Optional[str]],
+                RuntimeDict[str, Optional[str]],
+            ),
         ],
     )
     def test_dict_types_are_generated_correctly(self, input_type, expected_type):
@@ -302,13 +311,13 @@ class TestObjectTypes:
         "input_type, expected_type",
         [
             # list[dict] roundtrips correctly (not list[Root()])
-            (list[dict], list[dict[str, Any]]),
+            (RuntimeList[dict], RuntimeList[RuntimeDict[str, Any]]),
             # list[dict[str, Any]] stays the same
-            (list[dict[str, Any]], list[dict[str, Any]]),
+            (RuntimeList[RuntimeDict[str, Any]], RuntimeList[RuntimeDict[str, Any]]),
             # list[dict[str, str]] preserves value type
-            (list[dict[str, str]], list[dict[str, str]]),
+            (RuntimeList[RuntimeDict[str, str]], RuntimeList[RuntimeDict[str, str]]),
             # list[dict[str, int]] preserves value type
-            (list[dict[str, int]], list[dict[str, int]]),
+            (RuntimeList[RuntimeDict[str, int]], RuntimeList[RuntimeDict[str, int]]),
         ],
     )
     def test_list_of_dict_types_roundtrip(self, input_type, expected_type):
@@ -319,7 +328,7 @@ class TestObjectTypes:
 
     def test_list_dict_validates_data(self):
         """list[dict] schema should validate actual dict data, not produce Root() (issue #3867)."""
-        schema = TypeAdapter(list[dict]).json_schema()
+        schema = TypeAdapter(RuntimeList[dict]).json_schema()
         generated_type = json_schema_to_type(schema)
         validator = TypeAdapter(generated_type)
         result = validator.validate_python(

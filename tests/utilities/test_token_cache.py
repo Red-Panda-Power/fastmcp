@@ -1,5 +1,7 @@
 """Tests for the shared TokenCache utility."""
 
+from __future__ import annotations
+
 import time
 
 import pytest

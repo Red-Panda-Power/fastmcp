@@ -1,5 +1,7 @@
 """Unit tests for schema processing and parameter mapping."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import pytest

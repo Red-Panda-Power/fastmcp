@@ -1,5 +1,7 @@
 """Path values remain data within an operation's declared route."""
 
+from __future__ import annotations
+
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path

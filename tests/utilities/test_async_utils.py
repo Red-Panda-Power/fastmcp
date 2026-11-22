@@ -3,8 +3,7 @@
 import asyncio
 import functools
 import inspect
-from collections.abc import Awaitable, Iterator
-from typing import Any
+from typing import Any, Awaitable, Iterator, Optional
 
 import anyio
 import pytest
@@ -170,7 +169,7 @@ class TestGather:
                 await self._real_tg.__aenter__()
                 return self
 
-            async def __aexit__(self, *exc_info: Any) -> bool | None:
+            async def __aexit__(self, *exc_info: Any) -> Optional[bool]:
                 return await self._real_tg.__aexit__(*exc_info)
 
             def start_soon(self, func: Any, *args: Any) -> None:
@@ -223,7 +222,7 @@ class TestGather:
                 await self._real_tg.__aenter__()
                 return self
 
-            async def __aexit__(self, *exc_info: Any) -> bool | None:
+            async def __aexit__(self, *exc_info: Any) -> Optional[bool]:
                 return await self._real_tg.__aexit__(*exc_info)
 
             def start_soon(self, func: Any, *args: Any) -> None:

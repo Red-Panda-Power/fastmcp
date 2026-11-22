@@ -1,5 +1,7 @@
 """OpenAPI 3.0 boolean exclusive bounds become JSON Schema numeric bounds."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import httpx2

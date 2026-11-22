@@ -1,5 +1,7 @@
 """Generated classes must retain the root context for local references."""
 
+from __future__ import annotations
+
 from copy import deepcopy
 from typing import Any
 

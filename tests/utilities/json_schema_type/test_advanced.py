@@ -1,7 +1,10 @@
 """Advanced JSON schema type conversion features."""
 
+from __future__ import annotations
+
+import sys
 from dataclasses import Field
-from typing import Any, Union, cast
+from typing import Any, Dict, Union, cast
 
 import pytest
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -13,6 +16,8 @@ from fastmcp.utilities.json_schema_type import (
     _merge_defaults,
     json_schema_to_type,
 )
+
+RuntimeDict = dict if sys.version_info >= (3, 9) else Dict
 
 
 def get_dataclass_field(type: type, field_name: str) -> Field:
@@ -1240,7 +1245,7 @@ class TestAdditionalProperties:
         """Test that schema with no properties + additionalProperties=True returns dict[str, Any]"""
         import typing
 
-        assert dict_only_schema == dict[str, typing.Any]
+        assert dict_only_schema == RuntimeDict[str, typing.Any]
 
     def test_dict_only_accepts_any_data(self, dict_only_schema):
         """Test that pure dict accepts arbitrary key-value pairs"""
@@ -1264,7 +1269,7 @@ class TestAdditionalProperties:
         schema_type = json_schema_to_type(
             {"properties": {}, "additionalProperties": True}
         )
-        assert schema_type == dict[str, Any]
+        assert schema_type == RuntimeDict[str, Any]
 
     def test_properties_with_additional_returns_basemodel(
         self, properties_with_additional

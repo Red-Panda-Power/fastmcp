@@ -1,5 +1,7 @@
 """Unpinned JSON Schema arrays validate prefix and trailing items separately."""
 
+from __future__ import annotations
+
 from datetime import date
 from typing import Any
 

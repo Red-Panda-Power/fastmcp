@@ -1,9 +1,10 @@
 """Tests for docstring-to-schema parameter description extraction."""
 
 import inspect
-from typing import Annotated
+from typing import Dict
 
 from pydantic import Field
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp import Client, FastMCP
 from fastmcp.tools.function_parsing import ParsedFunction
@@ -290,7 +291,7 @@ class TestEdgeCases:
         """A parameterless function's Returns section must not bleed into
         the description, same as it doesn't for functions with Args."""
 
-        def fn() -> dict[str, bool]:
+        def fn() -> Dict[str, bool]:
             """Return current status.
 
             Returns:
@@ -657,7 +658,7 @@ class TestParsedFunctionIntegration:
         assert "description" not in p.input_schema["properties"]["x"]
 
     def test_parameterless_tool_returns_section_excluded(self):
-        def status() -> dict[str, bool]:
+        def status() -> Dict[str, bool]:
             """Return current status.
 
             Returns:

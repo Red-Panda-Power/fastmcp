@@ -1,5 +1,7 @@
 """`dereference_refs` inlines references unless the result would be very large."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
@@ -252,7 +254,7 @@ def test_large_schema_resolves_root_reference_through_aliases(aliases: int) -> N
     defs = schema.pop("$defs")
     defs["Actual"] = schema
     names = [f"Alias{i}" for i in range(aliases)] + ["Actual"]
-    for name, target in zip(names, names[1:], strict=False):
+    for name, target in zip(names, names[1:]):
         defs[name] = {"$ref": f"#/$defs/{target}"}
     result = dereference_refs({"$ref": f"#/$defs/{names[0]}", "$defs": defs})
     assert result == {**schema, "$defs": defs}
