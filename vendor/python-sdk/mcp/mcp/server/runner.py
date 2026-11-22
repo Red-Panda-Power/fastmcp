@@ -64,7 +64,6 @@ from mcp.server.models import InitializationOptions
 from mcp.server.session import ServerSession
 from mcp.shared._context_streams import ContextReceiveStream
 from mcp.shared._pydantic import validate_model
-from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared._stream_protocols import ReadStream, WriteStream
 from mcp.shared.dispatcher import CallOptions, DispatchContext, Dispatcher, OnNotify, OnRequest
 from mcp.shared.exceptions import MCPError, NoBackChannelError
@@ -675,9 +674,7 @@ async def _replay_from_opening_request(
     """
     lead: list[tuple[contextvars.Context, SessionMessage | Exception]] = []
     opening_request: JSONRPCRequest | None = None
-    replay_send, replay_receive = anyio.create_memory_object_stream[
-        _runtime_typing.Tuple[contextvars.Context, _runtime_typing.Union[SessionMessage, Exception]]
-    ]()
+    replay_send, replay_receive = anyio.create_memory_object_stream()
     replayed = ContextReceiveStream(replay_receive)
 
     async def replay_then_relay() -> None:

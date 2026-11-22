@@ -1,8 +1,11 @@
 """Generated class names, field aliases, conversion limits, and the class cache."""
 
+from __future__ import annotations
+
 import gc
 import json
 import keyword
+import sys
 import weakref
 from typing import Any
 
@@ -544,6 +547,14 @@ class TestConversionLimits:
         with pytest.raises(ValueError, match="too large"):
             json_schema_to_type(schema)
 
+    @pytest.mark.xfail(
+        condition=sys.version_info < (3, 9),
+        strict=True,
+        reason=(
+            "Pydantic 2.10's Python 3.8-compatible core reports a false recursive "
+            "schema cycle for this valid 21-level model"
+        ),
+    )
     def test_deeply_nested_models_still_convert(self):
         depth = 20
         defs: dict[str, Any] = {

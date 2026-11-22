@@ -42,7 +42,6 @@ from mcp.shared._compat import resync_tracer
 from mcp.shared._otel import inject_trace_context, otel_span
 from mcp.shared._request_clock import request_clock
 from mcp.shared._stream_protocols import ReadStream, WriteStream
-from mcp.shared._typing_compat import runtime_typing as _runtime_typing
 from mcp.shared.dispatcher import (
     CallOptions,
     DispatchContext,
@@ -371,9 +370,7 @@ class JSONRPCDispatcher(Dispatcher[TransportT]):
 
         # buffer=1: a close signal can arrive before the waiter parks in receive();
         # a WouldBlock later just means the waiter already has its one outcome.
-        send, receive = anyio.create_memory_object_stream[
-            _runtime_typing.Union[_runtime_typing.Dict[str, Any], ErrorData]
-        ](1)
+        send, receive = anyio.create_memory_object_stream(1)
         pending = _Pending(send=send, receive=receive, on_progress=on_progress)
         self._pending[pending_key] = pending
 

@@ -472,7 +472,7 @@ async def handle_modern_request(
         await _write(msg, scope, receive, send)
         return
 
-    send_ch, recv_ch = anyio.create_memory_object_stream[bytes](0)
+    send_ch, recv_ch = anyio.create_memory_object_stream(0)
     dctx.sink = send_ch
     result: list[JSONRPCResponse | JSONRPCError] = []
 

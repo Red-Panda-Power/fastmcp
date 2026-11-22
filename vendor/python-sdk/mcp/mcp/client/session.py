@@ -479,7 +479,7 @@ class ClientSession:
         try:
             # Queues must exist before the dispatcher starts: _on_notify enqueues into this dict.
             for binding in self._notification_bindings.values():
-                send, receive = anyio.create_memory_object_stream[BaseModel](_NOTIFICATION_QUEUE_SIZE)
+                send, receive = anyio.create_memory_object_stream(_NOTIFICATION_QUEUE_SIZE)
                 self._binding_queues[binding.method] = (send, receive)
             await self._task_group.start(
                 self._dispatcher.run, self._on_request, self._on_notify, self._intercept_notification

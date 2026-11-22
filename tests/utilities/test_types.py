@@ -1,10 +1,12 @@
 import base64
 import os
-from typing import Annotated, Any, cast
+import sys
+from typing import Any, Dict, List, Union, cast
 
 import pytest
 from mcp_types import BlobResourceContents, TextResourceContents
 from pydantic import Field
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp import Client, FastMCP
 from fastmcp.utilities.types import (
@@ -17,6 +19,8 @@ from fastmcp.utilities.types import (
     issubclass_safe,
     replace_type,
 )
+
+RuntimeList = list if sys.version_info >= (3, 9) else List
 
 
 class BaseClass:
@@ -46,28 +50,28 @@ class TestIsClassMemberOfType:
 
     def test_typing_union_with_member_is_member(self):
         """Test that Union type with a member class is detected as a member."""
-        union_type1: Any = ChildClass | OtherClass
-        union_type2: Any = OtherClass | ChildClass
+        union_type1: Any = Union[ChildClass, OtherClass]
+        union_type2: Any = Union[OtherClass, ChildClass]
 
         assert is_class_member_of_type(union_type1, BaseClass)
         assert is_class_member_of_type(union_type2, BaseClass)
 
     def test_typing_union_without_member_is_not_member(self):
         """Test that Union type without any member class is not a member."""
-        union_type: Any = OtherClass | str
+        union_type: Any = Union[OtherClass, str]
         assert not is_class_member_of_type(union_type, BaseClass)
 
     def test_pipe_union_with_member_is_member(self):
         """Test that pipe syntax union with a member class is detected as a member."""
-        union_pipe1: Any = ChildClass | OtherClass
-        union_pipe2: Any = OtherClass | ChildClass
+        union_pipe1: Any = Union[ChildClass, OtherClass]
+        union_pipe2: Any = Union[OtherClass, ChildClass]
 
         assert is_class_member_of_type(union_pipe1, BaseClass)
         assert is_class_member_of_type(union_pipe2, BaseClass)
 
     def test_pipe_union_without_member_is_not_member(self):
         """Test that pipe syntax union without any member class is not a member."""
-        union_pipe: Any = OtherClass | str
+        union_pipe: Any = Union[OtherClass, str]
         assert not is_class_member_of_type(union_pipe, BaseClass)
 
     def test_annotated_member_is_member(self):
@@ -86,8 +90,8 @@ class TestIsClassMemberOfType:
     def test_annotated_with_union_member_is_member(self):
         """Test that Annotated with a Union containing a member class is a member."""
         # Test with both Union styles
-        annotated1: Any = Annotated[ChildClass | OtherClass, "metadata"]
-        annotated2: Any = Annotated[ChildClass | OtherClass, "metadata"]
+        annotated1: Any = Annotated[Union[ChildClass, OtherClass], "metadata"]
+        annotated2: Any = Annotated[Union[ChildClass, OtherClass], "metadata"]
 
         assert is_class_member_of_type(annotated1, BaseClass)
         assert is_class_member_of_type(annotated2, BaseClass)
@@ -103,7 +107,7 @@ class TestIsClassMemberOfType:
 
     def test_generic_type_is_not_member(self):
         """Test that generic types are not members based on their parameter types."""
-        list_type: Any = list[ChildClass]
+        list_type: Any = List[ChildClass]
         assert not is_class_member_of_type(list_type, BaseClass)
 
 
@@ -651,16 +655,20 @@ class TestReplaceType:
             (int, {int: int}, int),
             (int, {int: float, bool: str}, float),
             (bool, {int: float, bool: str}, str),
-            (int, {int: list[int]}, list[int]),
-            (list[int], {int: str}, list[str]),
-            (list[int], {int: list[str]}, list[list[str]]),
+            (int, {int: RuntimeList[int]}, RuntimeList[int]),
+            (RuntimeList[int], {int: str}, RuntimeList[str]),
+            (RuntimeList[int], {int: RuntimeList[str]}, RuntimeList[RuntimeList[str]]),
             (
-                list[int],
-                {int: float, list[int]: bool},
+                RuntimeList[int],
+                {int: float, RuntimeList[int]: bool},
                 bool,
-            ),  # list[int] will match before int
-            (list[int | bool], {int: str}, list[str | bool]),
-            (list[list[int]], {int: str}, list[list[str]]),
+            ),  # RuntimeList[int] will match before int
+            (
+                RuntimeList[Union[int, bool]],
+                {int: str},
+                RuntimeList[Union[str, bool]],
+            ),
+            (RuntimeList[RuntimeList[int]], {int: str}, RuntimeList[RuntimeList[str]]),
         ],
     )
     def test_replace_type(self, input, type_map, expected):
@@ -675,7 +683,7 @@ class TestCreateFunctionWithoutParams:
         """Test that excluded parameters are removed from __annotations__ AND __signature__."""
         import inspect
 
-        def original_func(ctx: str, query: str, limit: int = 10) -> list[str]:
+        def original_func(ctx: str, query: str, limit: int = 10) -> List[str]:
             return []
 
         new_func = create_function_without_params(original_func, ["ctx"])
@@ -695,14 +703,14 @@ class TestCreateFunctionWithoutParams:
         """Test that return annotation is preserved in both annotations and signature."""
         import inspect
 
-        def original_func(ctx: str, value: int) -> dict[str, int]:
+        def original_func(ctx: str, value: int) -> Dict[str, int]:
             return {}
 
         new_func = create_function_without_params(original_func, ["ctx"])
 
         sig = inspect.signature(new_func)
-        assert sig.return_annotation == dict[str, int]
-        assert new_func.__annotations__["return"] == dict[str, int]
+        assert sig.return_annotation == Dict[str, int]
+        assert new_func.__annotations__["return"] == Dict[str, int]
 
     def test_pydantic_typeadapter_compatibility(self):
         """Test that modified function works with Pydantic TypeAdapter (regression test for #2562)."""
@@ -711,7 +719,7 @@ class TestCreateFunctionWithoutParams:
         class Result(BaseModel):
             name: str
 
-        def tool_function(ctx: str, search_query: str, limit: int = 10) -> list[Result]:
+        def tool_function(ctx: str, search_query: str, limit: int = 10) -> List[Result]:
             return []
 
         # Remove context parameter (what FastMCP does internally)

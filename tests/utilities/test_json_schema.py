@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import sys
 from typing import Any
@@ -5,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from jsonref import replace_refs
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp.utilities.json_schema import (
     _prune_param,
@@ -686,8 +689,6 @@ class TestCompressSchema:
         This is a critical edge case - we want to remove title metadata but preserve
         actual parameters that happen to be named 'title'.
         """
-        from typing import Annotated
-
         from pydantic import Field, TypeAdapter
 
         def greet(
@@ -1256,7 +1257,7 @@ class TestResolveRootRef:
                 "required": ["id"],
             }
         }
-        for pointer, next_pointer in zip(pointers, pointers[1:], strict=False):
+        for pointer, next_pointer in zip(pointers, pointers[1:]):
             name = pointer.rsplit("/", 1)[1]
             defs[decoded.get(name, name)] = {"$ref": next_pointer}
         schema = {defs_key: defs, "$ref": pointers[0]}

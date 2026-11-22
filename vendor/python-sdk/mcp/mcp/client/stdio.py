@@ -16,7 +16,7 @@ import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from typing import Literal, TextIO, Union
+from typing import Literal, TextIO
 
 import anyio
 import anyio.lowlevel
@@ -135,8 +135,8 @@ async def stdio_client(
 
     # The spawn succeeded; no awaits until the task group is entered, or a
     # cancellation delivered in the gap would leak the live process.
-    read_stream_writer, read_stream = anyio.create_memory_object_stream[Union[SessionMessage, Exception]](0)
-    write_stream, write_stream_reader = anyio.create_memory_object_stream[SessionMessage](0)
+    read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
+    write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
 
     shutting_down = False
     writer_done = anyio.Event()
