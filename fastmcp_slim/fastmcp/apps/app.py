@@ -28,9 +28,16 @@ Usage::
 from __future__ import annotations
 
 import inspect
-from collections.abc import AsyncGenerator, Callable, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
+from typing import (  # noqa: UP035 - collections.abc.Callable is not subscriptable on Python 3.8.
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Literal,
+    TypeVar,
+    overload,
+)
 
 from mcp_types import Icon, ToolAnnotations
 

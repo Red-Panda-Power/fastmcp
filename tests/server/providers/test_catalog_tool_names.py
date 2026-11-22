@@ -25,7 +25,7 @@ class CatalogNames(Transform):
     ) -> Tool | None:
         if not name.startswith("catalog_"):
             return None
-        tool = await call_next(name.removeprefix("catalog_"), version=version)
+        tool = await call_next(name[len("catalog_") :], version=version)
         if tool is None:
             return None
         return tool.model_copy(update={"name": name})
