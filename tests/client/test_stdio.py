@@ -174,6 +174,63 @@ class TestPartialConstruction:
         transport.__del__()
         assert not hasattr(transport, "_stop_event")
 
+    def test_del_does_not_set_unbound_event_without_connection(self):
+        transport = StdioTransport(command="python", args=[])
+
+        transport.__del__()
+
+    def test_del_signals_unbound_event_from_worker_thread(self):
+        transport = StdioTransport(command="python", args=[])
+        stop_event = transport._stop_event
+        assert stop_event._internal_event is None
+
+        async def run_connection():
+            connection_started = asyncio.Event()
+            stopped = asyncio.Event()
+
+            async def wait_for_disconnect():
+                await connection_started.wait()
+                await stop_event.wait()
+                stopped.set()
+
+            connect_task = asyncio.create_task(wait_for_disconnect())
+            transport._connect_task = connect_task
+
+            # GC can run off-loop before the connection task has first awaited
+            # the AnyIO event, so its adapter is still unbound here.
+            await anyio.to_thread.run_sync(transport.__del__)
+            await asyncio.sleep(0)
+            connection_started.set()
+
+            await asyncio.wait_for(stopped.wait(), timeout=1)
+            await connect_task
+            assert stop_event.is_set()
+
+        asyncio.run(run_connection())
+
+    def test_del_skips_connection_with_closed_loop(self):
+        loop = asyncio.new_event_loop()
+        connect_task = loop.create_future()
+        transport = StdioTransport(command="python", args=[])
+        transport._connect_task = connect_task
+
+        loop.close()
+
+        transport.__del__()
+        transport._connect_task = None
+
+    def test_sync_created_transport_connects_inside_new_loop(self):
+        transport = PythonStdioTransport(
+            script_path=MINIMAL_STDIO_SERVER, keep_alive=False
+        )
+
+        async def connect():
+            async with Client(transport=transport) as client:
+                result = await client.call_tool("pid")
+                assert isinstance(result.data, int)
+
+        asyncio.run(connect())
+
 
 class TestDisconnect:
     async def test_cancelled_connection_task_is_cleaned_up(self):
@@ -358,13 +415,14 @@ class TestKeepAlive:
     )
     async def test_keep_alive_true_exit_scope_kills_transport(self, stdio_script):
         transport_weak_ref: weakref.ref[PythonStdioTransport] | None = None
+        connect_task: asyncio.Task | None = None
 
         async def test_server():
             transport = PythonStdioTransport(script_path=stdio_script, keep_alive=True)
-            nonlocal transport_weak_ref
+            nonlocal transport_weak_ref, connect_task
             transport_weak_ref = weakref.ref(transport)
             async with transport.connect_session():
-                pass
+                connect_task = transport._connect_task
 
         await test_server()
 
@@ -374,6 +432,8 @@ class TestKeepAlive:
         assert transport_weak_ref
         transport = transport_weak_ref()
         assert transport is None
+        assert connect_task is not None
+        await asyncio.wait_for(connect_task, timeout=2)
 
     @pytest.mark.skipif(
         running_under_debugger(), reason="Debugger holds a reference to the transport"
@@ -502,7 +562,7 @@ class TestKeepAlive:
 
         # Off-thread, so this test's loop stays running while the second one
         # connects: only the owning loop can tear the old connection down.
-        pid2 = await asyncio.to_thread(reuse_on_new_loop)
+        pid2 = await anyio.to_thread.run_sync(reuse_on_new_loop)
 
         assert pid2 != pid1
         await wait_for_process_exit(pid1)
@@ -562,7 +622,7 @@ class TestKeepAlive:
 
         async with transport.connect_session() as session:
             with pytest.raises(RuntimeError, match="different event loop"):
-                await asyncio.to_thread(connect_on_new_loop)
+                await anyio.to_thread.run_sync(connect_on_new_loop)
             assert (await session.list_tools()).tools
 
         await transport.close()
@@ -1094,7 +1154,7 @@ class TestFastMCPTransportArguments:
                 mcp = FastMCP()
 
                 @mcp.tool
-                def get_arguments() -> list[str]:
+                def get_arguments():
                     return arguments
             """),
             encoding="utf-8",
