@@ -4,8 +4,11 @@ The client rebuilds Python types from the output schema, so every ``format``
 and positional item schema the server emits has to survive that round trip.
 """
 
+# Runtime typing aliases preserve Pydantic and FastMCP evaluation on Python 3.8.
+# ruff: noqa: UP006, UP035, UP045
+
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 import pytest
@@ -25,12 +28,12 @@ class Reading(BaseModel):
 
 class Counters(BaseModel):
     model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[str, int] = Field(init=False)  # ty:ignore[incompatible-mutable-override]
+    __pydantic_extra__: Dict[str, int] = Field(init=False)  # ty:ignore[incompatible-mutable-override]
     name: str
 
 
 class CounterCollection(BaseModel):
-    counters: list[Counters]
+    counters: List[Counters]
 
 
 @pytest.mark.parametrize("shape", ["model", "list", "nested"])
@@ -43,7 +46,7 @@ async def test_typed_extra_fields_survive_tool_result_hydration(shape: str) -> N
         return counters
 
     @mcp.tool
-    def list_result() -> list[Counters]:
+    def list_result() -> List[Counters]:
         return [counters]
 
     @mcp.tool
@@ -72,7 +75,7 @@ class Item(BaseModel):
 
 class TreeNode(BaseModel):
     value: int
-    children: list["TreeNode"] = []
+    children: List["TreeNode"] = []
 
 
 class TestStructuredResultHydration:
@@ -147,7 +150,7 @@ class TestStructuredResultHydration:
         ],
     )
     async def test_const_enum_results_preserve_json_value_types(
-        self, field_schema: dict[str, Any], value: Any, expected: Any
+        self, field_schema: Dict[str, Any], value: Any, expected: Any
     ) -> None:
         mcp = FastMCP()
 
@@ -158,7 +161,7 @@ class TestStructuredResultHydration:
                 "required": ["value"],
             }
         )
-        def constrained_result() -> dict[str, Any]:
+        def constrained_result() -> Dict[str, Any]:
             return {"value": value}
 
         async with Client(mcp) as client:
@@ -195,7 +198,7 @@ class TestStructuredResultHydration:
         mcp = FastMCP()
 
         @mcp.tool
-        def first_seen() -> tuple[date, int]:
+        def first_seen() -> Tuple[date, int]:
             return (date(2026, 8, 27), 3)
 
         async with Client(mcp) as client:
@@ -207,7 +210,7 @@ class TestStructuredResultHydration:
         mcp = FastMCP()
 
         @mcp.tool
-        def recent() -> dict[str, list[date]]:
+        def recent() -> Dict[str, List[date]]:
             return {"days": [date(2026, 8, 27), date(2026, 8, 28)]}
 
         async with Client(mcp) as client:
@@ -225,7 +228,7 @@ class TestWrappedResultKeepsDefs:
         mcp = FastMCP(dereference_schemas=dereference_schemas)
 
         @mcp.tool
-        def items() -> list[Item]:
+        def items() -> List[Item]:
             return [Item(name="a", when=date(2024, 1, 2))]
 
         async with Client(mcp) as client:
@@ -241,7 +244,7 @@ class TestWrappedResultKeepsDefs:
         mcp = FastMCP(dereference_schemas=dereference_schemas)
 
         @mcp.tool
-        def maybe_item() -> Item | None:
+        def maybe_item() -> Optional[Item]:
             return Item(name="a", when=date(2024, 1, 2))
 
         async with Client(mcp) as client:
@@ -256,7 +259,7 @@ class TestWrappedResultKeepsDefs:
         mcp = FastMCP(dereference_schemas=dereference_schemas)
 
         @mcp.tool
-        def trees() -> list[TreeNode]:
+        def trees() -> List[TreeNode]:
             return [TreeNode(value=1, children=[TreeNode(value=2)])]
 
         async with Client(mcp) as client:

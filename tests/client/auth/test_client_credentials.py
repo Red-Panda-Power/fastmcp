@@ -8,11 +8,13 @@ directly with a mock responder that answers OAuth discovery and the token
 endpoint, exactly as httpx would while running the auth flow.
 """
 
+from __future__ import annotations
+
 import base64
 import time
 import warnings
 from collections.abc import Callable
-from contextlib import aclosing
+from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
 import httpx2
@@ -35,6 +37,15 @@ SERVER_URL = "https://mcp.example.com/mcp"
 AUTH_SERVER_URL = "https://auth.example.com"
 # 32+ bytes so PyJWT does not warn about weak HMAC keys under -W error.
 SIGNING_KEY = "unit-test-signing-key-padded-to-32b"
+
+
+@asynccontextmanager
+async def aclosing(thing):
+    """Close an asynchronous iterator when leaving its context."""
+    try:
+        yield thing
+    finally:
+        await thing.aclose()
 
 
 def make_m2m_responder(

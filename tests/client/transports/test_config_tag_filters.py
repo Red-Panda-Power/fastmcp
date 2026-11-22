@@ -1,5 +1,7 @@
 """MCP config tag filters keep their meaning when another server is added."""
 
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any

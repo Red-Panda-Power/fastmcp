@@ -1,5 +1,7 @@
 """CLI JSON retains supported MCP content, wire aliases, and metadata."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 

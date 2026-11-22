@@ -1,5 +1,7 @@
 """Per-server MCP config timeouts reach the sessions that send requests."""
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager

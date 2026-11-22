@@ -1,6 +1,9 @@
+# Python 3.8 must evaluate these typing aliases directly for local models.
+# ruff: noqa: UP006, UP007, UP035
+
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Literal, cast
+from typing import Any, Dict, Literal, Type, Union, cast
 
 import mcp_types
 import pytest
@@ -547,7 +550,7 @@ class UserInfoPydantic(BaseModel):
     "structured_type", [UserInfo, UserInfoTypedDict, UserInfoPydantic]
 )
 async def test_structured_response_type(
-    structured_type: type[UserInfo | UserInfoTypedDict | UserInfoPydantic],
+    structured_type: Type[Union[UserInfo, UserInfoTypedDict, UserInfoPydantic]],
 ):
     """Test elicitation with dataclass response type."""
     mcp = FastMCP("TestServer")
@@ -563,7 +566,7 @@ async def test_structured_response_type(
         if result.action == "accept":
             assert isinstance(result, AcceptedElicitation)
             if isinstance(result.data, dict):
-                data_dict = cast(dict[str, Any], result.data)
+                data_dict = cast(Dict[str, Any], result.data)
                 name = data_dict.get("name")
                 age = data_dict.get("age")
                 assert name is not None
@@ -609,11 +612,11 @@ async def test_all_primitive_field_types():
     class Data:
         integer: int
         float_: float
-        number: int | float
+        number: Union[int, float]
         boolean: bool
         string: str
         constant: Literal["x"]
-        union: Literal["x"] | Literal["y"]
+        union: Union[Literal["x"], Literal["y"]]
         choice: Literal["x", "y"]
         enum: DataEnum
 
@@ -804,13 +807,13 @@ class TestPatternMatching:
 class TestAcceptedContentValidation:
     """Accepted form content must satisfy the requested schema."""
 
-    AGE_SCHEMA: dict[str, Any] = {
+    AGE_SCHEMA: Dict[str, Any] = {
         "type": "object",
         "properties": {"age": {"type": "integer"}},
         "required": ["age"],
     }
 
-    async def _respond(self, schema: dict[str, Any], response: Any):
+    async def _respond(self, schema: Dict[str, Any], response: Any):
         async def handler(message, response_type, params, ctx):
             return response
 
@@ -819,7 +822,7 @@ class TestAcceptedContentValidation:
         return await callback(cast(Any, None), params)
 
     @pytest.mark.parametrize("content", [{"age": "x"}, {}, {"age": "42"}])
-    async def test_invalid_content_is_an_error(self, content: dict[str, Any]):
+    async def test_invalid_content_is_an_error(self, content: Dict[str, Any]):
         result = await self._respond(self.AGE_SCHEMA, content)
         assert isinstance(result, mcp_types.ErrorData)
 
