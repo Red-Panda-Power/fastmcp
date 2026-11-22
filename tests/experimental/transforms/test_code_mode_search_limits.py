@@ -1,6 +1,7 @@
 """Code Mode must apply result limits after ranking the complete catalog."""
 
 import json
+from typing import Dict, Optional
 
 import pytest
 
@@ -53,8 +54,8 @@ _RANKED_NAMES = [f"add_{index:02d}" for index in range(CATALOG_SIZE - 1, -1, -1)
     ],
 )
 async def test_search_applies_limits_after_ranking(
-    default_limit: int | None,
-    override: dict[str, int | None],
+    default_limit: Optional[int],
+    override: Dict[str, Optional[int]],
     expected_count: int,
 ) -> None:
     server = _ranked_catalog()

@@ -1,5 +1,5 @@
 import datetime
-from typing import Any
+from typing import Any, List, Optional
 
 import pytest
 
@@ -74,7 +74,7 @@ def test_schema_type_unions(schema: Any, expected: str) -> None:
         ),
     ],
 )
-def test_schema_section_fallbacks(schema: Any, expected_lines: list[str]) -> None:
+def test_schema_section_fallbacks(schema: Any, expected_lines: List[str]) -> None:
     assert _schema_section(schema, "Parameters") == expected_lines
 
 
@@ -181,7 +181,7 @@ def test_schema_section_stops_on_recursive_refs() -> None:
 
 @pytest.mark.parametrize("union", ["anyOf", "oneOf", "allOf"])
 def test_schema_section_visits_shared_definitions_once(union: str) -> None:
-    class TrackedSchema(dict[str, Any]):
+    class TrackedSchema(dict):
         visits = 0
 
         def get(self, key: object, default: Any = None, /) -> Any:
@@ -361,7 +361,7 @@ async def test_serialize_tools_for_output_markdown_optional_field_uses_question_
     mcp = FastMCP("MD Optional")
 
     @mcp.tool
-    def greet(name: str, greeting: str | None = None) -> str:
+    def greet(name: str, greeting: Optional[str] = None) -> str:
         return f"{greeting or 'Hello'}, {name}!"
 
     tools = await mcp.list_tools()
