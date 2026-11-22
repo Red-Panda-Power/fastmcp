@@ -1,5 +1,8 @@
 """Core client functionality: tools, resources, prompts."""
 
+# These aliases are evaluated by FastMCP on Python 3.8; PEP 585 aliases fail there.
+# ruff: noqa: UP006, UP035
+
 from __future__ import annotations
 
 import asyncio
@@ -8,7 +11,7 @@ import datetime
 import gc
 import weakref
 from collections.abc import AsyncGenerator
-from typing import Any, cast
+from typing import Any, Dict, List, cast
 
 import anyio
 import pytest
@@ -26,6 +29,10 @@ from fastmcp.server.server import FastMCP
 from fastmcp.tools import ToolResult
 from fastmcp.tools.base import Tool
 from tests.conftest import user_meta
+
+
+class EmptyStructuredContent(BaseModel):
+    """Model used to verify empty structured results hydrate to a plain dict."""
 
 
 async def test_list_tools(fastmcp_server):
@@ -93,7 +100,7 @@ async def test_call_tool_with_meta():
 
     # Create a tool that accesses the meta from the request context
     @server.tool
-    def check_meta() -> dict[str, Any]:
+    def check_meta() -> Dict[str, Any]:
         """A tool that returns the meta from the request context."""
         from fastmcp.server.dependencies import get_context
 
@@ -238,7 +245,7 @@ async def test_client_server_type_conversion_integration():
     server = FastMCP("TestServer")
 
     @server.prompt
-    def typed_prompt(numbers: list[int], config: dict[str, str]) -> str:
+    def typed_prompt(numbers: List[int], config: Dict[str, str]) -> str:
         """Server expects typed args - will convert from JSON strings."""
         return f"Got {len(numbers)} numbers and {len(config)} config items"
 
@@ -292,7 +299,7 @@ async def test_server_deserialization_error():
     server = FastMCP("TestServer")
 
     @server.prompt
-    def strict_typed_prompt(numbers: list[int]) -> str:
+    def strict_typed_prompt(numbers: List[int]) -> str:
         """Expects list of integers but will receive invalid JSON."""
         return f"Got {len(numbers)} numbers"
 
@@ -901,7 +908,7 @@ async def test_client_unwraps_result_using_meta():
     server = FastMCP()
 
     @server.tool
-    def list_tool() -> list[int]:
+    def list_tool() -> List[int]:
         return [1, 2, 3]
 
     client = Client(transport=FastMCPTransport(server))
@@ -917,7 +924,7 @@ async def test_client_does_not_unwrap_dict_result():
     server = FastMCP()
 
     @server.tool
-    def dict_tool() -> dict[str, int]:
+    def dict_tool() -> Dict[str, int]:
         return {"a": 1}
 
     client = Client(transport=FastMCPTransport(server))
@@ -932,16 +939,13 @@ async def test_client_decodes_empty_structured_content():
     """An empty object is a valid structured result, not a missing one (issue #5287)."""
     server = FastMCP()
 
-    class Empty(BaseModel):
-        pass
-
     @server.tool
-    def empty_dict() -> dict[str, str]:
+    def empty_dict() -> Dict[str, str]:
         return {}
 
     @server.tool
-    def empty_model() -> Empty:
-        return Empty()
+    def empty_model() -> EmptyStructuredContent:
+        return EmptyStructuredContent()
 
     client = Client(transport=FastMCPTransport(server))
     async with client:
@@ -1000,7 +1004,7 @@ async def test_client_list_dict_return_type():
     server = FastMCP()
 
     @server.tool
-    def get_temperatures() -> list[dict]:
+    def get_temperatures() -> List[Dict]:
         """Get current temperatures for all cities"""
         return [
             {"city": "NYC", "temp": 72},
