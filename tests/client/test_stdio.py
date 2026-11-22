@@ -179,28 +179,34 @@ class TestPartialConstruction:
 
         transport.__del__()
 
-    async def test_del_signals_active_connection_on_owning_loop(self):
+    def test_del_signals_unbound_event_from_worker_thread(self):
         transport = StdioTransport(command="python", args=[])
         stop_event = transport._stop_event
-        connection_started = asyncio.Event()
-        stopped = asyncio.Event()
+        assert stop_event._internal_event is None
 
-        async def wait_for_disconnect():
-            await connection_started.wait()
-            await stop_event.wait()
-            stopped.set()
+        async def run_connection():
+            connection_started = asyncio.Event()
+            stopped = asyncio.Event()
 
-        connect_task = asyncio.create_task(wait_for_disconnect())
-        transport._connect_task = connect_task
+            async def wait_for_disconnect():
+                await connection_started.wait()
+                await stop_event.wait()
+                stopped.set()
 
-        # GC may run off the owning loop while the connection task exists but
-        # has not yet awaited (and bound) its AnyIO stop event.
-        await anyio.to_thread.run_sync(transport.__del__)
-        await asyncio.sleep(0)
-        connection_started.set()
+            connect_task = asyncio.create_task(wait_for_disconnect())
+            transport._connect_task = connect_task
 
-        await asyncio.wait_for(stopped.wait(), timeout=1)
-        await connect_task
+            # GC can run off-loop before the connection task has first awaited
+            # the AnyIO event, so its adapter is still unbound here.
+            await anyio.to_thread.run_sync(transport.__del__)
+            await asyncio.sleep(0)
+            connection_started.set()
+
+            await asyncio.wait_for(stopped.wait(), timeout=1)
+            await connect_task
+            assert stop_event.is_set()
+
+        asyncio.run(run_connection())
 
     def test_del_skips_connection_with_closed_loop(self):
         loop = asyncio.new_event_loop()
