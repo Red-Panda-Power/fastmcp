@@ -98,6 +98,7 @@ from pydantic import (
     PlainValidator,
     StringConstraints,
     TypeAdapter,
+    WithJsonSchema,
     create_model,
     model_validator,
 )
@@ -158,6 +159,26 @@ def _normalize_yaml_types(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_normalize_yaml_types(v) for v in obj]
     return obj
+
+
+def _schema_contains_default(schema: Any) -> bool:
+    """Whether an object schema needs a default-merging validator."""
+    pending = [schema]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if not isinstance(current, Mapping):
+            continue
+        current_id = id(current)
+        if current_id in seen:
+            continue
+        seen.add(current_id)
+        if "default" in current:
+            return True
+        properties = current.get("properties")
+        if isinstance(properties, Mapping):
+            pending.extend(properties.values())
+    return False
 
 
 def _reject_all(v: Any) -> Any:
@@ -747,22 +768,28 @@ def _create_enum(name: str, values: list[Any]) -> Any:
                 return allowed if hashable else value
         raise ValueError(f"Input should be one of {values!r}")
 
-    # Pydantic 2.10 on Python 3.8 also normalizes equal boolean and numeric
-    # Literal values while it generates JSON Schema.  The validator above
-    # deliberately distinguishes JSON booleans from numbers, so use the same
-    # non-Literal representation used for unhashable values when this would
-    # lose an enum member or its original type.
-    contains_boolean = any(isinstance(value, bool) for value in values)
-    contains_number = any(
-        isinstance(value, (int, float)) and not isinstance(value, bool)
+    boolean_values = [value for value in values if isinstance(value, bool)]
+    numeric_values = [
+        value
         for value in values
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    ]
+    has_equal_boolean_and_number = any(
+        boolean == number for boolean in boolean_values for number in numeric_values
     )
-    if not hashable or (
-        sys.version_info < (3, 9) and contains_boolean and contains_number
-    ):
+    if not hashable:
         # A Literal holding an object or array cannot be hashed into a Union.
         return Annotated[
             Any, BeforeValidator(check), Field(json_schema_extra={"enum": values})
+        ]
+    if sys.version_info < (3, 9) and has_equal_boolean_and_number:
+        # Pydantic 2.10 normalizes equal boolean and numeric Literal values
+        # while generating JSON Schema.  Retain the Literal for validation and
+        # smart-union dispatch, but supply the unmodified JSON Schema enum.
+        return Annotated[
+            literal,
+            PlainValidator(check, json_schema_input_type=literal),
+            WithJsonSchema({"enum": values}),
         ]
     return Annotated[literal, PlainValidator(check, json_schema_input_type=literal)]
 
@@ -1603,10 +1630,7 @@ def _build_dataclass(
     # Pydantic 2.10, wrapping every generated dataclass adds a function node at
     # every object level, and its core-schema validator mistakes a valid deep
     # acyclic graph for a recursive schema cycle.
-    has_defaults_to_merge = "default" in original_schema or any(
-        isinstance(prop_schema, Mapping) and "default" in prop_schema
-        for prop_schema in properties.values()
-    )
+    has_defaults_to_merge = _schema_contains_default(original_schema)
     if sys.version_info >= (3, 9) or has_defaults_to_merge:
 
         @model_validator(mode="before")

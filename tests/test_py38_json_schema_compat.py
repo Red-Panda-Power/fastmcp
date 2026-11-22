@@ -99,3 +99,44 @@ def test_object_property_defaults_still_merge() -> None:
 
     assert instance.config.left == 1
     assert instance.config.right == 3
+
+
+def test_mixed_enum_keeps_smart_union_integer_precision() -> None:
+    """An enum without an equal bool/number pair keeps its Literal dispatch."""
+    schema = {
+        "anyOf": [
+            {"type": "number"},
+            {"enum": [True, 9007199254740993]},
+        ]
+    }
+
+    value = TypeAdapter(json_schema_to_type(schema)).validate_python(9007199254740993)
+
+    assert value == 9007199254740993
+    assert type(value) is int
+
+
+def test_nested_defaults_merge_through_extra_properties_model() -> None:
+    """A descendant default still merges when an ancestor is a dataclass."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "container": {
+                "type": "object",
+                "additionalProperties": True,
+                "properties": {
+                    "settings": {
+                        "type": "object",
+                        "default": {"region": "us", "tier": 1},
+                    }
+                },
+            }
+        },
+    }
+
+    instance = TypeAdapter(json_schema_to_type(schema)).validate_python(
+        {"container": {"settings": {"tier": 2}, "extra": "kept"}}
+    )
+
+    assert instance.container.settings == {"region": "us", "tier": 2}
+    assert instance.container.extra == "kept"
