@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 import asyncio
 import functools
 import threading
-from typing import Annotated, Any
+from typing import Any
 from urllib.parse import quote
 
 import pytest
 from mcp.types import TextResourceContents
 from pydantic import BaseModel, Field
+from typing_extensions import Annotated
 
 from fastmcp import Client, Context, FastMCP
 from fastmcp.resources import ResourceContent, ResourceTemplate
@@ -275,6 +278,10 @@ class TestResourceTemplate:
         def get_data(key: str, value: int) -> MyModel:
             return MyModel(key=key, value=value)
 
+        # Keep the local model object available to Pydantic 2.10 on Python 3.8.
+        # Module-level postponed annotations otherwise resolve only globals.
+        get_data.__annotations__["return"] = MyModel
+
         template = ResourceTemplate.from_function(
             fn=get_data,
             uri_template="test://{key}/{value}",
@@ -305,6 +312,8 @@ class TestResourceTemplate:
 
         def get_data(value: str) -> CustomData:
             return CustomData(value)
+
+        get_data.__annotations__["return"] = CustomData
 
         template = ResourceTemplate.from_function(
             fn=get_data,
