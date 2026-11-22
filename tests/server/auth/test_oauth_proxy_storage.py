@@ -1,5 +1,7 @@
 """Tests for OAuth proxy with persistent storage."""
 
+from __future__ import annotations
+
 import asyncio
 import tempfile
 import warnings

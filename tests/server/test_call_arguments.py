@@ -1,5 +1,7 @@
 """Tests for CallArgument and Depends bindings through FastMCP's resolution."""
 
+from __future__ import annotations
+
 import pytest
 from mcp_types import TextContent
 

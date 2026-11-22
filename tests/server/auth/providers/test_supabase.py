@@ -1,5 +1,7 @@
 """Tests for Supabase Auth provider."""
 
+from __future__ import annotations
+
 from collections.abc import Generator
 
 import pytest

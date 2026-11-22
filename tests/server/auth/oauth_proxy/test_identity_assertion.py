@@ -5,6 +5,8 @@ fake IdP JWT (a keypair is generated per test). The proxy's JWKS lookup is
 served via httpx_mock, so no real network calls are made.
 """
 
+from __future__ import annotations
+
 import subprocess
 import sys
 import time

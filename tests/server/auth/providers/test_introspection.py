@@ -1,5 +1,7 @@
 """Tests for OAuth 2.0 Token Introspection verifier (RFC 7662)."""
 
+from __future__ import annotations
+
 import base64
 import time
 from typing import Any

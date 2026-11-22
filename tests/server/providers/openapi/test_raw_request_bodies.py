@@ -1,5 +1,7 @@
 """Non-JSON request bodies retain the media type required by the endpoint."""
 
+from __future__ import annotations
+
 import httpx2
 from fastapi import Body, FastAPI, Request
 

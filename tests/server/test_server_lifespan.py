@@ -1,5 +1,7 @@
 """Tests for server_lifespan and session_lifespan behavior."""
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager

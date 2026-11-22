@@ -1,5 +1,7 @@
 """Default component names survive operations without ASCII letters or digits."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import httpx2

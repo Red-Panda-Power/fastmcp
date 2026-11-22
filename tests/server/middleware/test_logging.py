@@ -1,5 +1,7 @@
 """Tests for logging middleware."""
 
+from __future__ import annotations
+
 import datetime
 import logging
 from collections.abc import Generator

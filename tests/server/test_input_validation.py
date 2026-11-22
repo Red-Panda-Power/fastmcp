@@ -11,7 +11,7 @@ import enum
 import json
 import uuid
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import httpx2
 import pytest
@@ -26,6 +26,7 @@ from pydantic import (
     field_validator,
 )
 from pydantic_core import PydanticCustomError
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError, ValidationError
@@ -47,7 +48,7 @@ class PrivatePayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     token: str
-    values: dict[str, int] = Field(default_factory=dict)
+    values: Dict[str, int] = Field(default_factory=dict)  # noqa: UP006
 
     @field_validator("token")
     @classmethod
@@ -59,7 +60,7 @@ class PrivatePayload(BaseModel):
 
 
 class RawValidationTool(Tool):
-    async def run(self, arguments: dict[str, Any]) -> ToolResult:
+    async def run(self, arguments: Dict[str, Any]) -> ToolResult:  # noqa: UP006
         PrivatePayload.model_validate(arguments)
         return ToolResult(content="ok")
 
@@ -266,8 +267,8 @@ class TestStrictModeAcceptsJsonValues:
                 uuid.UUID("12345678-1234-5678-1234-567812345678"),
             ),
             (Point, {"x": 1}, Point(x=1)),
-            (tuple[int, int], [1, 2], (1, 2)),
-            (set[int], [1], {1}),
+            (Tuple[int, int], [1, 2], (1, 2)),  # noqa: UP006
+            (Set[int], [1], {1}),  # noqa: UP006
             (float, 1, 1.0),
         ],
     )
@@ -476,7 +477,7 @@ class TestEdgeCases:
         mcp = FastMCP("TestServer", strict_input_validation=False)
 
         @mcp.tool
-        def process_optional(value: int | None) -> str:
+        def process_optional(value: Optional[int]) -> str:  # noqa: UP045
             """Process an optional value."""
             return f"Value: {value}"
 
@@ -523,7 +524,7 @@ class TestEdgeCases:
         mcp = FastMCP("TestServer", strict_input_validation=False)
 
         @mcp.tool
-        def sum_numbers(numbers: list[int]) -> int:
+        def sum_numbers(numbers: List[int]) -> int:  # noqa: UP006
             """Sum a list of numbers."""
             return sum(numbers)
 
@@ -548,7 +549,7 @@ class TestExpectedToolFailureLogging:
         mcp = FastMCP("TestServer", mask_error_details=mask_error_details)
 
         @mcp.tool
-        def load_record(record: dict[str, Any]) -> str:
+        def load_record(record: Dict[str, Any]) -> str:  # noqa: UP006
             return StoredRecord.model_validate(record).content
 
         tool_name = "load_record"
@@ -718,11 +719,11 @@ class TestExpectedToolFailureLogging:
 
     async def test_custom_error_codes_are_not_logged(self, caplog):
         class Payload(BaseModel):
-            values: list[str]
+            values: List[str]  # noqa: UP006
 
             @field_validator("values")
             @classmethod
-            def reject_values(cls, values: list[str]) -> list[str]:
+            def reject_values(cls, values: List[str]) -> List[str]:  # noqa: UP006
                 # Runtime validators can use input-derived codes despite the type hint.
                 raise PydanticCustomError(
                     values[0],  # ty: ignore[invalid-argument-type]

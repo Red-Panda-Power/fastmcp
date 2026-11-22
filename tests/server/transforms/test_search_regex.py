@@ -1,5 +1,7 @@
 """Pattern syntax and matching behavior for regex tool search."""
 
+from __future__ import annotations
+
 import subprocess
 import sys
 import textwrap

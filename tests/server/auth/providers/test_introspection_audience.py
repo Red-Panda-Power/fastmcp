@@ -1,5 +1,7 @@
 """Audience selection for introspected tokens."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import pytest

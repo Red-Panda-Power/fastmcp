@@ -1,8 +1,11 @@
 """Dependencies declared in `Annotated` metadata resolve like `Depends()` defaults."""
 
-from typing import Annotated
+from __future__ import annotations
+
+from typing import Dict
 
 import pytest
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp import FastMCP
 from fastmcp.client import Client
@@ -14,7 +17,7 @@ def get_config() -> dict[str, str]:
     return {"api_url": "https://api.example.com"}
 
 
-Config = Annotated[dict[str, str], Depends(get_config)]
+Config = Annotated[Dict[str, str], Depends(get_config)]
 
 
 async def test_tool_resolves_annotated_dependency_outside_its_schema():

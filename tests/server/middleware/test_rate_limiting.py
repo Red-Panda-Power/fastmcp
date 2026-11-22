@@ -1,5 +1,7 @@
 """Tests for rate limiting middleware."""
 
+from __future__ import annotations
+
 import asyncio
 import warnings
 from types import SimpleNamespace

@@ -1,5 +1,7 @@
 """Whole-body arguments must not hide parameters in other HTTP locations."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 

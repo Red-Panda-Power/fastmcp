@@ -1,5 +1,7 @@
 """Request body schemas that combine a $ref with sibling properties."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 

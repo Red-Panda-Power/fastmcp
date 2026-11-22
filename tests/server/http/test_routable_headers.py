@@ -8,9 +8,10 @@ on them. The tool echoes back the raw request headers it received, letting the
 test assert on exactly what reached the server.
 """
 
-from typing import Annotated
+from __future__ import annotations
 
 from pydantic import Field
+from typing_extensions import Annotated  # noqa: UP035
 
 from fastmcp.server.dependencies import get_http_request
 from fastmcp.server.server import FastMCP

@@ -1,5 +1,7 @@
 """Advanced mounting scenarios."""
 
+from __future__ import annotations
+
 import pytest
 from mcp_types import TextContent
 from starlette.routing import Route

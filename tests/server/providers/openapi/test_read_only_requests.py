@@ -1,5 +1,7 @@
 """readOnly properties are response-only, so tool input schemas omit them."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 

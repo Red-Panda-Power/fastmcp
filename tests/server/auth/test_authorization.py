@@ -1,5 +1,7 @@
 """Tests for authorization checks and AuthMiddleware."""
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from unittest.mock import Mock
 

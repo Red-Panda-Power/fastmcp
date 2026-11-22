@@ -5,6 +5,8 @@ list (`{?filter*,q}`), so an exploded object property named like another
 parameter sends both values rather than one overwriting the other.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 import httpx2

@@ -1,5 +1,7 @@
 """Header and path parameter values follow the OpenAPI "simple" style."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import httpx2

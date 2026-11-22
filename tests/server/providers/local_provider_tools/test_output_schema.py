@@ -1,7 +1,7 @@
 """Tests for tool output schemas."""
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Dict, List, Literal, Tuple, Union
 
 import pytest
 from mcp_types import (
@@ -66,7 +66,7 @@ class TestToolOutputSchema:
 
     @pytest.mark.parametrize(
         "annotation",
-        [dict[str, int | str], PersonTypedDict, PersonModel, PersonDataclass],
+        [Dict[str, Union[int, str]], PersonTypedDict, PersonModel, PersonDataclass],  # noqa: UP006
     )
     async def test_structured_output_schema(self, annotation):
         mcp = FastMCP()
@@ -157,7 +157,7 @@ class TestToolOutputSchema:
                 "required": ["greeting"],
             }
         )
-        def explicit_tool() -> dict[str, Any]:
+        def explicit_tool() -> Dict[str, Any]:  # noqa: UP006
             return {"greeting": "Hello", "count": 42}
 
         tools = await mcp.list_tools()
@@ -201,13 +201,14 @@ class TestToolOutputSchema:
         mcp = FastMCP()
 
         @mcp.tool
-        def complex_tool() -> list[dict[str, int]]:
+        def complex_tool() -> List[Dict[str, int]]:  # noqa: UP006
             return [{"a": 1, "b": 2}, {"c": 3, "d": 4}]
 
         tools = await mcp.list_tools()
         tool = next(t for t in tools if t.name == "complex_tool")
         expected_inner_schema = compress_schema(
-            TypeAdapter(list[dict[str, int]]).json_schema(), prune_titles=True
+            TypeAdapter(List[Dict[str, int]]).json_schema(),
+            prune_titles=True,  # noqa: UP006
         )
         expected_schema = {
             "type": "object",
@@ -250,7 +251,7 @@ class TestToolOutputSchema:
         mcp = FastMCP()
 
         @mcp.tool
-        def mixed_output() -> list[Any]:
+        def mixed_output() -> List[Any]:  # noqa: UP006
             return [
                 "text message",
                 {"structured": "data"},
@@ -272,7 +273,7 @@ class TestToolOutputSchema:
         server = FastMCP()
 
         @server.tool
-        def list_tool() -> list[dict]:
+        def list_tool() -> List[dict]:  # noqa: UP006
             return [{"a": 1}]
 
         result = await server.call_tool("list_tool", {})
@@ -284,7 +285,7 @@ class TestToolOutputSchema:
         server = FastMCP()
 
         @server.tool
-        def dict_tool() -> dict[str, int]:
+        def dict_tool() -> Dict[str, int]:  # noqa: UP006
             return {"value": 42}
 
         result = await server.call_tool("dict_tool", {})
@@ -296,7 +297,7 @@ class TestToolOutputSchema:
         mcp = FastMCP()
 
         @mcp.tool
-        def edge_case_tool() -> tuple[int, str]:
+        def edge_case_tool() -> Tuple[int, str]:  # noqa: UP006
             return (42, "hello")
 
         tools = await mcp.list_tools()
@@ -357,7 +358,7 @@ async def test_nullable_object_output_schema_is_registrable(mode: str):
     mcp = FastMCP()
 
     @mcp.tool(output_schema=schema)
-    def maybe_value() -> dict[str, int]:
+    def maybe_value() -> Dict[str, int]:  # noqa: UP006
         return {"value": 1}
 
     async with Client(mcp, mode=mode) as client:

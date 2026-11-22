@@ -1,5 +1,7 @@
 """Tests for Azure provider scope handling, JWT verifier, and OBO integration."""
 
+from __future__ import annotations
+
 import pytest
 from key_value.aio.stores.memory import MemoryStore
 

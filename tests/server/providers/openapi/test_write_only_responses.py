@@ -1,5 +1,7 @@
 """writeOnly properties are request-only, so tool output schemas omit them."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 

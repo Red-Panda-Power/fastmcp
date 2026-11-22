@@ -1,5 +1,7 @@
 """FastAPI tuple schemas retain resolvable model references."""
 
+from typing import Dict, List, Tuple
+
 import httpx2
 import pytest
 from fastapi import FastAPI
@@ -17,7 +19,7 @@ async def test_fastapi_tuple_input_schema() -> None:
     app = FastAPI()
 
     @app.post("/items", operation_id="save_item")
-    def save_item(value: tuple[Item, int]) -> dict[str, str]:
+    def save_item(value: Tuple[Item, int]) -> Dict[str, str]:
         return {"name": value[0].name}
 
     arguments = {"value": [{"name": "example"}, 2]}
@@ -43,7 +45,7 @@ async def test_fastapi_tuple_output_schema() -> None:
     app = FastAPI()
 
     @app.post("/items", operation_id="get_item")
-    def get_item() -> tuple[Item, int]:
+    def get_item() -> Tuple[Item, int]:
         return Item(name="example"), 2
 
     async with httpx2.AsyncClient(
@@ -61,7 +63,7 @@ async def test_fastapi_tuple_output_schema() -> None:
 
 async def test_fastapi_nested_tuple_schemas() -> None:
     class Batch(BaseModel):
-        entries: list[tuple[Item, int]]
+        entries: List[Tuple[Item, int]]
 
     app = FastAPI()
 

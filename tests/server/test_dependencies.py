@@ -1,5 +1,7 @@
 """Tests for Docket-style dependency injection in FastMCP."""
 
+from __future__ import annotations
+
 from contextlib import asynccontextmanager, contextmanager
 
 import pytest

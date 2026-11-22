@@ -18,7 +18,6 @@ the ≤2025-11-25 era gate. The client-side *answering* path is covered by
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated
 
 import mcp_types
 import pytest
@@ -28,7 +27,10 @@ from mcp.shared.exceptions import MCPError
 from mcp_types import ElicitRequest, InputRequiredResult
 from mcp_types.version import MODERN_PROTOCOL_VERSIONS
 from pydantic import Field
-from typing_extensions import TypeAliasType
+from typing_extensions import (
+    Annotated,  # noqa: UP035
+    TypeAliasType,
+)
 
 from fastmcp import Client, Context, FastMCP
 from fastmcp.client.elicitation import ElicitResult

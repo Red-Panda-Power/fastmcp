@@ -1,5 +1,7 @@
 """Extension requirements follow every runtime using live provider composition."""
 
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 

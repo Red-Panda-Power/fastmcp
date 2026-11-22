@@ -1,5 +1,7 @@
 """Tests for middleware in HTTP apps."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from typing import Any
 

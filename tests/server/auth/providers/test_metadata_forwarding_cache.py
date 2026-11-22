@@ -7,6 +7,8 @@ provider instance and refreshes it at most once per interval, with a single
 refresh in flight at a time.
 """
 
+from __future__ import annotations
+
 import asyncio
 
 import httpx2

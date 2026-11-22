@@ -1,5 +1,7 @@
 """Query array serialization follows the declared OpenAPI style."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import httpx2

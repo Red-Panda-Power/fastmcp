@@ -28,6 +28,8 @@ loudly. The user enter/exit counter is kept as a secondary check on the
 "entered once, exited once at shutdown" shape.
 """
 
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any

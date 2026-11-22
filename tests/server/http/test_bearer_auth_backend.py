@@ -1,5 +1,7 @@
 """Tests for BearerAuthBackend integration with TokenVerifier."""
 
+from __future__ import annotations
+
 import pytest
 from mcp.server.auth.middleware.bearer_auth import BearerAuthBackend
 from starlette.requests import HTTPConnection

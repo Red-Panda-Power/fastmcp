@@ -1,5 +1,7 @@
 """Server metadata forwarding across proxy protocol eras."""
 
+from __future__ import annotations
+
 from itertools import product
 from typing import Any, Literal, TypeVar
 

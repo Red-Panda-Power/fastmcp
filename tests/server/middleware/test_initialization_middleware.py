@@ -10,6 +10,8 @@ handshake-era's persistent session (see `test_session_visibility.py` for the
 same distinction applied to a different feature).
 """
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from typing import Any
 
