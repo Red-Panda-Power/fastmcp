@@ -351,9 +351,10 @@ def _serialize_runtime_any_value(value: Any) -> Any:
         if _is_model_value(value) and not _schema_contains_any(
             get_cached_typeadapter(annotation).core_schema
         ):
-            return _get_json_serializer(annotation).to_python(value, mode="json")
-        serializer = _get_dynamic_json_serializer(annotation, value)
-        return serializer.to_python(value, mode="json")
+            serializer = _get_json_serializer(annotation)
+        else:
+            serializer = _get_dynamic_json_serializer(annotation, value)
+        return json.loads(serializer.to_json(value))
     finally:
         _RUNTIME_ANY_VALUE_IDS.reset(token)
 

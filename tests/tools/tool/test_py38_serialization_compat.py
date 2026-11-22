@@ -84,6 +84,18 @@ class BeforeModel(BaseModel):
         return data
 
 
+class NullNonfiniteModel(BaseModel):
+    model_config = ConfigDict(ser_json_inf_nan="null")
+
+    value: float
+
+
+class StringNonfiniteModel(BaseModel):
+    model_config = ConfigDict(ser_json_inf_nan="strings")
+
+    value: float
+
+
 @with_config(ConfigDict(serialize_by_alias=True))
 @dataclass
 class AliasDataclass:
@@ -227,6 +239,32 @@ def test_plain_serializer_any_return_keeps_nested_alias_policy():
     ]
 
     assert _serialize_to_jsonable("ignored", annotation) == {"value": "x"}
+
+
+def test_any_dispatch_respects_model_nonfinite_json_policies():
+    null_model = NullNonfiniteModel(value=float("nan"))
+    string_model = StringNonfiniteModel(value=float("nan"))
+
+    assert _serialize_to_jsonable([null_model, 1], List[Any]) == [
+        {"value": None},
+        1,
+    ]
+    assert _serialize_to_jsonable(
+        {"model": null_model, "plain": 1}, Dict[str, Any]
+    ) == {
+        "model": {"value": None},
+        "plain": 1,
+    }
+    assert _serialize_to_jsonable([string_model, 1], List[Any]) == [
+        {"value": "NaN"},
+        1,
+    ]
+    assert _serialize_to_jsonable(
+        {"model": string_model, "plain": 1}, Dict[str, Any]
+    ) == {
+        "model": {"value": "NaN"},
+        "plain": 1,
+    }
 
 
 def test_any_in_tuple_typed_dict_and_union_preserves_default_alias_policy():
