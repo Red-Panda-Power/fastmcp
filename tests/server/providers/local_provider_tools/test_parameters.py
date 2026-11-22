@@ -1,14 +1,12 @@
 """Tests for tool parameters and validation."""
 
-from __future__ import annotations
-
 import base64
 import datetime
 import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Union
 
 import pytest
 from mcp_types import (
@@ -261,7 +259,7 @@ class TestToolParameters:
         mcp = FastMCP()
 
         @mcp.tool
-        def analyze(x: int | float) -> str:
+        def analyze(x: Union[int, float]) -> str:
             return str(x)
 
         result = await mcp.call_tool("analyze", {"x": 1})
