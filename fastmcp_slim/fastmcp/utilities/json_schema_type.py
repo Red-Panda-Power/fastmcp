@@ -162,7 +162,7 @@ def _normalize_yaml_types(obj: Any) -> Any:
 
 
 def _schema_contains_default(schema: Any) -> bool:
-    """Whether an object schema needs a default-merging validator."""
+    """Whether an object schema needs a default-mapping validator."""
     pending = [schema]
     seen: set[int] = set()
     while pending:
@@ -173,7 +173,7 @@ def _schema_contains_default(schema: Any) -> bool:
         if current_id in seen:
             continue
         seen.add(current_id)
-        if "default" in current:
+        if isinstance(current.get("default"), Mapping):
             return True
         properties = current.get("properties")
         if isinstance(properties, Mapping):

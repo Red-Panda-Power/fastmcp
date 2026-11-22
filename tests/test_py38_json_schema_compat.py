@@ -77,6 +77,46 @@ def test_deep_acyclic_object_schema_does_not_report_a_cycle() -> None:
     assert node.leaf == "ok"
 
 
+def test_deep_acyclic_schema_with_scalar_default_does_not_report_a_cycle() -> None:
+    """A scalar default does not require an extra default-merging wrapper."""
+    depth = 20
+    definitions: dict[str, Any] = {
+        f"M{index}": {
+            "type": "object",
+            "properties": {
+                "child": {
+                    "anyOf": [
+                        {"$ref": f"#/$defs/M{index + 1}"},
+                        {"type": "null"},
+                    ]
+                }
+            },
+        }
+        for index in range(depth)
+    }
+    definitions[f"M{depth}"] = {
+        "type": "object",
+        "properties": {"leaf": {"type": "string", "default": "ok"}},
+    }
+    schema = {
+        "type": "object",
+        "title": "DeepScalarDefault",
+        "properties": {"child": {"$ref": "#/$defs/M0"}},
+        "$defs": definitions,
+    }
+    value: dict[str, Any] = {}
+    for _ in range(depth):
+        value = {"child": value}
+
+    instance = TypeAdapter(json_schema_to_type(schema)).validate_python(
+        {"child": value}
+    )
+    node: Any = instance.child
+    for _ in range(depth):
+        node = node.child
+    assert node.leaf == "ok"
+
+
 def test_object_property_defaults_still_merge() -> None:
     """Skipping unnecessary wrappers does not skip a schema's real defaults."""
     schema = {
