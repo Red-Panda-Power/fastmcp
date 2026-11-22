@@ -12,6 +12,7 @@ from typing import TextIO, cast
 import anyio
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import Unpack
 
 from fastmcp.client.transports.base import (
@@ -329,13 +330,64 @@ class StdioTransport(ClientTransport):
 
     def __del__(self):
         """Ensure that we send a disconnection signal to the transport task if we are being garbage collected."""
-        # Subclasses validate the command before calling super().__init__, so an
-        # object whose construction raised has no `_stop_event`. Guard instead of
-        # letting the interpreter print "Exception ignored in: __del__" over the
-        # error the caller is actually meant to see.
+        # AnyIO events need a task context with an active backend to set. Only
+        # signal while the connection task is active, and schedule a small task
+        # on its owning loop so GC can run outside an async context.
+        connect_task = getattr(self, "_connect_task", None)
+        if connect_task is None or connect_task.done():
+            return
+
         stop_event = getattr(self, "_stop_event", None)
-        if stop_event is not None and not stop_event.is_set():
-            stop_event.set()
+        if stop_event is None:
+            return
+
+        loop = connect_task.get_loop()
+        if loop.is_closed():
+            return
+
+        def schedule_stop_signal() -> None:
+            try:
+                # Once the event has been used by the connection task, its
+                # AnyIO adapter is bound and setting it on the owning loop is
+                # safe. This avoids leaving a short-lived signal task pending
+                # when the loop is shutting down during garbage collection.
+                stop_event.set()
+                return
+            except AsyncLibraryNotFoundError:
+                # A connection task can exist before it has first awaited the
+                # event. Bind the adapter from an async task in that race.
+                pass
+
+            async def signal_stop() -> None:
+                stop_event.set()
+
+            signal_coroutine = signal_stop()
+            try:
+                loop.create_task(signal_coroutine)
+            except RuntimeError:
+                # The loop may have started closing after the thread-safe
+                # callback was queued. Avoid leaking an unawaited coroutine.
+                signal_coroutine.close()
+
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop is loop:
+            try:
+                # In the owning async task, an unbound AnyIO adapter can bind
+                # directly and the signal is delivered before this task exits.
+                stop_event.set()
+            except AsyncLibraryNotFoundError:
+                schedule_stop_signal()
+            return
+
+        try:
+            loop.call_soon_threadsafe(schedule_stop_signal)
+        except RuntimeError:
+            # The owner loop may close between the check and scheduling.
+            return
 
     def __repr__(self) -> str:
         return (
