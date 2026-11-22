@@ -16,6 +16,7 @@ from typing import (
     List,
     Set,
     Tuple,
+    cast,
 )
 
 import mcp_types
@@ -286,6 +287,37 @@ def _is_model_value(value: Any) -> bool:
     )
 
 
+def _runtime_any_serialization() -> dict[str, Any]:
+    """Build the serializer used for an uncustomized runtime ``Any`` value."""
+    return {
+        "type": "function-plain",
+        "function": _serialize_runtime_any_value,
+        "return_schema": {"type": "any"},
+        "when_used": "json",
+    }
+
+
+def _install_runtime_any_serializers(
+    schema: Any, visited: set[int] | None = None
+) -> None:
+    """Make every uncustomized ``Any`` in a serializer result schema dynamic."""
+    if visited is None:
+        visited = set()
+    if isinstance(schema, dict):
+        schema_id = id(schema)
+        if schema_id in visited:
+            return
+        visited.add(schema_id)
+        if schema.get("type") == "any" and schema.get("serialization") is None:
+            schema["serialization"] = _runtime_any_serialization()
+            return
+        for value in schema.values():
+            _install_runtime_any_serializers(value, visited)
+    elif isinstance(schema, (list, tuple)):
+        for value in schema:
+            _install_runtime_any_serializers(value, visited)
+
+
 def _serialize_runtime_any_value(value: Any) -> Any:
     """Serialize a model or container reached through an uncustomized ``Any``.
 
@@ -316,8 +348,12 @@ def _serialize_runtime_any_value(value: Any) -> Any:
 
     token = _RUNTIME_ANY_VALUE_IDS.set(active_value_ids.union({value_id}))
     try:
+        if _is_model_value(value) and not _schema_contains_any(
+            get_cached_typeadapter(annotation).core_schema
+        ):
+            return _get_json_serializer(annotation).to_python(value, mode="json")
         serializer = _get_dynamic_json_serializer(annotation, value)
-        return json.loads(serializer.to_json(value))
+        return serializer.to_python(value, mode="json")
     finally:
         _RUNTIME_ANY_VALUE_IDS.reset(token)
 
@@ -388,19 +424,39 @@ def _specialize_any_schema(
 
     schema_type = schema.get("type")
     if schema_type == "any":
-        if schema.get("serialization") is not None:
+        serialization = schema.get("serialization")
+        if isinstance(serialization, dict):
+            return_schema = serialization.get("return_schema")
+            _install_runtime_any_serializers(return_schema)
+            if serialization.get("type") == "function-wrap":
+                inner_schema = serialization.get("schema")
+                if not isinstance(inner_schema, dict):
+                    inner_schema = _copy_core_schema(schema)
+                    inner_schema.pop("serialization", None)
+                    serialization["schema"] = inner_schema
+                _specialize_any_schema(
+                    inner_schema, values, active_value_ids, definitions
+                )
+            return
+        model_values = [value for value in values if _is_model_value(value)]
+        model_types = {type(value) for value in model_values}
+        if len(model_values) == len(values) and len(model_types) == 1:
+            model_schema = _copy_core_schema(
+                get_cached_typeadapter(model_values[0].__class__).core_schema
+            )
+            _remove_serialization_aliases(model_schema, set())
+            _specialize_any_schema(
+                model_schema, model_values, active_value_ids, definitions
+            )
+            schema.clear()
+            schema.update(model_schema)
             return
         if any(
             _is_model_value(value)
             or isinstance(value, (list, tuple, set, frozenset, dict))
             for value in values
         ):
-            schema["serialization"] = {
-                "type": "function-plain",
-                "function": _serialize_runtime_any_value,
-                "return_schema": {"type": "any"},
-                "when_used": "json",
-            }
+            schema["serialization"] = _runtime_any_serialization()
         return
 
     if schema_type in {"model-field", "default"}:
@@ -597,6 +653,28 @@ def _get_dynamic_json_serializer(
     )
 
 
+def _get_homogeneous_any_list_serializer(
+    annotation: Any, data: Any
+) -> pydantic_core.SchemaSerializer | None:
+    """Reuse a compiled serializer for ``List[Any]`` of one simple model type.
+
+    This narrow fast path is equivalent to the runtime ``Any`` dispatch but
+    avoids calling a Python serializer once per list item. Models whose own
+    schema contains ``Any`` still need per-value specialization.
+    """
+    if annotation != List[Any] or not isinstance(data, list) or not data:
+        return None
+    if not all(_is_model_value(value) for value in data):
+        return None
+    model_type = type(data[0])
+    if not all(type(value) is model_type for value in data):
+        return None
+    if _schema_contains_any(get_cached_typeadapter(model_type).core_schema):
+        return None
+    runtime_annotation = cast(Any, List).copy_with((model_type,))
+    return _get_json_serializer(runtime_annotation)
+
+
 def _serialize_to_jsonable(data: Any, annotation: Any = Any) -> Any:
     """Serialize through the real JSON serialization contract.
 
@@ -626,11 +704,17 @@ def _serialize_to_jsonable(data: Any, annotation: Any = Any) -> Any:
         ) or _schema_contains_any(
             get_cached_typeadapter(serializer_annotation).core_schema
         )
-        serializer = (
-            _get_dynamic_json_serializer(serializer_annotation, data)
-            if schema_has_any
-            else _get_json_serializer(serializer_annotation)
-        )
+        serializer = None
+        if schema_has_any:
+            serializer = _get_homogeneous_any_list_serializer(
+                serializer_annotation, data
+            )
+        if serializer is None:
+            serializer = (
+                _get_dynamic_json_serializer(serializer_annotation, data)
+                if schema_has_any
+                else _get_json_serializer(serializer_annotation)
+            )
     else:
         serializer = _get_json_serializer(serializer_annotation)
 

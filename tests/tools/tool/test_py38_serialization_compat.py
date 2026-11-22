@@ -18,6 +18,7 @@ from pydantic import (
     ConfigDict,
     Field,
     PlainSerializer,
+    WrapSerializer,
     model_serializer,
     model_validator,
     with_config,
@@ -203,6 +204,29 @@ def test_any_keeps_a_user_plain_serializer_in_control():
     assert _serialize_to_jsonable(SecretModel(secret="do-not-show"), annotation) == (
         "redacted"
     )
+
+
+def test_wrap_serializer_handler_keeps_nested_any_alias_policy():
+    annotation = Annotated[
+        Any,
+        WrapSerializer(
+            lambda value, handler: {"wrapped": handler(value)},
+            return_type=Dict[str, Any],
+        ),
+    ]
+
+    assert _serialize_to_jsonable(DefaultModel(value="x"), annotation) == {
+        "wrapped": {"value": "x"}
+    }
+
+
+def test_plain_serializer_any_return_keeps_nested_alias_policy():
+    annotation = Annotated[
+        Any,
+        PlainSerializer(lambda value: DefaultModel(value="x"), return_type=Any),
+    ]
+
+    assert _serialize_to_jsonable("ignored", annotation) == {"value": "x"}
 
 
 def test_any_in_tuple_typed_dict_and_union_preserves_default_alias_policy():
