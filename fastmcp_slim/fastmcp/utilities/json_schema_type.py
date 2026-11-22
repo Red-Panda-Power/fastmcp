@@ -98,6 +98,7 @@ from pydantic import (
     PlainValidator,
     StringConstraints,
     TypeAdapter,
+    WithJsonSchema,
     create_model,
     model_validator,
 )
@@ -158,6 +159,26 @@ def _normalize_yaml_types(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_normalize_yaml_types(v) for v in obj]
     return obj
+
+
+def _schema_contains_default(schema: Any) -> bool:
+    """Whether an object schema needs a default-mapping validator."""
+    pending = [schema]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if not isinstance(current, Mapping):
+            continue
+        current_id = id(current)
+        if current_id in seen:
+            continue
+        seen.add(current_id)
+        if isinstance(current.get("default"), Mapping):
+            return True
+        properties = current.get("properties")
+        if isinstance(properties, Mapping):
+            pending.extend(properties.values())
+    return False
 
 
 def _reject_all(v: Any) -> Any:
@@ -747,10 +768,28 @@ def _create_enum(name: str, values: list[Any]) -> Any:
                 return allowed if hashable else value
         raise ValueError(f"Input should be one of {values!r}")
 
+    boolean_values = [value for value in values if isinstance(value, bool)]
+    numeric_values = [
+        value
+        for value in values
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    ]
+    has_equal_boolean_and_number = any(
+        boolean == number for boolean in boolean_values for number in numeric_values
+    )
     if not hashable:
         # A Literal holding an object or array cannot be hashed into a Union.
         return Annotated[
             Any, BeforeValidator(check), Field(json_schema_extra={"enum": values})
+        ]
+    if sys.version_info < (3, 9) and has_equal_boolean_and_number:
+        # Pydantic 2.10 normalizes equal boolean and numeric Literal values
+        # while generating JSON Schema.  Retain the Literal for validation and
+        # smart-union dispatch, but supply the unmodified JSON Schema enum.
+        return Annotated[
+            literal,
+            PlainValidator(check, json_schema_input_type=literal),
+            WithJsonSchema({"enum": values}),
         ]
     return Annotated[literal, PlainValidator(check, json_schema_input_type=literal)]
 
@@ -1574,8 +1613,9 @@ def _build_dataclass(
         # Older dataclasses reject a required field following a default even
         # when every field is keyword-only. Process required fields first.
         fields.sort(
-            key=lambda item: item[2].default is not MISSING
-            or item[2].default_factory is not MISSING
+            key=lambda item: (
+                item[2].default is not MISSING or item[2].default_factory is not MISSING
+            )
         )
         namespace: dict[str, Any] = {
             "__module__": __name__,
@@ -1586,17 +1626,25 @@ def _build_dataclass(
     else:
         cls = make_dataclass(sanitized_name, fields, kw_only=True)
 
-    # Add model validator for defaults
-    @model_validator(mode="before")
-    @classmethod
-    def _apply_defaults(cls, data: Mapping[str, Any]):
-        if isinstance(data, dict):
-            # Omitted fields fall back to the field defaults, which validate
-            # only when valid; object defaults are still merged here.
-            return _merge_defaults(data, original_schema, apply_property_defaults=False)
-        return data
+    # The wrapper is only needed for schemas that have defaults to merge.  In
+    # Pydantic 2.10, wrapping every generated dataclass adds a function node at
+    # every object level, and its core-schema validator mistakes a valid deep
+    # acyclic graph for a recursive schema cycle.
+    has_defaults_to_merge = _schema_contains_default(original_schema)
+    if sys.version_info >= (3, 9) or has_defaults_to_merge:
 
-    cls._apply_defaults = _apply_defaults  # type: ignore[attr-defined]  # ty:ignore[missing-attribute]
+        @model_validator(mode="before")
+        @classmethod
+        def _apply_defaults(cls, data: Mapping[str, Any]):
+            if isinstance(data, dict):
+                # Omitted fields fall back to the field defaults, which validate
+                # only when valid; object defaults are still merged here.
+                return _merge_defaults(
+                    data, original_schema, apply_property_defaults=False
+                )
+            return data
+
+        cls._apply_defaults = _apply_defaults  # type: ignore[attr-defined]  # ty:ignore[missing-attribute]
     _conversion.get().unchecked_defaults.extend((cls, f) for f in unchecked)
     return cls
 
