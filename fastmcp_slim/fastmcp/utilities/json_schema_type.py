@@ -747,7 +747,19 @@ def _create_enum(name: str, values: list[Any]) -> Any:
                 return allowed if hashable else value
         raise ValueError(f"Input should be one of {values!r}")
 
-    if not hashable:
+    # Pydantic 2.10 on Python 3.8 also normalizes equal boolean and numeric
+    # Literal values while it generates JSON Schema.  The validator above
+    # deliberately distinguishes JSON booleans from numbers, so use the same
+    # non-Literal representation used for unhashable values when this would
+    # lose an enum member or its original type.
+    contains_boolean = any(isinstance(value, bool) for value in values)
+    contains_number = any(
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        for value in values
+    )
+    if not hashable or (
+        sys.version_info < (3, 9) and contains_boolean and contains_number
+    ):
         # A Literal holding an object or array cannot be hashed into a Union.
         return Annotated[
             Any, BeforeValidator(check), Field(json_schema_extra={"enum": values})
@@ -1574,8 +1586,9 @@ def _build_dataclass(
         # Older dataclasses reject a required field following a default even
         # when every field is keyword-only. Process required fields first.
         fields.sort(
-            key=lambda item: item[2].default is not MISSING
-            or item[2].default_factory is not MISSING
+            key=lambda item: (
+                item[2].default is not MISSING or item[2].default_factory is not MISSING
+            )
         )
         namespace: dict[str, Any] = {
             "__module__": __name__,
@@ -1586,17 +1599,28 @@ def _build_dataclass(
     else:
         cls = make_dataclass(sanitized_name, fields, kw_only=True)
 
-    # Add model validator for defaults
-    @model_validator(mode="before")
-    @classmethod
-    def _apply_defaults(cls, data: Mapping[str, Any]):
-        if isinstance(data, dict):
-            # Omitted fields fall back to the field defaults, which validate
-            # only when valid; object defaults are still merged here.
-            return _merge_defaults(data, original_schema, apply_property_defaults=False)
-        return data
+    # The wrapper is only needed for schemas that have defaults to merge.  In
+    # Pydantic 2.10, wrapping every generated dataclass adds a function node at
+    # every object level, and its core-schema validator mistakes a valid deep
+    # acyclic graph for a recursive schema cycle.
+    has_defaults_to_merge = "default" in original_schema or any(
+        isinstance(prop_schema, Mapping) and "default" in prop_schema
+        for prop_schema in properties.values()
+    )
+    if sys.version_info >= (3, 9) or has_defaults_to_merge:
 
-    cls._apply_defaults = _apply_defaults  # type: ignore[attr-defined]  # ty:ignore[missing-attribute]
+        @model_validator(mode="before")
+        @classmethod
+        def _apply_defaults(cls, data: Mapping[str, Any]):
+            if isinstance(data, dict):
+                # Omitted fields fall back to the field defaults, which validate
+                # only when valid; object defaults are still merged here.
+                return _merge_defaults(
+                    data, original_schema, apply_property_defaults=False
+                )
+            return data
+
+        cls._apply_defaults = _apply_defaults  # type: ignore[attr-defined]  # ty:ignore[missing-attribute]
     _conversion.get().unchecked_defaults.extend((cls, f) for f in unchecked)
     return cls
 
