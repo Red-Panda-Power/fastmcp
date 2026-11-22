@@ -311,7 +311,7 @@ max_lines = 2065
 
 [[rules]]
 path = "tests/server/providers/openapi/test_openapi_features.py"
-max_lines = 1029
+max_lines = 1690
 
 [[rules]]
 path = "tests/server/providers/test_skills_provider.py"
@@ -327,11 +327,11 @@ max_lines = 1052
 
 [[rules]]
 path = "tests/server/test_dependencies.py"
-max_lines = 1194
+max_lines = 1234
 
 [[rules]]
 path = "tests/test_mcp_config.py"
-max_lines = 1185
+max_lines = 1621
 
 [[rules]]
 path = "tests/utilities/openapi/test_director.py"
@@ -351,4 +351,20 @@ max_lines = 1725
 
 [[rules]]
 path = "tests/cli/test_run.py"
-max_lines = 1291
+max_lines = 1625
+
+[[rules]]
+path = "tests/tools/tool_transform/test_tool_transform.py"
+max_lines = 1233
+
+[[rules]]
+path = "tests/experimental/transforms/test_code_mode.py"
+max_lines = 1320
+
+[[rules]]
+path = "tests/utilities/json_schema_type/test_advanced.py"
+max_lines = 1509
+
+[[rules]]
+path = "tests/utilities/test_json_schema.py"
+max_lines = 1436
