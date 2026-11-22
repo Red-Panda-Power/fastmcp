@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from mcp_types import TextContent
 
@@ -31,7 +31,7 @@ def _unwrap_result(result: ToolResult) -> Any:
         except json.JSONDecodeError:
             return text_blocks[0]
 
-    values: list[Any] = []
+    values: List[Any] = []
     for text in text_blocks:
         try:
             values.append(json.loads(text))
@@ -56,10 +56,10 @@ class _UnsafeTestSandboxProvider:
         self,
         code: str,
         *,
-        inputs: dict[str, Any] | None = None,
-        external_functions: dict[str, Any] | None = None,
+        inputs: Optional[Dict[str, Any]] = None,
+        external_functions: Optional[Dict[str, Any]] = None,
     ) -> Any:
-        namespace: dict[str, Any] = {}
+        namespace: Dict[str, Any] = {}
         if inputs:
             namespace.update(inputs)
         if external_functions:
@@ -78,7 +78,7 @@ class _UnsafeTestSandboxProvider:
 
 
 async def _run_tool(
-    server: FastMCP, name: str, arguments: dict[str, Any]
+    server: FastMCP, name: str, arguments: Dict[str, Any]
 ) -> ToolResult:
     return await server.call_tool(name, arguments)
 

@@ -2,7 +2,7 @@ import asyncio
 import importlib
 import importlib.util
 import json
-from typing import Any, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 import pytest
 from mcp_types import ImageContent, TextContent
@@ -44,7 +44,7 @@ def _unwrap_result(result: ToolResult) -> Any:
         except json.JSONDecodeError:
             return text_blocks[0]
 
-    values: list[Any] = []
+    values: List[Any] = []
     for text in text_blocks:
         try:
             values.append(json.loads(text))
@@ -73,10 +73,10 @@ class _UnsafeTestSandboxProvider:
         self,
         code: str,
         *,
-        inputs: dict[str, Any] | None = None,
-        external_functions: dict[str, Any] | None = None,
+        inputs: Optional[Dict[str, Any]] = None,
+        external_functions: Optional[Dict[str, Any]] = None,
     ) -> Any:
-        namespace: dict[str, Any] = {}
+        namespace: Dict[str, Any] = {}
         if inputs:
             namespace.update(inputs)
         if external_functions:
@@ -95,7 +95,7 @@ class _UnsafeTestSandboxProvider:
 
 
 async def _run_tool(
-    server: FastMCP, name: str, arguments: dict[str, Any]
+    server: FastMCP, name: str, arguments: Dict[str, Any]
 ) -> ToolResult:
     return await server.call_tool(name, arguments)
 
@@ -867,7 +867,7 @@ async def test_monty_provider_raises_informative_error_when_missing(
     provider = MontySandboxProvider()
     real_import_module = importlib.import_module
 
-    def _fake_import_module(name: str, package: str | None = None):
+    def _fake_import_module(name: str, package: Optional[str] = None):
         if name == "pydantic_monty":
             raise ModuleNotFoundError("No module named 'pydantic_monty'")
         return real_import_module(name, package)
@@ -885,7 +885,7 @@ async def test_monty_provider_raises_informative_error_when_missing(
         {"max_turn_duration_secs": 0.1},
     ],
 )
-async def test_monty_provider_forwards_limits(limits: dict[str, float]) -> None:
+async def test_monty_provider_forwards_limits(limits: Dict[str, float]) -> None:
     provider = MontySandboxProvider(limits=cast(Any, limits))
     original_limits = limits.copy()
 
@@ -1187,10 +1187,10 @@ async def test_code_mode_get_schema_names_return_fields_one_level_down() -> None
     class Card(BaseModel):
         id: str
         url: str
-        note: Note | None = None
+        note: Optional[Note] = None
 
     class Page(BaseModel):
-        items: list[Card]
+        items: List[Card]
         has_more: bool
 
     mcp = FastMCP("CodeMode NestedReturns")
@@ -1213,7 +1213,7 @@ async def test_code_mode_get_schema_names_return_fields_one_level_down() -> None
 
 @pytest.mark.parametrize("content", [[], ["image"]])
 async def test_error_result_without_text_uses_generic_message(
-    content: list[str],
+    content: List[str],
 ) -> None:
     mcp = FastMCP("Non-text errors")
     blocks = [
@@ -1291,8 +1291,8 @@ async def test_detailed_schema_enum_union_rules() -> None:
 
     @mcp.tool
     def send(
-        mixed: Literal["a"] | int = 3,
-        merged: Literal["x"] | Literal["y", "z"] | None = None,
+        mixed: Union[Literal["a"], int] = 3,
+        merged: Optional[Union[Literal["x"], Literal["y", "z"]]] = None,
     ) -> str:
         return str(mixed)
 
@@ -1310,7 +1310,7 @@ async def test_detailed_schema_includes_single_value_literals() -> None:
     mcp = FastMCP("Literals")
 
     @mcp.tool
-    def send(kind: Literal["email"], optional: Literal["sms"] | None = None) -> str:
+    def send(kind: Literal["email"], optional: Optional[Literal["sms"]] = None) -> str:
         return kind
 
     mcp.add_transform(CodeMode())
