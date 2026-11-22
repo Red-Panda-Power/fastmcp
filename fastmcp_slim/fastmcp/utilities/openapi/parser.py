@@ -25,6 +25,7 @@ from openapi_pydantic.v3.v3_0 import RequestBody as RequestBody_30
 from openapi_pydantic.v3.v3_0 import Response as Response_30
 from openapi_pydantic.v3.v3_0 import Schema as Schema_30
 from pydantic import BaseModel, ValidationError
+from typing_extensions import Literal  # noqa: UP035 - Python 3.8
 
 from fastmcp.utilities.logging import get_logger
 
@@ -54,6 +55,12 @@ TRequestBody = TypeVar("TRequestBody", RequestBody, RequestBody_30)
 TResponse = TypeVar("TResponse", Response, Response_30)
 TOperation = TypeVar("TOperation", Operation, Operation_30)
 TPathItem = TypeVar("TPathItem", PathItem, PathItem_30)
+
+
+class _OpenAPI312(OpenAPI):
+    """Accept OpenAPI 3.1.2 on the Python 3.8-compatible model release."""
+
+    openapi: Literal["3.1.0", "3.1.1", "3.1.2"] = "3.1.1"
 
 
 def parse_openapi_to_http_routes(openapi_dict: dict[str, Any]) -> list[HTTPRoute]:
@@ -87,7 +94,10 @@ def parse_openapi_to_http_routes(openapi_dict: dict[str, Any]) -> list[HTTPRoute
             return parser.parse()
         else:
             # Default to OpenAPI 3.1 models
-            openapi_31 = OpenAPI.model_validate(openapi_dict)
+            # openapi-pydantic 0.5.1 supports Python 3.8 but predates 3.1.2.
+            # Its root model is otherwise identical to the newer release.
+            model = _OpenAPI312 if openapi_version == "3.1.2" else OpenAPI
+            openapi_31 = model.model_validate(openapi_dict)
             logger.debug(
                 f"Successfully parsed OpenAPI 3.1 schema version: {openapi_31.openapi}"
             )

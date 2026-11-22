@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
 from datetime import timezone
-from typing import Any, cast
+from typing import Any, Iterator, cast
 
 import pytest
 from mcp_types import TextContent
@@ -32,7 +32,7 @@ from fastmcp.server.auth import (
 from fastmcp.server.lifespan import lifespan
 from fastmcp.server.middleware import MiddlewareContext
 from fastmcp.tools.base import Tool, default_serializer
-from fastmcp.utilities.types import get_function_type_hints
+from fastmcp.utilities.types import get_function_type_hints, replace_type
 
 
 def test_postponed_type_hints_keep_metadata() -> None:
@@ -45,6 +45,12 @@ def test_postponed_type_hints_keep_metadata() -> None:
     assert get_origin(hints["value"]) is Annotated
     assert get_args(hints["value"])[1].description == "items"
     assert type(None) in get_args(hints["return"])
+
+
+def test_replacing_type_in_iterator_alias() -> None:
+    result = replace_type(Iterator[int], {int: str})
+    assert get_origin(result) is get_origin(Iterator[str])
+    assert get_args(result) == (str,)
 
 
 def test_middleware_context_is_frozen_and_keyword_only() -> None:
@@ -80,6 +86,20 @@ def test_prompt_keeps_annotated_parameter_title() -> None:
     assert [(argument.name, argument.title) for argument in arguments] == [
         ("name", "Your name")
     ]
+
+
+def test_tool_keeps_explicit_parameter_titles_and_mapping_schema() -> None:
+    def greet(
+        name: Annotated[str, Field(title="Your name")],
+        count: int = Field(default=1, title="Number of greetings"),
+    ) -> dict:
+        return {"greeting": name * count}
+
+    tool = Tool.from_function(greet)
+    properties = tool.parameters["properties"]
+    assert properties["name"]["title"] == "Your name"
+    assert properties["count"]["title"] == "Number of greetings"
+    assert tool.output_schema == {"type": "object", "additionalProperties": True}
 
 
 def test_exploded_resource_query_round_trips() -> None:

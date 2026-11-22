@@ -31,6 +31,7 @@ from fastmcp.utilities.types import (
     Image,
     UnionType,
     get_cached_typeadapter,
+    get_explicit_parameter_titles,
     get_function_type_hints,
     is_class_member_of_type,
     replace_type,
@@ -189,6 +190,14 @@ class _ToolOutputSchemaGenerator(GenerateJsonSchema):
     JSON Schema API otherwise applies one ``by_alias`` value to the whole tree.
     """
 
+    def dict_schema(self, schema: core_schema.DictSchema) -> JsonSchemaValue:
+        result = super().dict_schema(schema)
+        # Pydantic 2.10 omits this explicit default for unconstrained mappings;
+        # newer versions include it in the published tool output schema.
+        if "patternProperties" not in result:
+            result.setdefault("additionalProperties", True)
+        return result
+
     def model_schema(self, schema: core_schema.ModelSchema) -> JsonSchemaValue:
         previous_by_alias = self.by_alias
         configured = schema["cls"].model_config.get("serialize_by_alias")
@@ -339,6 +348,9 @@ class ParsedFunction:
                 continue
             title = raw_property.get("title")
             if isinstance(title, str) and title != title_from_name(param_name):
+                properties[param_name]["title"] = title
+        for param_name, title in get_explicit_parameter_titles(wrapper_fn).items():
+            if param_name in properties:
                 properties[param_name]["title"] = title
 
         # Inject parameter descriptions from the docstring into the schema.

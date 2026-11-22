@@ -21,7 +21,6 @@ from typing import (
 
 import pydantic_core
 from mcp_types import Icon
-from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
 
 from fastmcp.exceptions import PromptError, ValidationError
@@ -38,6 +37,7 @@ from fastmcp.utilities.logging import get_logger
 from fastmcp.utilities.types import (
     AnyFunction,
     get_cached_typeadapter,
+    get_explicit_parameter_titles,
     get_function_type_hints,
 )
 
@@ -209,7 +209,7 @@ class FunctionPrompt(Prompt):
                 ):
                     properties[param_name]["description"] = param_desc
 
-        titles = _explicit_parameter_titles(fn)
+        titles = get_explicit_parameter_titles(fn)
 
         # Convert parameters to PromptArguments
         arguments: list[PromptArgument] = []
@@ -469,31 +469,3 @@ def prompt(
         return decorator(fn, prompt_name)
 
     return wrapper
-
-
-def _explicit_parameter_titles(fn: Callable[..., Any]) -> dict[str, str]:
-    """Return the titles set with `Field(title=...)` on fn's parameters.
-
-    The parameter schema cannot tell these apart from the titles Pydantic
-    generates for every parameter, and they are pruned from it, so read them
-    from the annotations and defaults instead.
-    """
-    try:
-        hints = get_function_type_hints(fn)
-    except Exception:
-        # Unresolvable annotations: titles set as defaults still count.
-        hints = {}
-    titles: dict[str, str] = {}
-    for name, param in inspect.signature(fn).parameters.items():
-        annotation = hints.get(name, param.annotation)
-        if annotation is inspect.Parameter.empty or isinstance(annotation, str):
-            annotation = Any
-        default = (
-            pydantic_core.PydanticUndefined
-            if param.default is inspect.Parameter.empty
-            else param.default
-        )
-        title = FieldInfo.from_annotated_attribute(annotation, default).title
-        if title is not None:
-            titles[name] = title
-    return titles

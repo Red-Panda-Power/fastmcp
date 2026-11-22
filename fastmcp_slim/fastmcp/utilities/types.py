@@ -20,6 +20,8 @@ from urllib.parse import quote
 import mcp_types
 from mcp_types import Annotations, ContentBlock, ModelPreferences, SamplingMessage
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, TypeAdapter, UrlConstraints
+from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
 from typing_extensions import (  # noqa: UP035 - Python 3.8 compatibility
     Annotated,
     TypeAlias,
@@ -97,6 +99,30 @@ def get_function_type_hints(fn: Callable[..., Any]) -> dict[str, Any]:
             resolved = eval_type_backport(resolved, globalns=namespace, localns=localns)
         hints[name] = resolved
     return hints
+
+
+def get_explicit_parameter_titles(fn: Callable[..., Any]) -> dict[str, str]:
+    """Read author-supplied parameter titles, including ``Annotated`` fields."""
+    try:
+        hints = get_function_type_hints(fn)
+    except Exception:
+        hints = {}
+    titles: dict[str, str] = {}
+    for name, param in inspect.signature(fn).parameters.items():
+        annotation = hints.get(name, param.annotation)
+        if annotation is inspect.Parameter.empty or isinstance(annotation, str):
+            annotation = Any
+        default = (
+            PydanticUndefined
+            if param.default is inspect.Parameter.empty
+            else param.default
+        )
+        field_info = FieldInfo.from_annotated_attribute(annotation, default)
+        if field_info.title is not None:
+            titles[name] = field_info.title
+            if isinstance(field_info.alias, str):
+                titles[field_info.alias] = field_info.title
+    return titles
 
 
 @lru_cache(maxsize=5000)
@@ -574,14 +600,21 @@ def replace_type(type_, type_map: dict[type, type]):
     args = get_args(type_)
     new_args = tuple(replace_type(arg, type_map) for arg in args)
 
+    if new_args == args:
+        return type_
     if origin is UnionType:
         return Union[new_args]  # noqa: UP007
-    elif sys.version_info < (3, 9) and origin in (list, dict, set, tuple, frozenset):  # noqa: UP036 - Python 3.8
-        # Builtin containers were not subscriptable on 3.8. The corresponding
-        # ``typing`` aliases retain their own generic reconstruction method.
-        return type_.copy_with(new_args)
-    else:
-        return origin[new_args]
+    if sys.version_info < (3, 9):  # noqa: UP036 - Python 3.8
+        try:
+            return origin[new_args]
+        except TypeError:
+            # Builtins and collections.abc generics were not subscriptable on
+            # 3.8; their typing aliases retain a reconstruction method.
+            copy_with = getattr(type_, "copy_with", None)
+            if copy_with is not None:
+                return copy_with(new_args)
+            raise
+    return origin[new_args]
 
 
 class ContextSamplingFallbackProtocol(Protocol):

@@ -307,7 +307,7 @@ max_lines = 1280
 
 [[rules]]
 path = "tests/resources/test_resource_template.py"
-max_lines = 1016
+max_lines = 2065
 
 [[rules]]
 path = "tests/server/providers/openapi/test_openapi_features.py"
