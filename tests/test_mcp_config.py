@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import gc
 import inspect
@@ -7,10 +9,9 @@ import os
 import sys
 import tempfile
 import time
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, AsyncGenerator
 from unittest.mock import AsyncMock, patch
 
 import psutil

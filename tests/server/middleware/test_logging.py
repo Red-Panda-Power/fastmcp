@@ -21,7 +21,7 @@ from fastmcp.server.middleware.logging import (
 )
 from fastmcp.server.middleware.middleware import CallNext, MiddlewareContext
 
-FIXED_DATE = datetime.datetime(2023, 1, 1, tzinfo=datetime.UTC)
+FIXED_DATE = datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc)
 
 T = TypeVar("T")
 

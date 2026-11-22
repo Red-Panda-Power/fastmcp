@@ -171,8 +171,7 @@ def mcp_server(recording_middleware):
 
 class TestNestedMiddlewareHooks:
     @pytest.fixture
-    @staticmethod
-    def nested_middleware():
+    def nested_middleware(_self):
         return RecordingMiddleware(name="nested_middleware")
 
     @pytest.fixture

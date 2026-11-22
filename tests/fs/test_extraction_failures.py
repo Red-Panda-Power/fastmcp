@@ -1,5 +1,7 @@
 """Component construction failures must remain local to the discovered file."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import pytest

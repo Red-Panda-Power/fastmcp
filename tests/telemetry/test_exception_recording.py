@@ -1,5 +1,7 @@
 """Failures produce one exception event per span, including reused server spans."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from typing import Literal
