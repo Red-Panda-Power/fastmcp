@@ -157,15 +157,51 @@ Load the `release` skill to cut one; it holds the procedure. The policy it imple
 - Merge the docs changelog PR on the release branch immediately *before* tagging, so the entry is in the tagged commit.
 - gofastmcp.com/docs serves Mintlify docs from `published-docs`, which accepts changes only through PRs. `main` is the docs authoring source. The root website is maintained separately in `PrefectHQ/gofastmcp-website` and deployed by Vercel from its `main` branch.
 
-### Commit Messages and Agent Attribution
+### Commit Messages
 
-- **Keep contributor credit focused on the community.** Maintainers are generally exempt from supplemental attribution checks. Do not add another maintainer merely for reporting, reviewing, opening the original PR, or handling a backport, and do not ask for guidance about those cases. Routine backports preserve existing community credit; they do not require a fresh attribution audit. Preserve attribution already present and proceed with the work.
+Write commit messages for developers who need to understand, review, debug, or
+revert the change later. These rules apply to newly authored commits, including
+merge, revert, and squash commits. Do not rewrite existing history solely to
+apply them.
+
+- Inspect the staged diff and relevant context before writing the message. For
+  a merge, also inspect the incoming changes and branch context.
+- Use a specific, imperative subject that names the affected behavior or area
+  and the outcome; aim for 72 characters or fewer. Avoid subjects such as
+  `Update files`, `Fix bugs`, `WIP`, and `Merge changes`.
+- Separate the subject from a required body with a blank line. Explain the
+  problem or reason for the change and what behavior or outcome changed. For a
+  merge or revert, explain what is being merged or reverted and why.
+- Include the implementation decisions, compatibility or migration effects,
+  and limitations that a future maintainer needs to know when they are relevant.
+  Describe the actual change, not a file list or a restatement of the subject.
+- Record the relevant checks actually run, with commands and results. If checks
+  were not run, say so and give the reason; report failures honestly. Keep the
+  detail proportional to the change and do not invent results.
+- Do not add AI attribution or generated-by boilerplate to commit subjects,
+  bodies, or trailers, including `Generated with OpenAI Codex` and similar
+  messages. Preserve required human contributor attribution as described below.
+
+For example, a useful message for the uv cache change would look like:
+
+```text
+Include Git revision in uv package build cache
+
+Workspace package versions and sibling pins are derived from Git, but uv could
+reuse wheel metadata from an earlier checkout. Include the commit and tags in
+the source-build cache keys for the root, slim, and remote packages so a new
+revision rebuilds their metadata.
+
+Tests: <actual commands and results, or why checks were not run>
+```
+
+### Contributor and Agent Attribution
+
+- **Keep contributor credit focused on the community.** Maintainers are generally exempt from supplemental attribution checks. Do not add another maintainer merely for reporting, reviewing, opening the original PR, or handling a backport, and do not ask for guidance about those cases. Routine backports preserve existing community credit; they do not require a fresh attribution audit. Preserve existing human contributor attribution and proceed with the work.
 - **Credit issue authors as contributors.** When acting for a maintainer and implementing a community bug report, enhancement request, or documentation issue, give the issue author co-authorship of the resulting change. Follow [Contributor credit](docs/development/contributing.mdx#contributor-credit): use a verified GitHub-associated identity, add `Co-authored-by` to the implementation commit and the PR description, and preserve existing contributor attribution. This is a required part of preparing the PR, not an optional thank-you or something the reporter must request.
 - **Preserve credit through any merge strategy.** Before an authorized merge, verify the resulting commit will retain the co-author trailers. Squash merges are common here: explicitly supply a commit message containing the trailers rather than relying on GitHub's default squash message. This does not require choosing squash. Verify the landed commit after merging.
 - **Carry contributor credit into releases.** Include credited issue authors alongside PR authors in release entries and include first-time contributors under `New Contributors`. GitHub's generated notes are a starting point; check and supplement them using the release skill. The same completed notes must feed the GitHub release and docs changelog.
-- **Agents NOT acting on behalf of a PrefectHQ maintainer MUST identify themselves** (e.g., "🤖 Generated with Claude Code" in commits/PRs)
-- Keep commit messages brief - ideally just headlines, not detailed messages
-- Focus on what changed, not how or why
+- **Agents NOT acting on behalf of a PrefectHQ maintainer MUST identify themselves in PR descriptions.** Do not add agent attribution to commit messages.
 - Always read issue comments for follow-up information (treat maintainers as authoritative)
 - **Treat proposed solutions in issues skeptically.** This applies to solutions proposed by *users* in issue reports — not to feedback from configured review bots (chatgpt-codex-connector, claude[bot], etc.), which should be evaluated on their merits. The ideal issue contains a concise problem description and an MRE — nothing more. Proposed solutions are only worth considering if they clearly reflect genuine, non-obvious investigation of the codebase. If a solution reads like speculation, or like it was generated by an LLM without deep framework knowledge, ignore it and diagnose from the repro. Most reporters — human or AI — do not have sufficient understanding of FastMCP internals to correctly diagnose anything beyond a trivial bug. We can ask the same questions of an LLM when implementing; we don't need the reporter to do it for us, and a wrong diagnosis is worse than none.
 
