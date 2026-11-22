@@ -2,6 +2,7 @@
 
 import time
 from contextlib import asynccontextmanager
+from typing import List, Optional
 
 import anyio
 import pytest
@@ -114,7 +115,7 @@ class TestToolTimeout:
                 events.append("closed")
 
         @mcp.tool(timeout=0.01)
-        def slow_sync_tool(state: list[str] = Depends(resource)) -> str:
+        def slow_sync_tool(state: List[str] = Depends(resource)) -> str:
             state.append("started")
             time.sleep(0.1)
             state.append("finished")
@@ -234,7 +235,7 @@ class TestToolTimeout:
     @pytest.mark.parametrize("timeout", [None, 30.0])
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_body_raised_timeout_error_is_not_reported_as_deadline(
-        self, timeout: float | None, is_async: bool
+        self, timeout: Optional[float], is_async: bool
     ):
         """A TimeoutError raised by the tool body itself (e.g. socket.timeout)
         must surface as the tool's own error, not as the deadline firing."""

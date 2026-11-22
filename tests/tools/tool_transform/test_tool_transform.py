@@ -5,12 +5,13 @@ import json
 import re
 import time
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 import jsonschema
 import pytest
 from mcp_types import Icon, TextContent
 from pydantic import BaseModel, ConfigDict, Field, with_config
+from typing_extensions import Annotated
 
 from fastmcp import FastMCP
 from fastmcp.client.client import Client
@@ -25,7 +26,7 @@ from fastmcp.tools.tool_transform import (
 )
 
 
-def get_property(tool: Tool, name: str) -> dict[str, Any]:
+def get_property(tool: Tool, name: str) -> Dict[str, Any]:
     return tool.parameters["properties"][name]
 
 
@@ -67,7 +68,7 @@ def test_transformed_tool_required_order_is_deterministic():
 
 def test_from_tool_accepts_decorated_function():
     @tool
-    def search(q: str, limit: int = 10) -> list[str]:
+    def search(q: str, limit: int = 10) -> List[str]:
         """Search for items."""
         return [f"Result {i} for {q}" for i in range(limit)]
 
@@ -83,7 +84,7 @@ def test_from_tool_accepts_decorated_function():
 
 
 def test_from_tool_accepts_plain_function():
-    def search(q: str, limit: int = 10) -> list[str]:
+    def search(q: str, limit: int = 10) -> List[str]:
         return [f"Result {i} for {q}" for i in range(limit)]
 
     transformed = Tool.from_tool(
@@ -98,7 +99,7 @@ def test_from_tool_accepts_plain_function():
 
 def test_from_tool_decorated_function_preserves_metadata():
     @tool(description="Custom description")
-    def search(q: str) -> list[str]:
+    def search(q: str) -> List[str]:
         """Original description."""
         return []
 
@@ -110,7 +111,7 @@ def test_from_tool_preserves_icons():
     icons = [Icon(src="https://example.com/search.png")]
 
     @tool(icons=icons)
-    def search(q: str) -> list[str]:
+    def search(q: str) -> List[str]:
         return []
 
     transformed = Tool.from_tool(search, name="find_items")
@@ -284,7 +285,7 @@ async def test_hidden_param_prunes_defs():
         y: int
 
     @Tool.from_function
-    def tool_with_refs(a: VisibleType, b: HiddenType | None = None) -> int:
+    def tool_with_refs(a: VisibleType, b: Optional[HiddenType] = None) -> int:
         return a.x + (b.y if b else 0)
 
     # Hide parameter 'b'
@@ -316,11 +317,11 @@ async def test_arg_transform_type_hoists_defs_to_root():
         value: str
 
     @Tool.from_function
-    def search(query: str, filters: dict | None = None) -> str:
+    def search(query: str, filters: Optional[dict] = None) -> str:
         return ""
 
     new_tool = Tool.from_tool(
-        search, transform_args={"filters": ArgTransform(type=list[Filter])}
+        search, transform_args={"filters": ArgTransform(type=List[Filter])}
     )
 
     schema = new_tool.parameters
@@ -341,11 +342,11 @@ async def test_arg_transform_type_merges_with_parent_defs():
         b: int
 
     @Tool.from_function
-    def tool_fn(x: Existing, y: dict | None = None) -> int:
+    def tool_fn(x: Existing, y: Optional[dict] = None) -> int:
         return x.a + (y["b"] if y else 0)
 
     new_tool = Tool.from_tool(
-        tool_fn, transform_args={"y": ArgTransform(type=list[Added])}
+        tool_fn, transform_args={"y": ArgTransform(type=List[Added])}
     )
 
     schema = new_tool.parameters
@@ -363,7 +364,7 @@ async def test_arg_transform_type_raises_on_defs_name_collision():
         a: int
 
     @Tool.from_function
-    def tool_fn(foo: Foo, other: dict | None = None) -> int:
+    def tool_fn(foo: Foo, other: Optional[dict] = None) -> int:
         return foo.a
 
     # Parent already defines `Foo`; introduce a transform whose new type is
@@ -378,7 +379,7 @@ async def test_arg_transform_type_raises_on_defs_name_collision():
     }
 
     with pytest.raises(ValueError, match=r"\$defs collision for 'Foo'"):
-        Tool.from_tool(tool_fn, transform_args={"other": ArgTransform(type=list[Foo])})
+        Tool.from_tool(tool_fn, transform_args={"other": ArgTransform(type=List[Foo])})
 
 
 async def test_arg_transform_type_replaces_parent_type_keywords():
@@ -388,7 +389,9 @@ async def test_arg_transform_type_replaces_parent_type_keywords():
     def parent(x: str) -> str:
         return x
 
-    tool = Tool.from_tool(parent, transform_args={"x": ArgTransform(type=int | None)})
+    tool = Tool.from_tool(
+        parent, transform_args={"x": ArgTransform(type=Optional[int])}
+    )
 
     prop = tool.parameters["properties"]["x"]
     validator = jsonschema.Draft202012Validator(tool.parameters)
@@ -407,7 +410,7 @@ async def test_transform_fn_type_replaces_forwarded_parent_schema():
     def parent(x: str) -> str:
         return x
 
-    async def child(x: int | None) -> ToolResult:
+    async def child(x: Optional[int]) -> ToolResult:
         return await forward(x=str(x))
 
     tool = Tool.from_tool(parent, transform_fn=child, name="g")
@@ -431,14 +434,14 @@ async def test_arg_transform_type_keeps_transform_fn_default():
     def parent(x: str) -> str:
         return x
 
-    async def child(x: int | None = 7) -> ToolResult:
+    async def child(x: Optional[int] = 7) -> ToolResult:
         return await forward(x=str(x) if x is not None else "")
 
     tool = Tool.from_tool(
         parent,
         transform_fn=child,
         name="with_default",
-        transform_args={"x": ArgTransform(type=int | None)},
+        transform_args={"x": ArgTransform(type=Optional[int])},
     )
 
     prop = tool.parameters["properties"]["x"]
@@ -776,7 +779,7 @@ def test_function_with_kwargs_can_add_params(add_tool):
 
 async def test_from_tool_decorated_function_via_client():
     @tool
-    def search(q: str, limit: int = 10) -> list[str]:
+    def search(q: str, limit: int = 10) -> List[str]:
         """Search for items."""
         return [f"Result {i} for {q}" for i in range(limit)]
 
@@ -833,7 +836,7 @@ async def test_transform_fn_wrapped_result_respects_serialize_by_alias():
     def base() -> None:
         pass
 
-    async def transform() -> Item | None:
+    async def transform() -> Optional[Item]:
         return Item(_id="42")
 
     transformed = Tool.from_tool(base, transform_fn=transform)
@@ -855,7 +858,7 @@ async def test_transform_fn_configured_dataclass_respects_serialize_by_alias():
     def base() -> None:
         pass
 
-    async def transform() -> list[Item]:
+    async def transform() -> List[Item]:
         return [Item(id="42")]
 
     transformed = Tool.from_tool(base, transform_fn=transform)
@@ -1026,7 +1029,7 @@ async def test_transform_fn_sync_generator_yields_values():
     mcp = FastMCP()
 
     @mcp.tool
-    def base() -> list[str]:
+    def base() -> List[str]:
         return []
 
     def gen_fn():
@@ -1053,7 +1056,7 @@ async def test_transform_fn_async_generator_yields_values():
     mcp = FastMCP()
 
     @mcp.tool
-    def base() -> list[str]:
+    def base() -> List[str]:
         return []
 
     async def gen_fn():
@@ -1091,7 +1094,7 @@ async def test_transform_fn_blocking_sync_generator_does_not_stall_event_loop():
     mcp = FastMCP()
 
     @mcp.tool
-    def base() -> list[str]:
+    def base() -> List[str]:
         return []
 
     parent = await mcp.get_tool("base")
@@ -1131,11 +1134,11 @@ async def test_transform_fn_blocking_sync_generator_does_not_stall_event_loop():
 async def test_transform_fn_generators_are_materialized():
     """Generator transform_fn bodies are consumed like plain tool bodies (#5668)."""
 
-    def gen_sync(**kwargs) -> list[str]:  # ty:ignore[invalid-return-type]
+    def gen_sync(**kwargs) -> List[str]:  # ty:ignore[invalid-return-type]
         yield "a1"
         yield "a2"
 
-    async def gen_async(**kwargs) -> list[str]:  # ty:ignore[invalid-return-type]
+    async def gen_async(**kwargs) -> List[str]:  # ty:ignore[invalid-return-type]
         yield "a1"
         yield "a2"
 
@@ -1163,12 +1166,12 @@ async def test_transform_fn_generators_are_materialized():
 async def test_transform_fn_empty_generators():
     """Empty generators are materialized to empty lists (#5668)."""
 
-    def gen_empty(**kwargs) -> list[str]:  # ty:ignore[invalid-return-type]
+    def gen_empty(**kwargs) -> List[str]:  # ty:ignore[invalid-return-type]
         # Empty generator - no yields, just return
         if False:  # type: ignore[unreachable]
             yield
 
-    async def gen_empty_async(**kwargs) -> list[str]:  # ty:ignore[invalid-return-type]
+    async def gen_empty_async(**kwargs) -> List[str]:  # ty:ignore[invalid-return-type]
         # Empty async generator - no yields, just return
         if False:  # type: ignore[unreachable]
             yield
@@ -1200,12 +1203,12 @@ async def test_transform_fn_generators_with_context_injection():
     def base(x: int) -> int:
         return x
 
-    def gen_with_ctx(x: int, ctx: Context) -> list[int]:  # ty:ignore[invalid-return-type]
+    def gen_with_ctx(x: int, ctx: Context) -> List[int]:  # ty:ignore[invalid-return-type]
         assert isinstance(ctx, Context)
         yield x * 2
         yield x * 3
 
-    async def gen_async_with_ctx(x: int, ctx: Context) -> list[int]:  # ty:ignore[invalid-return-type]
+    async def gen_async_with_ctx(x: int, ctx: Context) -> List[int]:  # ty:ignore[invalid-return-type]
         assert isinstance(ctx, Context)
         yield x * 2
         yield x * 3

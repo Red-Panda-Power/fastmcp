@@ -1,6 +1,6 @@
 import functools
 from datetime import timedelta
-from typing import Annotated
+from typing import Optional
 
 import pytest
 from dirty_equals import HasName
@@ -11,6 +11,7 @@ from mcp_types import (
     ToolExecution,
 )
 from pydantic import BaseModel, Field
+from typing_extensions import Annotated
 
 from fastmcp import Client, FastMCP
 from fastmcp.tools.base import Tool, ToolResult
@@ -282,7 +283,7 @@ class TestToolFromFunction:
         """
 
         def search(
-            limit: Annotated[int | None, Field(description="How many.")] = None,
+            limit: Annotated[Optional[int], Field(description="How many.")] = None,
         ) -> str:
             return "ok"
 
@@ -375,7 +376,7 @@ class TestToolFromFunction:
 
     @pytest.mark.parametrize("docstring", ["Double the input.", "", None])
     async def test_partial_explicit_metadata_is_preserved(
-        self, docstring: str | None
+        self, docstring: Optional[str]
     ) -> None:
         def multiply(x: int, y: int) -> int:
             """Multiply two numbers."""

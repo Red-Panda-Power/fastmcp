@@ -4,9 +4,8 @@ import asyncio
 import functools
 import json
 import threading
-from collections.abc import AsyncIterator, Callable, Generator, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, AsyncIterator, Callable, Dict, Generator, Iterator
 
 import pytest
 from mcp_types import TextContent
@@ -152,7 +151,7 @@ async def test_sync_generator_consumed_before_dependency_cleanup() -> None:
     state = {"open": False}
 
     @contextmanager
-    def connection() -> Generator[dict[str, bool], None, None]:
+    def connection() -> Generator[Dict[str, bool], None, None]:
         state["open"] = True
         try:
             yield state
@@ -160,7 +159,7 @@ async def test_sync_generator_consumed_before_dependency_cleanup() -> None:
             state["open"] = False
 
     @mcp.tool
-    def query(resource: dict[str, bool] = Depends(connection)) -> Iterator[bool]:
+    def query(resource: Dict[str, bool] = Depends(connection)) -> Iterator[bool]:
         yield resource["open"]
 
     async with Client(mcp) as client:

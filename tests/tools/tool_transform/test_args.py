@@ -1,12 +1,14 @@
 """Tests for argument transformation in tool transforms."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Any
 
 import pytest
 from mcp_types import TextContent
 from pydantic import BaseModel, Field
-from typing_extensions import TypedDict
+from typing_extensions import Annotated, TypedDict
 
 from fastmcp import FastMCP
 from fastmcp.client.client import Client

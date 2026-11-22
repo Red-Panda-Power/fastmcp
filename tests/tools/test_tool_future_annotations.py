@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, cast
+from typing import Any, Literal, cast
 
 import mcp_types
 from pydantic import Field
+from typing_extensions import Annotated
 
 from fastmcp import Context, FastMCP
 from fastmcp.client import Client

@@ -1,8 +1,7 @@
 import json
 import typing
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import mcp_types
 import pytest
@@ -15,7 +14,7 @@ from mcp_types import (
     TextContent,
 )
 from pydantic import AnyUrl, BaseModel, Field, TypeAdapter
-from typing_extensions import TypedDict
+from typing_extensions import Annotated, TypedDict
 
 from fastmcp import Client, FastMCP
 from fastmcp.tools.base import Tool, ToolResult
@@ -38,15 +37,15 @@ class TestToolFromFunctionOutputSchema:
             float,
             bool,
             str,
-            int | float,
-            list[int],
-            list[int | float],
+            Union[int, float],
+            List[int],
+            List[Union[int, float]],
             dict,
-            dict[str, Any],
-            dict[str, int | None],
-            tuple[int, str],
-            set[int],
-            list[tuple[int, str]],
+            Dict[str, Any],
+            Dict[str, Optional[int]],
+            Tuple[int, str],
+            Set[int],
+            List[Tuple[int, str]],
         ],
     )
     async def test_simple_return_annotation(self, annotation):
@@ -73,7 +72,9 @@ class TestToolFromFunctionOutputSchema:
             # # Note: Parameterized test - keeping original assertion for multiple parameter values
         else:
             # Object types remain unwrapped
-            assert tool.output_schema == base_schema
+            expected_schema = dict(base_schema)
+            expected_schema.setdefault("additionalProperties", True)
+            assert tool.output_schema == expected_schema
 
     @pytest.mark.parametrize(
         "annotation",
@@ -120,9 +121,9 @@ class TestToolFromFunctionOutputSchema:
             (Image, ImageContent),
             (Audio, AudioContent),
             (File, EmbeddedResource),
-            (Image | int, ImageContent | int),
-            (Image | Audio, ImageContent | AudioContent),
-            (list[Image | Audio], list[ImageContent | AudioContent]),
+            (Union[Image, int], Union[ImageContent, int]),
+            (Union[Image, Audio], Union[ImageContent, AudioContent]),
+            (List[Union[Image, Audio]], List[Union[ImageContent, AudioContent]]),
         ],
     )
     async def test_converted_return_annotation(self, annotation, expected):
@@ -162,7 +163,7 @@ class TestToolFromFunctionOutputSchema:
         class MyToolResult(ToolResult):
             pass
 
-        def func() -> MyToolResult | None:
+        def func() -> Optional[MyToolResult]:
             return None
 
         tool = Tool.from_function(func)
@@ -244,7 +245,7 @@ class TestToolFromFunctionOutputSchema:
             def __init__(self, data: Any):
                 self.data = data
 
-        def func() -> Unserializable | int:
+        def func() -> Union[Unserializable, int]:
             return Unserializable(data="test")
 
         tool = Tool.from_function(func)
@@ -255,7 +256,7 @@ class TestToolFromFunctionOutputSchema:
     ):
         """Test that provided output_schema takes precedence over inferred schema from JSON-compatible annotation."""
 
-        def func() -> dict[str, int]:
+        def func() -> Dict[str, int]:
             return {"a": 1, "b": 2}
 
         # Provide a custom output schema that differs from the inferred one
@@ -269,7 +270,7 @@ class TestToolFromFunctionOutputSchema:
     ):
         """Test that provided output_schema takes precedence over inferred schema from complex annotation."""
 
-        def func() -> list[dict[str, int | float]]:
+        def func() -> List[Dict[str, Union[int, float]]]:
             return [{"a": 1, "b": 2.5}]
 
         # Provide a custom output schema that differs from the inferred one
@@ -334,7 +335,7 @@ class TestToolFromFunctionOutputSchema:
     async def test_provided_output_schema_takes_precedence_over_union_annotation(self):
         """Test that provided output_schema takes precedence over inferred schema from union annotation."""
 
-        def func() -> str | int | None:
+        def func() -> Optional[Union[str, int]]:
             return "hello"
 
         # Provide a custom output schema that differs from the inferred union schema
@@ -367,7 +368,7 @@ class TestToolFromFunctionOutputSchema:
     async def test_output_schema_false_allows_automatic_structured_content(self):
         """Test that output_schema=False still allows automatic structured content for dict-like objects."""
 
-        def func() -> dict[str, str]:
+        def func() -> Dict[str, str]:
             return {"message": "Hello, world!"}
 
         tool = Tool.from_function(func, output_schema=None)
@@ -418,7 +419,7 @@ class TestToolFromFunctionOutputSchema:
     async def test_explicit_object_schema_with_dict_return(self):
         """Test that explicit object schemas work when function returns a dict."""
 
-        def func() -> dict[str, int]:
+        def func() -> Dict[str, int]:
             return {"value": 42}
 
         # Provide explicit object schema
@@ -456,12 +457,12 @@ class TestToolFromFunctionOutputSchema:
     async def test_object_output_schema_not_wrapped(self):
         """Test that object-type output schemas are never wrapped."""
 
-        def func() -> dict[str, int]:
+        def func() -> Dict[str, int]:
             return {"value": 42}
 
         # Object schemas should never be wrapped, even when inferred
         tool = Tool.from_function(func)
-        expected_schema = TypeAdapter(dict[str, int]).json_schema()
+        expected_schema = TypeAdapter(Dict[str, int]).json_schema()
         assert tool.output_schema == expected_schema  # Not wrapped
         assert tool.output_schema and "x-fastmcp-wrap-result" not in tool.output_schema
 
@@ -496,7 +497,7 @@ class TestToolFromFunctionOutputSchema:
     async def test_structured_content_with_explicit_object_schema(self):
         """Test structured content with explicit object schema."""
 
-        def func() -> dict[str, str]:
+        def func() -> Dict[str, str]:
             return {"greeting": "hello"}
 
         # Provide explicit object schema
@@ -587,7 +588,7 @@ class TestWrapResultMeta:
     async def test_list_return_includes_wrap_result_meta(self):
         """A tool returning list[dict] should set wrap_result in meta."""
 
-        def func() -> list[dict]:
+        def func() -> List[dict]:
             return [{"a": 1}, {"b": 2}]
 
         tool = Tool.from_function(func)
@@ -609,7 +610,7 @@ class TestWrapResultMeta:
     async def test_dict_return_does_not_include_wrap_result_meta(self):
         """A tool returning dict should NOT set wrap_result in meta."""
 
-        def func() -> dict[str, int]:
+        def func() -> Dict[str, int]:
             return {"value": 42}
 
         tool = Tool.from_function(func)
@@ -656,10 +657,10 @@ class TestUnconstrainedSequenceReturns:
             list,
             tuple,
             typing.Sequence,
-            list[Any],
+            List[Any],
             Sequence[Any],
-            tuple[Any, ...],
-            Annotated[list, "meta"],
+            Tuple[Any, ...],
+            Annotated[List, "meta"],
             "bare",
         ],
     )
@@ -678,12 +679,12 @@ class TestUnconstrainedSequenceReturns:
     @pytest.mark.parametrize(
         "annotation",
         [
-            list[int],
+            List[int],
             dict,
             str,
-            tuple[int, str],
-            tuple[Any],
-            tuple[Any, Any],
+            Tuple[int, str],
+            Tuple[Any],
+            Tuple[Any, Any],
             Sequence[str],
         ],
     )
