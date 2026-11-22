@@ -14,7 +14,7 @@ import os
 import re
 import secrets
 import time
-from collections.abc import AsyncGenerator
+from typing import AsyncGenerator
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx2
