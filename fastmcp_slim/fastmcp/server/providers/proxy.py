@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import inspect
 import json
+import sys
 import time
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
@@ -85,7 +86,14 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # Type alias for client factory functions
-ClientFactoryT = Callable[[], Client] | Callable[[], Awaitable[Client]]
+if sys.version_info < (3, 10):  # noqa: UP036 - Python 3.8
+    from typing import Awaitable as _Awaitable  # noqa: UP035 - Python 3.8
+    from typing import Callable as _Callable  # noqa: UP035 - Python 3.8
+    from typing import Union as _Union
+
+    ClientFactoryT = _Union[_Callable[[], Client], _Callable[[], _Awaitable[Client]]]  # noqa: UP007 - Python 3.8
+else:
+    ClientFactoryT = Callable[[], Client] | Callable[[], Awaitable[Client]]
 ProxyIdentity = Literal["proxy", "upstream"]
 
 

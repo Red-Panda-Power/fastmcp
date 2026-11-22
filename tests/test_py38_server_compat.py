@@ -17,6 +17,12 @@ from typing_extensions import (  # noqa: UP035 - Python 3.8
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ResourceSecurityError, ValidationError
+from fastmcp.prompts.base import Prompt
+from fastmcp.resources.template import (
+    expand_uri_template,
+    extract_exploded_query_params,
+    match_uri_template,
+)
 from fastmcp.server.auth import (
     AccessToken,
     AuthContext,
@@ -25,7 +31,7 @@ from fastmcp.server.auth import (
 )
 from fastmcp.server.lifespan import lifespan
 from fastmcp.server.middleware import MiddlewareContext
-from fastmcp.tools.base import default_serializer
+from fastmcp.tools.base import Tool, default_serializer
 from fastmcp.utilities.types import get_function_type_hints
 
 
@@ -57,6 +63,32 @@ def test_unknown_json_values_use_string_fallback() -> None:
             return "fallback"
 
     assert default_serializer({"value": Value()}) == '{"value":"fallback"}'
+
+
+def test_postponed_none_return_has_no_output_schema() -> None:
+    def no_result() -> None:
+        return None
+
+    assert Tool.from_function(no_result).output_schema is None
+
+
+def test_prompt_keeps_annotated_parameter_title() -> None:
+    def greet(name: Annotated[str, Field(title="Your name")]) -> str:
+        return name
+
+    arguments = Prompt.from_function(greet).to_mcp_prompt().arguments or []
+    assert [(argument.name, argument.title) for argument in arguments] == [
+        ("name", "Your name")
+    ]
+
+
+def test_exploded_resource_query_round_trips() -> None:
+    template = "data://{id}{?x}{&tags*}"
+    arguments = {"id": "7", "x": "1", "tags": ["a", "b"]}
+    assert extract_exploded_query_params(template) == {"tags"}
+    uri = expand_uri_template(template, arguments)
+    assert uri == "data://7?x=1&tags=a&tags=b"
+    assert match_uri_template(uri, template) == arguments
 
 
 async def test_server_component_execution_and_validation() -> None:

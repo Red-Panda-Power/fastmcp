@@ -172,7 +172,9 @@ def safe_join(base: str | Path, *parts: str) -> Path:
 
     target = base_resolved.joinpath(*parts).resolve()
 
-    if not target.is_relative_to(base_resolved):
-        raise PathEscapeError(f"Path {target} escapes base {base_resolved}")
+    try:
+        target.relative_to(base_resolved)
+    except ValueError as exc:
+        raise PathEscapeError(f"Path {target} escapes base {base_resolved}") from exc
 
     return target

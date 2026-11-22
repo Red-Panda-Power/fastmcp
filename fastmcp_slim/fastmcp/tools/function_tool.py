@@ -52,6 +52,7 @@ from fastmcp.utilities.types import (
     NotSet,
     NotSetT,
     get_cached_typeadapter,
+    get_function_type_hints,
 )
 
 logger = get_logger(__name__)
@@ -122,7 +123,7 @@ def _wrap_body_errors(
     # signature's own annotations, which is the only source for callables like
     # functools.partial that carry no __annotations__.
     try:
-        resolved_hints = get_type_hints(fn, include_extras=True)
+        resolved_hints = get_function_type_hints(fn)
     except Exception:
         resolved_hints = {}
     sig = inspect.signature(fn)
@@ -244,7 +245,10 @@ def _resolve_param_hints(fn: Callable[..., Any]) -> dict[str, Any]:
     try:
         resolved = get_type_hints(target, include_extras=True)
     except TypeError:
-        return {}
+        try:
+            resolved = get_function_type_hints(target)
+        except TypeError:
+            return {}
     if target is fn:
         return resolved
     return {

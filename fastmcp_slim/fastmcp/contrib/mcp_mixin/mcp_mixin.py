@@ -1,5 +1,7 @@
 """Provides a base mixin class and decorators for easy registration of class methods with FastMCP."""
 
+from __future__ import annotations
+
 import inspect
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -194,7 +196,7 @@ class MCPMixin:
 
     def register_tools(
         self,
-        mcp_server: "FastMCP",
+        mcp_server: FastMCP,
         prefix: str | None = None,
         separator: str = _DEFAULT_SEPARATOR_TOOL,
     ) -> None:
@@ -224,7 +226,7 @@ class MCPMixin:
 
     def register_resources(
         self,
-        mcp_server: "FastMCP",
+        mcp_server: FastMCP,
         prefix: str | None = None,
         separator: str = _DEFAULT_SEPARATOR_RESOURCE,
     ) -> None:
@@ -271,7 +273,7 @@ class MCPMixin:
 
     def register_prompts(
         self,
-        mcp_server: "FastMCP",
+        mcp_server: FastMCP,
         prefix: str | None = None,
         separator: str = _DEFAULT_SEPARATOR_PROMPT,
     ) -> None:
@@ -301,7 +303,7 @@ class MCPMixin:
 
     def register_all(
         self,
-        mcp_server: "FastMCP",
+        mcp_server: FastMCP,
         prefix: str | None = None,
         tool_separator: str = _DEFAULT_SEPARATOR_TOOL,
         resource_separator: str = _DEFAULT_SEPARATOR_RESOURCE,

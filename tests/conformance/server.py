@@ -210,7 +210,7 @@ async def test_elicitation(message: str, ctx: Context) -> str:
     return f"Elicitation result: {result}"
 
 
-class _UserStatus(str, PyEnum):
+class _UserStatus(str, PyEnum):  # noqa: UP042 - Python 3.8
     active = "active"
     inactive = "inactive"
     pending = "pending"

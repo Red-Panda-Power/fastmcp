@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 import pytest
@@ -453,7 +455,6 @@ class TestResourceTemplateFieldDefaults:
 
     async def test_multiple_field_defaults(self):
         """Test multiple query parameters with Field() defaults."""
-        from typing import Any
 
         from pydantic import Field
 

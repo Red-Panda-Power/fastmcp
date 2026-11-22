@@ -156,7 +156,7 @@ class FileSystemSource(Source):
         for name in ["mcp", "server", "app"]:
             if hasattr(module, name):
                 obj = getattr(module, name)
-                if isinstance(obj, FastMCP | SDKServer):
+                if isinstance(obj, (FastMCP, SDKServer)):
                     return await self._resolve_factory(obj, file_path, name)
 
         # No server found
@@ -197,7 +197,7 @@ class FileSystemSource(Source):
                     server = obj()
 
                 # Validate the result is a FastMCP server
-                if not isinstance(server, FastMCP | SDKServer):
+                if not isinstance(server, (FastMCP, SDKServer)):
                     logger.error(
                         f"Factory function '{name}' must return a FastMCP server instance, "
                         f"got {type(server).__name__}",

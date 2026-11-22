@@ -128,7 +128,7 @@ async def stdio_client(
     process = await _create_platform_compatible_process(
         command=command,
         args=server.args,
-        env=get_default_environment() | (server.env or {}),
+        env={**get_default_environment(), **(server.env or {})},
         errlog=errlog,
         cwd=server.cwd,
     )

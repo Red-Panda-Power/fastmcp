@@ -15,7 +15,6 @@ from typing import (
     Protocol,
     TypeVar,
     cast,
-    get_type_hints,
     overload,
     runtime_checkable,
 )
@@ -480,7 +479,7 @@ def _explicit_parameter_titles(fn: Callable[..., Any]) -> dict[str, str]:
     from the annotations and defaults instead.
     """
     try:
-        hints = get_type_hints(fn, include_extras=True)
+        hints = get_function_type_hints(fn)
     except Exception:
         # Unresolvable annotations: titles set as defaults still count.
         hints = {}

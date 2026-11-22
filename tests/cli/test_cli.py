@@ -9,6 +9,11 @@ from fastmcp.cli.cli import app
 from fastmcp.cli.install.shared import parse_env_var
 
 
+def _parse_args(*args, **kwargs):
+    # Cyclopts 2 returns two values; newer releases add an ignored third value.
+    return app.parse_args(*args, **kwargs)[:2]
+
+
 class TestMainCLI:
     """Test the main CLI application."""
 
@@ -65,22 +70,22 @@ class TestVersionCommand:
     def test_version_command_execution(self, mock_check):
         """Test that version command executes properly."""
         # The version command should execute without raising SystemExit
-        command, bound, _ = app.parse_args(["version"])
+        command, bound = _parse_args(["version"])
         command()  # Should not raise
 
     def test_version_command_parsing(self):
         """Test that the version command parses arguments correctly."""
-        command, bound, _ = app.parse_args(["version"])
+        command, bound = _parse_args(["version"])
         assert callable(command)
-        assert command.__name__ == "version"  # type: ignore[attr-defined]  # ty:ignore[missing-attribute]
+        assert command.__name__ == "version"  # type: ignore[attr-defined]
         # Default arguments aren't included in bound.arguments
         assert bound.arguments == {}
 
     def test_version_command_with_copy_flag(self):
         """Test that the version command parses --copy flag correctly."""
-        command, bound, _ = app.parse_args(["version", "--copy"])
+        command, bound = _parse_args(["version", "--copy"])
         assert callable(command)
-        assert command.__name__ == "version"  # type: ignore[attr-defined]  # ty:ignore[missing-attribute]
+        assert command.__name__ == "version"  # type: ignore[attr-defined]
         assert bound.arguments == {"copy": True}
 
     @patch("fastmcp.cli.cli.pyperclip.copy")
@@ -89,7 +94,7 @@ class TestVersionCommand:
         self, mock_console, mock_pyperclip_copy
     ):
         """Test that the version command copies to clipboard when --copy is used."""
-        command, bound, _ = app.parse_args(["version", "--copy"])
+        command, bound = _parse_args(["version", "--copy"])
         command(**bound.arguments)
 
         # Verify pyperclip.copy was called with plain text format
@@ -116,12 +121,12 @@ class TestDevCommand:
     def test_dev_inspector_command_parsing(self):
         """Test that dev inspector command can be parsed with various options."""
         # Test basic parsing
-        command, bound, _ = app.parse_args(["dev", "inspector", "server.py"])
+        command, bound = _parse_args(["dev", "inspector", "server.py"])
         assert command is not None
         assert bound.arguments["server_spec"] == "server.py"
 
         # Test with options
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "dev",
                 "inspector",
@@ -140,7 +145,7 @@ class TestDevCommand:
 
     def test_dev_inspector_command_parsing_with_new_options(self):
         """Test dev inspector command parsing with new uv options."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "dev",
                 "inspector",
@@ -168,7 +173,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_basic(self):
         """Test basic run command parsing."""
-        command, bound, _ = app.parse_args(["run", "server.py"])
+        command, bound = _parse_args(["run", "server.py"])
 
         assert command is not None
         assert bound.arguments["server_spec"] == "server.py"
@@ -182,7 +187,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_with_options(self):
         """Test run command parsing with various options."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -211,7 +216,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_partial_options(self):
         """Test run command parsing with only some options."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -233,7 +238,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_with_new_options(self):
         """Test run command parsing with new uv options."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -260,7 +265,7 @@ class TestRunCommand:
     def test_run_command_transport_aliases(self):
         """Test that both 'http' and 'streamable-http' are accepted as valid transport options."""
         # Test with 'http' transport
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -272,7 +277,7 @@ class TestRunCommand:
         assert bound.arguments["transport"] == "http"
 
         # Test with 'streamable-http' transport
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -285,7 +290,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_with_server_args(self):
         """Test run command parsing with server arguments after --."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -303,7 +308,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_with_mixed_args(self):
         """Test run command parsing with both FastMCP options and server args."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -327,7 +332,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_with_positional_server_args(self):
         """Test run command parsing with positional server arguments."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -358,7 +363,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_project_flag(self):
         """Test run command parsing with --project flag."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -372,7 +377,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_skip_source_flag(self):
         """Test run command parsing with --skip-source flag."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -385,7 +390,7 @@ class TestRunCommand:
 
     def test_run_command_parsing_project_and_skip_source(self):
         """Test run command parsing with --project and --skip-source flags."""
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "run",
                 "server.py",
@@ -552,7 +557,7 @@ class TestInspectCommand:
 
     def test_inspect_command_parsing_basic(self):
         """Test basic inspect command parsing."""
-        command, bound, _ = app.parse_args(["inspect", "server.py"])
+        command, bound = _parse_args(["inspect", "server.py"])
 
         assert command is not None
         assert bound.arguments["server_spec"] == "server.py"
@@ -563,7 +568,7 @@ class TestInspectCommand:
         """Test inspect command parsing with output file."""
         output_file = tmp_path / "output.json"
 
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "inspect",
                 "server.py",
@@ -592,7 +597,7 @@ def test_tool(x: int) -> int:
 """)
 
         # Parse and execute the command without format or output
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "inspect",
                 str(server_file),
@@ -622,7 +627,7 @@ import fastmcp
 mcp = fastmcp.FastMCP("demo [dev]", instructions="Use [path] or see [/docs]")
 """)
 
-        command, bound, _ = app.parse_args(["inspect", str(server_file)])
+        command, bound = _parse_args(["inspect", str(server_file)])
 
         await command(**bound.arguments)
 
@@ -651,7 +656,7 @@ def test_prompt(name: str) -> str:
         output_file = tmp_path / "inspect_output.json"
 
         # Parse and execute the command with format and output file
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             [
                 "inspect",
                 str(server_file),
@@ -690,7 +695,7 @@ def test_tool(x: int) -> int:
     return x * 2
 """)
 
-        command, bound, _ = app.parse_args(
+        command, bound = _parse_args(
             ["inspect", str(server_file), "--format", "fastmcp"]
         )
 

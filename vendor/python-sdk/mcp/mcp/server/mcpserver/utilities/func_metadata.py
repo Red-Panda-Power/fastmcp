@@ -5,7 +5,7 @@ import json
 import sys
 from collections.abc import Awaitable, Callable, Sequence
 from itertools import chain
-from typing import Any, ForwardRef, Union, cast, get_args, get_origin
+from typing import Any, ForwardRef, Union, cast
 
 import anyio
 import anyio.to_thread
@@ -22,7 +22,17 @@ from pydantic import (
 )
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import GenerateJsonSchema, JsonSchemaWarningKind
-from typing_extensions import Annotated, NotRequired, ReadOnly, TypedDict, deprecated, get_type_hints, is_typeddict
+from typing_extensions import (
+    Annotated,
+    NotRequired,
+    ReadOnly,
+    TypedDict,
+    deprecated,
+    get_args,
+    get_origin,
+    get_type_hints,
+    is_typeddict,
+)
 from typing_inspection.introspection import (
     UNKNOWN,
     AnnotationSource,

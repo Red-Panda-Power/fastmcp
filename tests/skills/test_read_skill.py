@@ -404,7 +404,8 @@ async def test_read_skill_preserves_manifest_resource_uris(query: str):
 
     server = FastMCP("Custom URIs")
     server.add_extension(Published())
-    for path, record in zip(REVIEW.files, records, strict=True):
+    assert len(REVIEW.files) == len(records)
+    for path, record in zip(REVIEW.files, records):
         server.resource(record.uri)(_constant(REVIEW.files[path]))
 
     async with skills_client(server) as client:

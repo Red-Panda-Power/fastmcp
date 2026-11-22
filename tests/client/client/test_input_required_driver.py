@@ -17,7 +17,7 @@ exercise the client-side *answering* path, which the spec's decisive finding say
 is era-neutral by construction once the driver is wired.
 """
 
-from typing import Annotated, Literal, cast
+from typing import Literal, cast
 
 import mcp_types
 import pytest
@@ -27,6 +27,7 @@ from mcp.client._input_required import (
 )
 from mcp.server.mcpserver import Elicit, MCPServer, Resolve
 from pydantic import BaseModel
+from typing_extensions import Annotated
 
 from fastmcp import Client, FastMCP
 from fastmcp.client.elicitation import ElicitResult

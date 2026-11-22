@@ -113,7 +113,8 @@ def _compute_module_name(file_path: Path, package_root: Path) -> str:
     relative = file_path.relative_to(package_root.parent)
     parts = list(relative.parts)
     # Remove .py extension from last part
-    parts[-1] = parts[-1].removesuffix(".py")
+    if parts[-1].endswith(".py"):
+        parts[-1] = parts[-1][:-3]
     return ".".join(parts)
 
 

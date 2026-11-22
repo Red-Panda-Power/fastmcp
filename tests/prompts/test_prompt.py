@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any, Dict, List, Optional, Union
 
 import pytest
 from mcp import MCPError
@@ -10,6 +10,7 @@ from mcp_types import (
     TextResourceContents,
 )
 from pydantic import Field
+from typing_extensions import Annotated
 
 from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ValidationError
@@ -112,7 +113,7 @@ class TestRenderPrompt:
         assert result.messages == [Message("Hello, World! You're 40 years old.")]
 
     async def test_fn_returns_message_list(self):
-        async def fn() -> list[Message]:
+        async def fn() -> List[Message]:
             return [Message("Hello, world!")]
 
         prompt = Prompt.from_function(fn)
@@ -120,7 +121,7 @@ class TestRenderPrompt:
         assert result.messages == [Message("Hello, world!")]
 
     async def test_fn_returns_assistant_message(self):
-        async def fn() -> list[Message]:
+        async def fn() -> List[Message]:
             return [Message("Hello, world!", role="assistant")]
 
         prompt = Prompt.from_function(fn)
@@ -134,7 +135,7 @@ class TestRenderPrompt:
             Message("I'm looking for a restaurant in the center of town."),
         ]
 
-        async def fn() -> list[Message]:
+        async def fn() -> List[Message]:
             return expected
 
         prompt = Prompt.from_function(fn)
@@ -147,7 +148,7 @@ class TestRenderPrompt:
             "I'm looking for a restaurant in the center of town.",
         ]
 
-        async def fn() -> list[str]:
+        async def fn() -> List[str]:
             return expected
 
         prompt = Prompt.from_function(fn)
@@ -157,7 +158,7 @@ class TestRenderPrompt:
     async def test_fn_returns_resource_content(self):
         """Test returning a message with resource content."""
 
-        async def fn() -> list[Message]:
+        async def fn() -> List[Message]:
             return [
                 Message(
                     content=EmbeddedResource(
@@ -191,7 +192,7 @@ class TestRenderPrompt:
     async def test_fn_returns_mixed_content(self):
         """Test returning messages with mixed content types."""
 
-        async def fn() -> list[Message | str]:
+        async def fn() -> List[Union[Message, str]]:
             return [
                 "Please analyze this file:",
                 Message(
@@ -229,7 +230,7 @@ class TestRenderPrompt:
     async def test_fn_returns_message_with_resource(self):
         """Test returning a message with resource content."""
 
-        async def fn() -> list[Message]:
+        async def fn() -> List[Message]:
             return [
                 Message(
                     content=EmbeddedResource(
@@ -265,7 +266,7 @@ class TestPromptTypeConversion:
     async def test_list_of_integers_as_string_args(self):
         """Test that prompts can handle complex types passed as strings from MCP spec."""
 
-        def sum_numbers(numbers: list[int]) -> str:
+        def sum_numbers(numbers: List[int]) -> str:
             """Calculate the sum of a list of numbers."""
             total = sum(numbers)
             return f"The sum is: {total}"
@@ -291,8 +292,8 @@ class TestPromptTypeConversion:
         def process_data(
             name: str,
             age: int,
-            scores: list[float],
-            metadata: dict[str, str],
+            scores: List[float],
+            metadata: Dict[str, str],
             active: bool,
         ) -> str:
             return f"{name} ({age}): {len(scores)} scores, active={active}, metadata keys={list(metadata.keys())}"
@@ -319,7 +320,7 @@ class TestPromptTypeConversion:
         """Test that informative errors are raised for invalid type conversions."""
         from fastmcp.exceptions import PromptError
 
-        def typed_prompt(numbers: list[int]) -> str:
+        def typed_prompt(numbers: List[int]) -> str:
             return f"Got {len(numbers)} numbers"
 
         prompt = Prompt.from_function(typed_prompt)
@@ -369,10 +370,10 @@ class TestPromptTypeConversion:
         ("annotation", "value"),
         [
             (Annotated[str, Field(description="Text")], '"hello"'),
-            (str | None, "null"),
+            (Optional[str], "null"),
             (Any, "123"),
             (object, "true"),
-            (int | str, "42"),
+            (Union[int, str], "42"),
         ],
     )
     async def test_string_compatible_annotations_preserve_wire_strings(
@@ -389,7 +390,7 @@ class TestPromptTypeConversion:
         assert result.messages == [Message(f"str:{value!r}")]
 
     async def test_optional_non_string_still_decodes_json_null(self):
-        def optional_integer_prompt(value: int | None) -> str:
+        def optional_integer_prompt(value: Optional[int]) -> str:
             return f"{type(value).__name__}:{value!r}"
 
         prompt = Prompt.from_function(optional_integer_prompt)
@@ -439,8 +440,8 @@ class TestPromptArgumentDescriptions:
 
         def analyze_data(
             name: str,
-            numbers: list[int],
-            metadata: dict[str, str],
+            numbers: List[int],
+            metadata: Dict[str, str],
             threshold: float,
             active: bool,
         ) -> str:
@@ -505,13 +506,12 @@ class TestPromptArgumentDescriptions:
 
     def test_enhanced_descriptions_with_existing_descriptions(self):
         """Test that existing parameter descriptions are preserved with schema appended."""
-        from typing import Annotated
 
         from pydantic import Field
 
         def documented_prompt(
             numbers: Annotated[
-                list[int], Field(description="A list of integers to process")
+                List[int], Field(description="A list of integers to process")
             ],
         ) -> str:
             """Process numbers."""
@@ -602,7 +602,6 @@ class TestPromptArgumentDescriptions:
 
     def test_explicit_field_description_overrides_docstring(self):
         """Field(description=...) takes precedence over docstring."""
-        from typing import Annotated
 
         from pydantic import Field
 
@@ -809,7 +808,7 @@ class TestMessage:
         link = ResourceLink(type="resource_link", uri="docs://guide", name="guide")
 
         @mcp.prompt
-        def review_guide() -> list[Message]:
+        def review_guide() -> List[Message]:
             return [Message("Please review this document:"), Message(link)]
 
         async with Client(mcp) as client:
@@ -940,7 +939,6 @@ class TestPromptFieldDefaults:
 
     async def test_annotated_field_with_default_in_signature(self):
         """Test that Annotated[type, Field(...)] with default in signature works."""
-        from typing import Annotated
 
         from pydantic import Field
 

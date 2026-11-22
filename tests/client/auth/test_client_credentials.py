@@ -121,7 +121,7 @@ async def drive_auth_flow(
         sent: httpx2.Response | None = None
         while True:
             try:
-                request = await flow.asend(sent)  # ty: ignore[invalid-argument-type]
+                request = await flow.asend(sent)
             except StopAsyncIteration:
                 break
             requests.append(request)

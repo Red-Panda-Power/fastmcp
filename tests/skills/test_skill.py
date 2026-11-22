@@ -305,7 +305,12 @@ def test_to_directory_refuses_a_symlink(tmp_path: Path):
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     link = tmp_path / "review"
-    link.symlink_to(elsewhere, target_is_directory=True)
+    try:
+        link.symlink_to(elsewhere, target_is_directory=True)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("creating symlinks requires Windows privileges")
+        raise
     with pytest.raises(ValueError, match="symlink"):
         skill.to_directory(link, overwrite=True)
     assert elsewhere.exists()

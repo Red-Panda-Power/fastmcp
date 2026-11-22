@@ -7,7 +7,10 @@ import stat
 import subprocess
 import traceback
 from pathlib import Path
-from typing import Dict, cast
+from typing import (  # noqa: UP035 - cast evaluates types at runtime on Python 3.8
+    Dict,
+    cast,
+)
 
 import httpx2
 import pytest
@@ -241,7 +244,7 @@ def test_windows_acl_replaces_the_existing_access_list(
 
     def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append(command)
-        environment = cast(Dict[str, str], kwargs["env"])
+        environment = cast(Dict[str, str], kwargs["env"])  # noqa: UP006 - Python 3.8
         state_paths.append(environment["FASTMCP_STATE_PATH"])
         return subprocess.CompletedProcess(command, 0, "", "")
 
@@ -281,7 +284,9 @@ def test_windows_credential_state_allows_only_the_current_user(
     store = CredentialStore(state_directory)
     store.save("fmcp_secret")
     inspect_acl = r"""
-$acl = Get-Acl -LiteralPath $env:FASTMCP_STATE_PATH
+$ErrorActionPreference = "Stop"
+$item = Get-Item -LiteralPath $env:FASTMCP_STATE_PATH -Force
+$acl = $item.GetAccessControl("Access")
 $current = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $access = @($acl.Access | ForEach-Object {
     $_.IdentityReference.Translate(

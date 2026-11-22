@@ -24,7 +24,9 @@ import hashlib
 import json
 import os
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Any, Protocol
+from typing import Any, Protocol
+
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 from fastmcp.server.context import Context
 from fastmcp.server.transforms.search.base import (

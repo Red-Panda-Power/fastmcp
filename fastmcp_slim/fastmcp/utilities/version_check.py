@@ -43,7 +43,7 @@ def _read_cache(include_prereleases: bool = False) -> tuple[str | None, float]:
         if (
             not isinstance(version, str)
             or isinstance(timestamp, bool)
-            or not isinstance(timestamp, int | float)
+            or not isinstance(timestamp, (int, float))
         ):
             return None, 0
         return version, timestamp

@@ -341,7 +341,12 @@ class TransportMixin:
         config_kwargs: dict[str, Any] = {
             "timeout_graceful_shutdown": 2,
             "lifespan": "on",
-            "ws": "websockets-sansio",
+            # Uvicorn 0.33 (the Python 3.8 line) predates the sans-I/O backend.
+            "ws": (
+                "websockets-sansio"
+                if "websockets-sansio" in uvicorn.config.WS_PROTOCOLS
+                else "websockets"
+            ),
         }
         config_kwargs.update(uvicorn_config_from_user)
 

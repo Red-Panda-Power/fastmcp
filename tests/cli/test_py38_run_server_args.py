@@ -104,7 +104,9 @@ async def test_run_server_args_after_separator_reach_run_entry(
     )[:2]
     await command(*bound.args, **bound.kwargs)
 
-    assert run_command.await_args.kwargs["server_args"] == [
+    await_args = run_command.await_args
+    assert await_args is not None
+    assert await_args.kwargs["server_args"] == [
         "--port",
         "1234",
         "--transport",

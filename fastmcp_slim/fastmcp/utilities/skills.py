@@ -17,6 +17,7 @@ from urllib.parse import quote
 import mcp_types
 
 from fastmcp._warnings import FastMCPDeprecationWarning
+from fastmcp.utilities.paths import is_relative_to
 
 if TYPE_CHECKING:
     from fastmcp.client import Client
@@ -212,7 +213,7 @@ async def _download_skill(
     skill_dir = (target_dir / skill_name).resolve()
 
     # Security: ensure skill_dir stays within target_dir
-    if not skill_dir.is_relative_to(target_dir):
+    if not is_relative_to(skill_dir, target_dir):
         raise ValueError(f"Skill name {skill_name!r} would escape the target directory")
 
     # Check if directory exists
@@ -234,7 +235,7 @@ async def _download_skill(
         if Path(file_info.path).is_absolute():
             continue
         file_path = (skill_dir / file_info.path).resolve()
-        if not file_path.is_relative_to(skill_dir):
+        if not is_relative_to(file_path, skill_dir):
             continue
 
         file_uri = f"skill://{skill_name}/{quote(file_info.path, safe='/')}"
@@ -251,7 +252,8 @@ async def _download_skill(
         # Write content
         if isinstance(content, mcp_types.TextResourceContents):
             # newline="" writes the served text as is, without CRLF translation.
-            file_path.write_text(content.text, encoding="utf-8", newline="")
+            with file_path.open("w", encoding="utf-8", newline="") as output:
+                output.write(content.text)
         elif isinstance(content, mcp_types.BlobResourceContents):
             file_path.write_bytes(base64.b64decode(content.blob))
         else:

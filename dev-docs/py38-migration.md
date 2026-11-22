@@ -1,4 +1,29 @@
-# Python 3.8 migration baseline
+# Python 3.8 migration audit
+
+## Current status
+
+The root UV workspace resolves and installs on Python 3.8. The default
+development group includes pytest and the test plugins; `--no-dev` installs
+runtime dependencies without them. See [Python 3.8 environments](py38-environments.md)
+for installation commands and the optional native code-mode sandbox.
+
+The Python 3.8 resolution uses vendored backports for dependencies without a
+suitable upstream release, including the MCP SDK, HTTP transport, dependency
+injection, storage, PyJWT, and TypeSafe SDK. FastAPI 0.124.4, Starlette 0.44.0,
+and Pydantic 2.10.6 are exercised together in the development environment and
+are available through the optional FastAPI deployment extra. The Horizon
+account commands removed during the initial migration have been restored.
+The dependency and source audits below describe the initial state and are kept
+as migration history, rather than the current workspace configuration.
+
+MCP Apps UI, Gemini, and Azure integrations are omitted on Python 3.8 as
+requested. Background tasks are deferred. Code mode is optional on Python 3.8
+and requires building the vendored native sandbox. Its Windows build was tested;
+Linux and macOS builds have not yet been verified. The complete upstream test
+suite has not been validated on Python 3.8, so passing focused tests does not
+establish compatibility for every feature or platform.
+
+## Historical baseline
 
 This internal fork targets Python 3.8 while preserving the current FastMCP features, except that MCP Apps UI and `prefab-ui` may be omitted. Prefect Horizon account and deployment integration is removed from this fork; general server deployment and authentication remain supported. The Python 3.8 environment is a starting point, not a working installation of FastMCP. The main workspace still declares Python 3.11 or newer and its existing lockfile does not support Python 3.8.
 

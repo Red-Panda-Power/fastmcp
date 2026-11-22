@@ -32,10 +32,11 @@ import hashlib
 import inspect
 import json
 import logging
+import sys
 import types
 import typing
 from collections.abc import Callable, Hashable, Mapping
-from typing import Any, Generic, Literal, get_args, get_origin
+from typing import Any, Generic, Literal
 
 import anyio.to_thread
 from mcp_types import (
@@ -68,7 +69,7 @@ from mcp_types import (
 )
 from mcp_types.version import is_version_at_least
 from pydantic import BaseModel, ValidationError
-from typing_extensions import Annotated, TypeGuard, TypeVar
+from typing_extensions import Annotated, TypeGuard, TypeVar, get_args, get_origin, get_type_hints
 
 from mcp.server.elicitation import (
     AcceptedElicitation,
@@ -208,7 +209,24 @@ def _type_hints(fn: Callable[..., Any]) -> dict[str, Any]:
     """
     target = fn if inspect.isroutine(fn) else getattr(type(fn), "__call__", fn)
     try:
-        return typing.get_type_hints(target, include_extras=True)
+        return get_type_hints(target, include_extras=True)
+    except (NameError, TypeError):
+        if sys.version_info >= (3, 10):
+            return {}
+        try:
+            from eval_type_backport import eval_type_backport
+
+            namespace = getattr(inspect.unwrap(target), "__globals__", {})
+            hints: dict[str, Any] = {}
+            for name, annotation in getattr(target, "__annotations__", {}).items():
+                if annotation is None:
+                    annotation = type(None)
+                elif isinstance(annotation, str):
+                    annotation = typing.ForwardRef(annotation)
+                hints[name] = eval_type_backport(annotation, globalns=namespace, localns=namespace)
+            return hints
+        except Exception:
+            return {}
     except Exception:
         return {}
 

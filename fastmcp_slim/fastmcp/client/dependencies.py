@@ -18,7 +18,7 @@ def _merge_forwardable_http_headers(configured: Mapping[str, str]) -> dict[str, 
         for name, value in _get_forwardable_http_headers().items()
         if name.lower() not in configured_names
     }
-    return forwarded | dict(configured)
+    return {**forwarded, **configured}
 
 
 def _get_forwardable_http_headers() -> dict[str, str]:

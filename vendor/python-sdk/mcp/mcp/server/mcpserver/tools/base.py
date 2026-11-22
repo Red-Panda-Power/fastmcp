@@ -174,7 +174,7 @@ class Tool(BaseModel):
                     # A resolver still needs client input (>= 2026-07-28): surface the
                     # batched questions instead of running the tool body this round.
                     return self.fn_metadata.convert_result(resolved) if convert_result else resolved
-                pass_directly |= resolved
+                pass_directly.update(resolved)
 
             result = await self.fn_metadata.call_fn(self.fn, self.is_async, validated, pass_directly)
 

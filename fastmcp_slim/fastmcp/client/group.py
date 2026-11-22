@@ -254,9 +254,9 @@ class ClientGroup:
             client.list_tools(cache_mode=cache_mode) for _, client in clients
         )
 
-        for (server_name, client), server_tools in zip(
-            clients, tool_lists, strict=True
-        ):
+        if len(clients) != len(tool_lists):
+            raise ValueError("Client and tool list counts must match")
+        for (server_name, client), server_tools in zip(clients, tool_lists):  # noqa: B905 - lengths checked above
             for tool in server_tools:
                 public_name = f"{server_name}_{tool.name}"
                 if public_name in routes:

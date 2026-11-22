@@ -17,7 +17,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import lru_cache
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Protocol, cast, get_type_hints, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 from mcp.server.auth.middleware.auth_context import (
     get_access_token as _sdk_get_access_token,
@@ -370,7 +370,7 @@ def transform_context_annotations(fn: Callable[..., Any]) -> Callable[..., Any]:
 
     # Get type hints for accurate type checking
     try:
-        type_hints = get_type_hints(fn, include_extras=True)
+        type_hints = get_function_type_hints(fn)
     except Exception:
         type_hints = getattr(fn, "__annotations__", {})
 
@@ -833,8 +833,13 @@ def without_injected_parameters(
 
     wrapper.__signature__ = new_sig  # type: ignore[attr-defined]  # ty:ignore[missing-attribute]
     wrapper.__annotations__ = {
-        k: v for k, v in resolved_hints.items() if k not in exclude and k != "return"
-    } | {param.name: param.annotation for param in referenced}
+        **{
+            k: v
+            for k, v in resolved_hints.items()
+            if k not in exclude and k != "return"
+        },
+        **{param.name: param.annotation for param in referenced},
+    }
     wrapper.__name__ = getattr(fn, "__name__", "wrapper")
     wrapper.__doc__ = getattr(fn, "__doc__", None)
     wrapper.__module__ = fn.__module__

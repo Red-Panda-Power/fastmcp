@@ -282,9 +282,9 @@ async def process_common_args(
         # Load from .env file if specified
         if env_file:
             try:
-                env_dict |= {
-                    k: v for k, v in dotenv_values(env_file).items() if v is not None
-                }
+                env_dict.update(
+                    {k: v for k, v in dotenv_values(env_file).items() if v is not None}
+                )
             except Exception as e:
                 print(f"[red]Failed to load .env file: {e}[/red]")
                 sys.exit(1)

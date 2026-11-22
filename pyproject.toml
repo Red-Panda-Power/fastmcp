@@ -256,14 +256,14 @@ unused-ignore-comment = "warn"
 error-on-warning = true
 
 [tool.ruff]
-# Runtime modules target the internal Python 3.8 deployment. Apps UI and the
-# unported test suite retain their upstream Python 3.11 syntax until migrated.
+# Runtime modules and development tests target Python 3.8. Apps UI and the
+# maintenance scripts retain their upstream Python 3.11 syntax.
 target-version = "py38"
 
 [tool.ruff.per-file-target-version]
 "fastmcp_slim/fastmcp/apps/**.py" = "py311"
 "fastmcp_slim/fastmcp/cli/apps_dev.py" = "py311"
-"tests/**.py" = "py311"
+"scripts/**.py" = "py311"
 
 [tool.ruff.lint]
 fixable = ["ALL"]

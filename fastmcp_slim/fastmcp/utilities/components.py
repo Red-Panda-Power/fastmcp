@@ -215,7 +215,7 @@ class FastMCPComponent(FastMCPBaseModel):
             public_upstream = {
                 k: v for k, v in upstream_meta.items() if not k.startswith("_")
             }
-            fastmcp_meta = cast(FastMCPMeta, public_upstream | fastmcp_meta)
+            fastmcp_meta = {**public_upstream, **fastmcp_meta}
         meta["fastmcp"] = fastmcp_meta
 
         return meta

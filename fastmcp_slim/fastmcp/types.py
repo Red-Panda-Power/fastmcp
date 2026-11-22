@@ -20,9 +20,8 @@ def run_query(sql: Textarea) -> str:
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from pydantic import Field
+from typing_extensions import Annotated  # noqa: UP035 - Python 3.8
 
 Textarea = Annotated[str, Field(json_schema_extra={"format": "textarea"})]
 """A string rendered as a multiline textarea in form-based UIs.

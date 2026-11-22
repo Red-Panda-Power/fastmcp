@@ -8,7 +8,7 @@ per-model policies keep control of their own output.
 """
 
 import math
-from typing import Any
+from typing import Any, Dict, List
 
 import pytest
 from pydantic import BaseModel, ConfigDict, field_serializer
@@ -56,7 +56,7 @@ class TestNonFiniteStructuredContentRejected:
         mcp = FastMCP()
 
         @mcp.tool
-        def stats() -> dict[str, float]:
+        def stats() -> Dict[str, float]:
             return {"mean": float("nan"), "count": 2.0}
 
         async with Client(mcp) as client:
@@ -67,7 +67,7 @@ class TestNonFiniteStructuredContentRejected:
         mcp = FastMCP()
 
         @mcp.tool
-        def values() -> list[float]:
+        def values() -> List[float]:
             return [1.0, float("nan")]
 
         async with Client(mcp) as client:
@@ -78,7 +78,7 @@ class TestNonFiniteStructuredContentRejected:
         mcp = FastMCP()
 
         @mcp.tool
-        def nested() -> dict[str, list[dict[str, float]]]:
+        def nested() -> Dict[str, List[Dict[str, float]]]:
             return {"rows": [{"v": 1.0}, {"v": float("inf")}]}
 
         async with Client(mcp) as client:
@@ -91,7 +91,7 @@ class TestFiniteValuesUnaffected:
         mcp = FastMCP()
 
         @mcp.tool
-        def stats() -> dict[str, float]:
+        def stats() -> Dict[str, float]:
             return {"mean": 2.5, "count": 2.0}
 
         async with Client(mcp) as client:
@@ -132,11 +132,11 @@ class TestSerializeToJsonableUnit:
 
     def test_typed_annotation_rejects_non_finite(self):
         with pytest.raises(ToolError, match="non-finite"):
-            _serialize_to_jsonable({"v": float("nan")}, dict[str, float])
+            _serialize_to_jsonable({"v": float("nan")}, Dict[str, float])
 
     def test_finite_values_pass_through(self):
         value = {"a": [1.0, 2.5], "b": None, "c": "x"}
-        assert _serialize_to_jsonable(value, dict[str, Any]) == value
+        assert _serialize_to_jsonable(value, Dict[str, Any]) == value
 
     def test_string_mentioning_nan_is_not_rejected(self):
         value = {"note": "the value was NaN at index 0", "data": [1.0]}

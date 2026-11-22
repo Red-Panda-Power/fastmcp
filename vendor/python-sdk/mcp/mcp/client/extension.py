@@ -88,7 +88,7 @@ class ResultClaim(Generic[ClaimedT]):
             raise ValueError(f"resultType {self.result_type!r} is core protocol vocabulary")
         if Result not in self.model.__mro__:  # runtime guard; the ClaimedT bound only constrains checked callers
             raise ValueError(f"{self.model.__name__} must subclass mcp_types.Result")
-        if issubclass(self.model, CallToolResult | InputRequiredResult):
+        if issubclass(self.model, (CallToolResult, InputRequiredResult)):
             raise ValueError("claim models must not subclass core result types")
         for name, model_field in self.model.model_fields.items():
             for clash in sorted(_wire_keys(name, model_field) & _RESERVED_WIRE_ALIASES):

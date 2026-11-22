@@ -1,5 +1,7 @@
 """Tests for SkillProvider, SkillsDirectoryProvider, and ClaudeSkillsProvider."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 
@@ -366,7 +368,12 @@ This is my skill content.
 
         outside_file = tmp_path / "outside.txt"
         outside_file.write_text("secret")
-        (skill_dir / "leak.txt").symlink_to(outside_file)
+        try:
+            (skill_dir / "leak.txt").symlink_to(outside_file)
+        except OSError as exc:
+            if getattr(exc, "winerror", None) == 1314:
+                pytest.skip("creating symlinks requires Windows privileges")
+            raise
 
         mcp = FastMCP("Test")
         mcp.add_provider(SkillProvider(skill_path=skill_dir))

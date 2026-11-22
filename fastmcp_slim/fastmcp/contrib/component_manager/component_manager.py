@@ -5,6 +5,8 @@ Provides REST endpoints for controlling component enabled state. The routes
 use the authentication of the server whose HTTP app serves them.
 """
 
+from __future__ import annotations
+
 from mcp.server.auth.routes import build_resource_metadata_url
 from starlette.applications import Starlette
 from starlette.middleware import Middleware

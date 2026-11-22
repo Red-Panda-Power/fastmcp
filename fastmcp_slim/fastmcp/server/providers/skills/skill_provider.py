@@ -59,7 +59,7 @@ class SkillResource(Resource):
 
     def get_meta(self) -> dict[str, Any]:
         meta = super().get_meta()
-        fastmcp = cast(dict[str, Any], meta["fastmcp"])
+        fastmcp = cast("dict[str, Any]", meta["fastmcp"])
         fastmcp["skill"] = {
             "name": self.skill_info.name,
             "is_manifest": self.is_manifest,
@@ -147,7 +147,7 @@ class SkillFileResource(Resource):
 
     def get_meta(self) -> dict[str, Any]:
         meta = super().get_meta()
-        fastmcp = cast(dict[str, Any], meta["fastmcp"])
+        fastmcp = cast("dict[str, Any]", meta["fastmcp"])
         fastmcp["skill"] = {
             "name": self.skill_info.name,
         }

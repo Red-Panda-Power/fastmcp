@@ -1,10 +1,11 @@
 import json
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Any, Dict, List, Optional, Union
 
 import pytest
 from mcp_types import CallToolRequestParams, CallToolResult, TextContent
 from pydantic import BaseModel, ConfigDict, Field, with_config
+from typing_extensions import Annotated
 
 from fastmcp import Client, FastMCP
 from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
@@ -22,9 +23,9 @@ class TestToolResultCasting:
 
         @mcp.tool
         def test_tool(
-            unstructured: str | None = None,
-            structured: dict[str, Any] | None = None,
-            meta: dict[str, Any] | None = None,
+            unstructured: Optional[str] = None,
+            structured: Optional[Dict[str, Any]] = None,
+            meta: Optional[Dict[str, Any]] = None,
         ):
             return ToolResult(
                 content=unstructured,
@@ -165,7 +166,7 @@ class TestToolResultIsError:
     async def test_raw_call_tool_result_serializes_nested_models_like_the_wire(self):
         class Usage(BaseModel):
             token_count: int = Field(serialization_alias="tokenCount")
-            note: str | None = None
+            note: Optional[str] = None
 
         mcp = FastMCP()
 
@@ -230,7 +231,7 @@ class TestUnionReturnTypes:
         class Data:
             value: int
 
-        def get_data(return_error: bool) -> Data | str:
+        def get_data(return_error: bool) -> Union[Data, str]:
             if return_error:
                 return "error occurred"
             return Data(value=42)
@@ -251,7 +252,6 @@ class TestSerializationAlias:
 
     def test_output_schema_respects_serialization_alias(self):
         """Test that Tool.from_function generates output schema using serialization alias."""
-        from typing import Annotated
 
         from pydantic import AliasChoices, BaseModel, Field
 
@@ -293,7 +293,6 @@ class TestSerializationAlias:
 
     async def test_tool_execution_with_serialization_alias(self):
         """Test that tool execution works correctly with serialization aliases."""
-        from typing import Annotated
 
         from pydantic import AliasChoices, BaseModel, Field
 
@@ -400,7 +399,7 @@ class TestSerializeByAlias:
         mcp = FastMCP()
 
         @mcp.tool
-        def get_biofiles() -> dict[str, Biofile]:
+        def get_biofiles() -> Dict[str, Biofile]:
             return {"first": Biofile(_id="1")}
 
         async with Client(mcp) as client:
@@ -458,7 +457,7 @@ class TestSerializeByAlias:
         mcp = FastMCP()
 
         @mcp.tool
-        def get_output() -> list[Output]:
+        def get_output() -> List[Output]:
             return [Output(value="data")]
 
         async with Client(mcp) as client:

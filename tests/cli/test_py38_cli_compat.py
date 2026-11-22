@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastmcp.cli.cli import app
+from fastmcp.cli.install.shared import process_common_args
 
 
 def test_cli_binds_run_options_with_postponed_annotations() -> None:
@@ -53,3 +54,16 @@ def test_cli_binds_cimd_input_validation_parameters() -> None:
         "redirect_uri": ["http://localhost:3000/callback"],
         "client_id": "https://intranet.example/client.json",
     }
+
+
+async def test_install_env_file_keeps_command_line_precedence(tmp_path) -> None:
+    server = tmp_path / "server.py"
+    server.write_text("# internal server", encoding="utf-8")
+    env_file = tmp_path / "settings.env"
+    env_file.write_text("FROM_FILE=value\nSHARED=old\n", encoding="utf-8")
+
+    result = await process_common_args(
+        str(server), "Example", None, ["SHARED=new"], env_file
+    )
+
+    assert result[-1] == {"FROM_FILE": "value", "SHARED": "new"}

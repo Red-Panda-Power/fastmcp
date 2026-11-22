@@ -553,9 +553,11 @@ def _schema_digest(schema: Mapping[str, Any] | bool) -> tuple[str, int]:
 def _resolve_ref(ref: str, schemas: Mapping[str, Any]) -> Mapping[str, Any]:
     """Resolve JSON Schema reference to target schema."""
     # Decode the URI fragment before splitting and unescaping JSON Pointer tokens.
-    path = unquote(ref).removeprefix("#/").split("/")
+    path = unquote(ref)
+    if path.startswith("#/"):
+        path = path[2:]
     current = schemas
-    for part in path:
+    for part in path.split("/"):
         part = part.replace("~1", "/").replace("~0", "~")
         current = current.get(part, {})
     return current
@@ -770,7 +772,7 @@ def _json_values_equal(left: Any, right: Any) -> bool:
             return False
         return len(left) == len(right) and all(
             _json_values_equal(left_item, right_item)
-            for left_item, right_item in zip(left, right, strict=True)
+            for left_item, right_item in zip(left, right)  # noqa: B905 - lengths checked above
         )
 
     return left == right

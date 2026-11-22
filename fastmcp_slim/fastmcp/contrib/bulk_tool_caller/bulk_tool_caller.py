@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 from mcp_types import SERVER_INFO_META_KEY, CallToolResult, TextContent
@@ -36,7 +38,7 @@ class CallToolRequestResult(CallToolResult):
     @classmethod
     def from_call_tool_result(
         cls, result: CallToolResult, tool: str, arguments: dict[str, Any]
-    ) -> "CallToolRequestResult":
+    ) -> CallToolRequestResult:
         """
         Create a CallToolRequestResult from a CallToolResult.
 
@@ -71,7 +73,7 @@ class BulkToolCaller(MCPMixin):
 
     def register_tools(
         self,
-        mcp_server: "FastMCP",
+        mcp_server: FastMCP,
         prefix: str | None = None,
         separator: str = _DEFAULT_SEPARATOR_TOOL,
     ) -> None:

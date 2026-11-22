@@ -6,7 +6,7 @@ import functools
 import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Generic, Union, get_type_hints
+from typing import Any, Generic, Union
 
 import mcp_types
 from pydantic import PydanticSchemaGenerationError
@@ -31,6 +31,7 @@ from fastmcp.utilities.types import (
     Image,
     UnionType,
     get_cached_typeadapter,
+    get_function_type_hints,
     is_class_member_of_type,
     replace_type,
 )
@@ -199,7 +200,11 @@ class _ToolOutputSchemaGenerator(GenerateJsonSchema):
 
     def dataclass_schema(self, schema: core_schema.DataclassSchema) -> JsonSchemaValue:
         previous_by_alias = self.by_alias
-        configured = (schema.get("config") or {}).get("serialize_by_alias")
+        configured = getattr(schema["cls"], "__pydantic_config__", {}).get(
+            "serialize_by_alias"
+        )
+        if configured is None:
+            configured = (schema.get("config") or {}).get("serialize_by_alias")
         self.by_alias = False if configured is None else configured
         try:
             return super().dataclass_schema(schema)
@@ -376,9 +381,8 @@ class ParsedFunction:
         # If the annotation is a string (from __future__ annotations), resolve it
         if isinstance(output_type, str):
             try:
-                # Use get_type_hints to resolve the return type
-                # include_extras=True preserves Annotated metadata
-                type_hints = get_type_hints(fn, include_extras=True)
+                # Resolve postponed annotations while retaining Annotated metadata.
+                type_hints = get_function_type_hints(fn)
                 output_type = type_hints.get("return", output_type)
             except Exception as e:
                 # If resolution fails, keep the string annotation
@@ -394,7 +398,7 @@ class ParsedFunction:
         # to the wire without touching the output schema.
         output_type = _strip_input_required(output_type)
 
-        if output_type not in (inspect._empty, None, Any, ...):
+        if output_type not in (inspect._empty, None, type(None), Any, ...):
             # bytes can't be represented as structured JSON output — skip schema
             if _contains_bytes_type(output_type):
                 output_type = _UnserializableType

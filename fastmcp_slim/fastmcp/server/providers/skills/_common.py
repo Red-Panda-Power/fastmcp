@@ -11,6 +11,8 @@ from typing import Any
 import yaml
 from mcp.shared.path_security import PathEscapeError, safe_join
 
+from fastmcp.utilities.paths import is_relative_to
+
 
 @dataclass
 class SkillFileInfo:
@@ -93,7 +95,8 @@ def parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
         fallback also yields nothing), returns `({}, remaining)` with the
         delimited block stripped.
     """
-    content = content.removeprefix("\ufeff")
+    if content.startswith("\ufeff"):
+        content = content[1:]
 
     if not content.startswith("---"):
         return {}, content
@@ -128,7 +131,7 @@ def resolve_within(base: Path, relative: str) -> Path:
     replacing it with a link after it was selected cannot move the boundary.
     """
     path = safe_join(base, relative)
-    if not path.is_relative_to(base):
+    if not is_relative_to(path, base):
         raise PathEscapeError(f"Path {path} escapes base {base}")
     return path
 
@@ -151,7 +154,7 @@ def scan_skill_files(skill_dir: Path) -> list[SkillFileInfo]:
     for file_path in sorted(skill_dir.rglob("*")):
         if file_path.is_file():
             resolved_file_path = file_path.resolve()
-            if not resolved_file_path.is_relative_to(resolved_skill_dir):
+            if not is_relative_to(resolved_file_path, resolved_skill_dir):
                 continue
 
             rel_path = file_path.relative_to(skill_dir)

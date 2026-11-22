@@ -980,7 +980,9 @@ class MultiAuth(AuthProvider):
         re-raised if no source ultimately succeeds.
         """
         verification_error: TokenVerificationError | None = None
-        for source_id, source in zip(self._source_ids, self._sources, strict=True):
+        if len(self._source_ids) != len(self._sources):
+            raise ValueError("MultiAuth sources and source IDs must have equal lengths")
+        for source_id, source in zip(self._source_ids, self._sources):  # noqa: B905 - lengths checked above
             try:
                 result = await source.verify_token(token)
                 if result is not None:

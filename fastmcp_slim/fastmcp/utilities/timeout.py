@@ -20,7 +20,7 @@ def normalize_timeout_to_timedelta(
         return None
     if isinstance(value, datetime.timedelta):
         return value
-    if isinstance(value, int | float):
+    if isinstance(value, (int, float)):
         return datetime.timedelta(seconds=float(value))
     raise TypeError(f"Invalid timeout type: {type(value)}")
 
@@ -42,6 +42,6 @@ def normalize_timeout_to_seconds(
     if isinstance(value, datetime.timedelta):
         seconds = value.total_seconds()
         return None if seconds == 0 else seconds
-    if isinstance(value, int | float):
+    if isinstance(value, (int, float)):
         return None if value == 0 else float(value)
     raise TypeError(f"Invalid timeout type: {type(value)}")

@@ -28,8 +28,15 @@ from __future__ import annotations
 import copy
 import sys
 import weakref
-from collections.abc import Awaitable, Callable, Generator, Mapping, Sequence
-from contextlib import AbstractAsyncContextManager, contextmanager, nullcontext
+from collections.abc import (
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Generator,
+    Mapping,
+    Sequence,
+)
+from contextlib import AbstractAsyncContextManager, asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -58,6 +65,13 @@ __all__ = [
     "ServerExtension",
     "read_client_extension_settings",
 ]
+
+
+@asynccontextmanager
+async def _empty_extension_lifespan() -> AsyncGenerator[None, None]:
+    """Provide an async no-op on Python versions without async nullcontext."""
+    yield
+
 
 # What an extension's tools/call interceptor observes and may produce: the tool
 # result, or an extension-defined wire result model (a `BaseModel` the runner
@@ -264,7 +278,7 @@ class ServerExtension:
         (a task-queue backend and worker, say). Entered once per runtime tree, at
         the root — a mounted child defers to the root, as the shared Docket does.
         """
-        return nullcontext()
+        return _empty_extension_lifespan()
 
     async def intercept_tool_call(
         self,

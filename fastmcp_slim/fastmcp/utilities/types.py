@@ -70,10 +70,10 @@ def get_function_type_hints(fn: Callable[..., Any]) -> dict[str, Any]:
 
     try:
         return get_type_hints(fn, include_extras=True)
-    except TypeError:
+    except (TypeError, NameError):
         # On older Python, evaluating postponed ``list[int]`` or ``X | Y``
-        # annotations can fail even though the annotation is valid on newer
-        # interpreters. Keep the normal path for classes and older-style hints.
+        # annotations can fail even though they are valid on newer interpreters.
+        # A wrapper can also have different globals from the original function.
         pass
 
     from eval_type_backport import eval_type_backport
@@ -576,6 +576,10 @@ def replace_type(type_, type_map: dict[type, type]):
 
     if origin is UnionType:
         return Union[new_args]  # noqa: UP007
+    elif sys.version_info < (3, 9) and origin in (list, dict, set, tuple, frozenset):  # noqa: UP036 - Python 3.8
+        # Builtin containers were not subscriptable on 3.8. The corresponding
+        # ``typing`` aliases retain their own generic reconstruction method.
+        return type_.copy_with(new_args)
     else:
         return origin[new_args]
 

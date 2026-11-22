@@ -504,10 +504,13 @@ def _merge_ref_siblings(
     elif isinstance(original, list) and isinstance(dereferenced, list):
         # Process list items in parallel
         min_len = min(len(original), len(dereferenced))
-        return [
-            _merge_ref_siblings(o, d, schema, visited)
-            for o, d in zip(original[:min_len], dereferenced[:min_len], strict=False)
-        ] + dereferenced[min_len:]
+        return (
+            [
+                _merge_ref_siblings(o, d, schema, visited)
+                for o, d in zip(original[:min_len], dereferenced[:min_len])  # noqa: B905 - Python 3.8
+            ]
+            + dereferenced[min_len:]
+        )
 
     return dereferenced
 

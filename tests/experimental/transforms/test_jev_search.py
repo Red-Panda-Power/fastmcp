@@ -71,7 +71,7 @@ class FakeJev:
                     confidence=probabilities[best],
                 )
             else:
-                name = qid.removeprefix("fits::")
+                name = qid[len("fits::") :] if qid.startswith("fits::") else qid
                 answers[qid] = _Answer(noul=self.fits.get(name, 0.9))
         return _Response(answers=answers)
 

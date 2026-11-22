@@ -77,7 +77,11 @@ def _run_server(mcp_server: FastMCP, transport: Literal["sse"], port: int) -> No
             host="127.0.0.1",
             port=port,
             log_level="error",
-            ws="websockets-sansio",
+            ws=(
+                "websockets-sansio"
+                if "websockets-sansio" in uvicorn.config.WS_PROTOCOLS
+                else "websockets"
+            ),
         )
     )
     uvicorn_server.run()
@@ -113,7 +117,7 @@ def run_server_in_process(
         port = find_available_port()
 
     if provide_host_and_port:
-        kwargs |= {"host": host, "port": port}
+        kwargs.update({"host": host, "port": port})
 
     proc = multiprocessing.Process(
         target=server_fn, args=args, kwargs=kwargs, daemon=True

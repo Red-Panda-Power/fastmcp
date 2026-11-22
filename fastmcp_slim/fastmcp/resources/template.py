@@ -107,7 +107,7 @@ def extract_exploded_query_params(uri_template: str) -> set[str]:
     exploded: set[str] = set()
     for match in re.finditer(r"\{[?&]([^}]+)\}", uri_template):
         names = [p.strip() for p in match.group(1).split(",")]
-        exploded.update(n.removesuffix("*") for n in names if n.endswith("*"))
+        exploded.update(n[:-1] for n in names if n.endswith("*"))
     return exploded
 
 
@@ -222,7 +222,7 @@ def build_regex(template: str) -> re.Pattern[str] | None:
         if part.startswith("{") and part.endswith("}"):
             name = part[1:-1]
             if in_query:
-                group = template_param_key(name.removesuffix("*"))
+                group = template_param_key(name[:-1] if name.endswith("*") else name)
                 pattern += f"(?P<{group}>[^&]*)"
             elif name.endswith("*"):
                 name = name[:-1]
@@ -376,7 +376,7 @@ def expand_uri_template(uri_template: str, params: dict[str, Any]) -> str:
             # plain `{?tags}`, which match_uri_template then reads back as just
             # its first element.
             exploded = name.endswith("*")
-            name = name.removesuffix("*")
+            name = name[:-1] if exploded else name
             underscored = name.replace("-", "_")
             sanitized = template_param_key(name)
             if name in params:

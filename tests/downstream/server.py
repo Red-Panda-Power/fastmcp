@@ -222,7 +222,8 @@ if __name__ == "__main__":
             log_level="critical",
         )
     elif len(args) == 3 and args[0] in {"http", "sse"}:
-        transport, port, token = args
+        _, port, token = args
+        transport = "http" if args[0] == "http" else "sse"
         build(token).run(
             transport,
             host="127.0.0.1",

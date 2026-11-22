@@ -77,6 +77,8 @@ Example:
     ```
 """
 
+from __future__ import annotations
+
 from typing import Literal
 
 from key_value.aio.protocols import AsyncKeyValue
