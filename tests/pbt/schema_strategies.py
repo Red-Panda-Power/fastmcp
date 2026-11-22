@@ -5,7 +5,7 @@ instances drawn from the same pools hit the schema's structure often, and
 `$ref`s point at a small set of `$defs` so cycles are common.
 """
 
-from typing import Any
+from typing import Any, Dict
 
 from hypothesis import strategies as st
 
@@ -35,7 +35,7 @@ def json_values(max_leaves: int = 8) -> st.SearchStrategy[Any]:
 TYPES = ["string", "integer", "number", "boolean", "null", "array", "object"]
 
 
-def _leaf() -> st.SearchStrategy[dict[str, Any]]:
+def _leaf() -> st.SearchStrategy[Dict[str, Any]]:
     typed = st.sampled_from(TYPES).map(lambda t: {"type": t})
     return st.one_of(
         typed,
@@ -79,7 +79,7 @@ def _leaf() -> st.SearchStrategy[dict[str, Any]]:
     )
 
 
-def _extend(children: st.SearchStrategy[dict[str, Any]]):
+def _extend(children: st.SearchStrategy[Dict[str, Any]]):
     obj = st.builds(
         lambda props, req, addl: {
             "type": "object",
@@ -121,14 +121,14 @@ def _extend(children: st.SearchStrategy[dict[str, Any]]):
     return st.one_of(obj, arr, prefix, combo, nullable, with_default)
 
 
-def subschemas() -> st.SearchStrategy[dict[str, Any]]:
+def subschemas() -> st.SearchStrategy[Dict[str, Any]]:
     return st.recursive(_leaf(), _extend, max_leaves=10)
 
 
 @st.composite
-def schemas(draw: st.DrawFn) -> dict[str, Any]:
+def schemas(draw: st.DrawFn) -> Dict[str, Any]:
     """A schema with `$defs` for every name `$ref`s may point at."""
-    root: dict[str, Any] = draw(subschemas())
+    root: Dict[str, Any] = draw(subschemas())
     defs = {name: draw(subschemas()) for name in DEFS}
     if draw(st.booleans()):
         # A definition that recurses through a positional array, in a prefix
@@ -206,7 +206,7 @@ def schemas(draw: st.DrawFn) -> dict[str, Any]:
 
 
 @st.composite
-def shaped_instances(draw: st.DrawFn, schema: dict[str, Any]) -> Any:
+def shaped_instances(draw: st.DrawFn, schema: Dict[str, Any]) -> Any:
     """A value shaped by `schema`, valid more often than random JSON.
 
     It follows `$ref`, combinators, object properties and positional arrays,

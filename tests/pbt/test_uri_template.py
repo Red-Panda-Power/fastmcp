@@ -6,6 +6,8 @@ value and requires match to return exactly the values that were expanded.
 whatever it returns must expand back to the same URI.
 """
 
+from typing import Optional
+
 from hypothesis import event, given, note
 from hypothesis import strategies as st
 
@@ -14,7 +16,7 @@ from fastmcp.resources.template import expand_uri_template, match_uri_template
 from .strategies import DrawnTemplate, uri_templates
 
 
-def known_divergence(t: DrawnTemplate) -> str | None:
+def known_divergence(t: DrawnTemplate) -> Optional[str]:
     """Name a divergence already recorded in FINDINGS.md, so the run still
     stops on anything new."""
     for v in t.vars:

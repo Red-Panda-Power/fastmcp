@@ -20,7 +20,7 @@ plus the two servers' visibility rules, with the documented semantics
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 import mcp_types
 from hypothesis import event, note
@@ -40,7 +40,7 @@ IDENTS = {
     "prompt": ["p0", "p1"],
     "resource": ["res://r0", "res://r1"],
 }
-VERSIONS: list[str | None] = [None, "1", "2", "10"]
+VERSIONS: List[Optional[str]] = [None, "1", "2", "10"]
 TAGS = ["x", "y"]
 OWNERS = ["parent", "child"]
 
@@ -53,19 +53,19 @@ def exposed(kind: str, owner: str, ident: str) -> str:
     return f"c_{ident}"
 
 
-def vkey(version: str | None) -> tuple[int, ...]:
+def vkey(version: Optional[str]) -> Tuple[int, ...]:
     return (int(version),) if version is not None else ()
 
 
 @dataclass(frozen=True)
 class Rule:
     enabled: bool
-    names: frozenset[str] | None
-    tags: frozenset[str] | None
-    kinds: frozenset[str] | None
+    names: Optional[FrozenSet[str]]
+    tags: Optional[FrozenSet[str]]
+    kinds: Optional[FrozenSet[str]]
     match_all: bool = False
 
-    def matches(self, kind: str, name: str, tags: frozenset[str]) -> bool:
+    def matches(self, kind: str, name: str, tags: FrozenSet[str]) -> bool:
         if self.match_all:
             return True
         if self.names is not None and name not in self.names:
@@ -80,10 +80,10 @@ class ComponentMachine(RuleBasedStateMachine):
         super().__init__()
         self.loop = asyncio.new_event_loop()
         # (kind, owner, ident, version) -> tags
-        self.comps: dict[tuple[str, str, str, str | None], frozenset[str]] = {}
-        self.vis_rules: dict[str, list[Rule]] = {"parent": [], "child": []}
-        self.client: Client | None = None
-        self.page_size: int | None = None
+        self.comps: Dict[Tuple[str, str, str, Optional[str]], FrozenSet[str]] = {}
+        self.vis_rules: Dict[str, List[Rule]] = {"parent": [], "child": []}
+        self.client: Optional[Client] = None
+        self.page_size: Optional[int] = None
         # Quiet the expected warnings from drawn histories; teardown restores
         # the level so later tests in the same process see their warnings.
         self.logger = logging.getLogger("fastmcp")
@@ -104,7 +104,7 @@ class ComponentMachine(RuleBasedStateMachine):
     # ---- starting state -------------------------------------------------
 
     @initialize(page_size=st.sampled_from([None, 1, 2, 3]), data=st.data())
-    def start(self, page_size: int | None, data) -> None:
+    def start(self, page_size: Optional[int], data) -> None:
         event(f"page_size={page_size}")
         self.page_size = page_size
         self.parent = FastMCP("parent", list_page_size=page_size)
@@ -144,7 +144,7 @@ class ComponentMachine(RuleBasedStateMachine):
 
     # ---- model ----------------------------------------------------------
 
-    def enabled(self, kind: str, owner: str, ident: str, tags: frozenset[str]) -> bool:
+    def enabled(self, kind: str, owner: str, ident: str, tags: FrozenSet[str]) -> bool:
         # A mounted server lists only what its own rules leave enabled, so the
         # parent's rules can hide a child component but not bring one back
         # (FastMCPProvider lists through the child's `list_tools()`).
@@ -160,9 +160,9 @@ class ComponentMachine(RuleBasedStateMachine):
                 on = r.enabled
         return on
 
-    def expected_view(self, kind: str) -> dict[str, list[str | None]]:
+    def expected_view(self, kind: str) -> Dict[str, List[Optional[str]]]:
         """exposed name -> enabled versions, highest first."""
-        view: dict[str, list[str | None]] = {}
+        view: Dict[str, List[Optional[str]]] = {}
         for (k, owner, ident, version), tags in self.comps.items():
             if k == kind and self.enabled(k, owner, ident, tags):
                 view.setdefault(exposed(k, owner, ident), []).append(version)
@@ -268,7 +268,7 @@ class ComponentMachine(RuleBasedStateMachine):
         if components and "template" in components:
             components.add("resource")
         call = server.enable if enable else server.disable
-        kwargs: dict[str, Any] = dict(
+        kwargs: Dict[str, Any] = dict(
             names=set(names) if names else None,
             tags=set(tags) if tags else None,
             components=components,
@@ -284,7 +284,7 @@ class ComponentMachine(RuleBasedStateMachine):
 
     # ---- reads ----------------------------------------------------------
 
-    async def _list(self, kind: str) -> list[Any]:
+    async def _list(self, kind: str) -> List[Any]:
         assert self.client is not None
         if kind == "tool":
             return await self.client.list_tools()
@@ -299,7 +299,7 @@ class ComponentMachine(RuleBasedStateMachine):
     @rule(kind=st.sampled_from(KINDS))
     def list_all(self, kind):
         items = self.run(self._list(kind))
-        got: dict[str, list[str | None]] = {}
+        got: Dict[str, List[Optional[str]]] = {}
         for item in items:
             ident = self._ident(kind, item)
             assert ident not in got, "a listing repeats an identifier"
@@ -325,7 +325,7 @@ class ComponentMachine(RuleBasedStateMachine):
             "resource": self.client.list_resources_mcp,
         }[kind]
         attr = {"tool": "tools", "prompt": "prompts", "resource": "resources"}[kind]
-        seen: list[str] = []
+        seen: List[str] = []
         cursor = None
         for _ in range(50):
             page = self.run(method(cursor=cursor))
@@ -345,7 +345,7 @@ class ComponentMachine(RuleBasedStateMachine):
             "pages miss or add components"
         )
 
-    async def _call(self, kind: str, name: str, version: str | None) -> str:
+    async def _call(self, kind: str, name: str, version: Optional[str]) -> str:
         assert self.client is not None
         if kind == "tool":
             r = await self.client.call_tool(name, {}, version=version)

@@ -14,7 +14,7 @@ fastmcp's schema utilities.
 import os
 import sys
 import warnings
-from typing import Any
+from typing import Any, Dict, List, Optional, Set, Type
 
 import pytest
 from hypothesis import assume, event, given, note, reject
@@ -29,7 +29,7 @@ from fastmcp.utilities.json_schema_type import json_schema_to_type_adapter
 from .schema_strategies import json_values, schemas, shaped_instances
 
 
-def oracle(schema: dict[str, Any], *, drawn: bool = True):
+def oracle(schema: Dict[str, Any], *, drawn: bool = True):
     """Validity under Draft 2020-12.
 
     A drawn schema the oracle cannot judge (malformed, or an unguarded `$ref`
@@ -66,7 +66,7 @@ def _walk(node: Any):
 
 
 def _reproduces(
-    schema: dict[str, Any], instance: Any, failure: type[Exception]
+    schema: Dict[str, Any], instance: Any, failure: Type[Exception]
 ) -> bool:
     """True while the finding's minimal case still fails the way it was recorded.
 
@@ -138,7 +138,7 @@ F5_OPEN = "F5" not in os.environ.get("PBT_ASSUME_FIXED", "") and _reproduces(
 )
 
 
-def adapter_known_divergence(schema: dict[str, Any]) -> str | None:
+def adapter_known_divergence(schema: Dict[str, Any]) -> Optional[str]:
     """Name an open finding recorded in FINDINGS.md, so the run stops on anything new."""
     nodes = list(_walk(schema))
     if F1_OPEN and any(
@@ -169,7 +169,7 @@ def adapter_known_divergence(schema: dict[str, Any]) -> str | None:
 
 
 def _typed_extras_hold_prefix_array(
-    node: dict[str, Any], schema: dict[str, Any]
+    node: Dict[str, Any], schema: Dict[str, Any]
 ) -> bool:
     """An object with schema-valued `additionalProperties` whose own properties
     reach an unpinned positional array, directly or through a local `$ref`:
@@ -177,7 +177,7 @@ def _typed_extras_hold_prefix_array(
     if not isinstance(node.get("additionalProperties"), dict):
         return False
     defs = schema.get("$defs", {})
-    seen: set[str] = set()
+    seen: Set[str] = set()
     stack = list(node.get("properties", {}).values())
     while stack:
         for sub in _walk(stack.pop()):
@@ -191,7 +191,7 @@ def _typed_extras_hold_prefix_array(
     return False
 
 
-def shape_events(schema: dict[str, Any], valid: list[Any]) -> None:
+def shape_events(schema: Dict[str, Any], valid: List[Any]) -> None:
     """Tally how often drawn cases reach the shapes the findings needed."""
     nodes = list(_walk(schema))
     for node in nodes:
@@ -220,7 +220,7 @@ REFUSALS = (
 INSTANCES = st.lists(json_values(), min_size=1, max_size=8)
 
 
-def _rewrite_preserves(rewrite, schema: dict[str, Any], instances: list[Any]) -> None:
+def _rewrite_preserves(rewrite, schema: Dict[str, Any], instances: List[Any]) -> None:
     before = oracle(schema)
     verdicts = [before(i) for i in instances]
     event(
