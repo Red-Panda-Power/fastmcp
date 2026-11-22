@@ -12,7 +12,7 @@ and this property is about transport fidelity, not that policy.
 
 import json
 import re
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from hypothesis import event, given, note
 from pydantic import AnyUrl, ValidationError
@@ -27,23 +27,23 @@ from .test_uri_template import known_divergence
 def _make_fn(t: DrawnTemplate):
     args = []
     for v in t.vars:
-        ann = "list[str]" if v.kind in ("list", "exploded") else "str"
+        ann = "List[str]" if v.kind in ("list", "exploded") else "str"
         if v.kind in ("query", "list", "exploded", "continuation"):
             # Query params must be optional; a query param the URI omits
             # falls back to this default.
-            args.append(f"{v.name}: {ann} | None = None")
+            args.append(f"{v.name}: Optional[{ann}] = None")
         else:
             args.append(f"{v.name}: {ann}")
     src = (
         f"def read({', '.join(args)}) -> str:\n"
         f"    return json.dumps({{{', '.join(f'{v.name!r}: {v.name}' for v in t.vars)}}})\n"
     )
-    scope: dict[str, Any] = {"json": json}
+    scope: Dict[str, Any] = {"json": json, "List": List, "Optional": Optional}
     exec(src, scope)
     return scope["read"]
 
 
-def wire_divergence(uri: str) -> str | None:
+def wire_divergence(uri: str) -> Optional[str]:
     """Name a known way the wire's `AnyUrl` rewrites an expanded URI.
 
     Each name is an entry in FINDINGS.md. Anything else that fails is new.

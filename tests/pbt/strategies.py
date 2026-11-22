@@ -1,7 +1,7 @@
 """Hypothesis strategies for MCP-shaped inputs."""
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Dict, List, Optional, Set
 
 from hypothesis import strategies as st
 
@@ -19,7 +19,7 @@ VALUE_PIECES = [
 ]  # fmt: skip
 
 
-def text_from(pieces: list[str], *, min_size: int = 0) -> st.SearchStrategy[str]:
+def text_from(pieces: List[str], *, min_size: int = 0) -> st.SearchStrategy[str]:
     return st.lists(st.sampled_from(pieces), min_size=min_size, max_size=5).map("".join)
 
 
@@ -40,19 +40,19 @@ class Var:
 @dataclass
 class DrawnTemplate:
     text: str
-    vars: list[Var] = field(default_factory=list)
+    vars: List[Var] = field(default_factory=list)
 
     @property
-    def params(self) -> dict[str, Any]:
+    def params(self) -> Dict[str, Any]:
         return {v.name: v.value for v in self.vars}
 
     @property
-    def list_params(self) -> set[str]:
+    def list_params(self) -> Set[str]:
         return {v.name for v in self.vars if v.kind == "list"}
 
 
 @st.composite
-def uri_templates(draw: st.DrawFn, *, names: st.SearchStrategy[str] | None = None):
+def uri_templates(draw: st.DrawFn, *, names: Optional[st.SearchStrategy[str]] = None):
     """A template in fastmcp's RFC 6570 subset, with values for its variables.
 
     At most one `{name*}` wildcard, since two are ambiguous by construction.

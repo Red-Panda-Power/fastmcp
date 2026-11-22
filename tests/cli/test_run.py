@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
 
@@ -11,7 +12,6 @@ import pytest
 from pydantic import ValidationError
 from starlette.testclient import TestClient
 
-from fastmcp.cli.apps_dev import _make_dev_app, _MessageLog
 from fastmcp.cli.cli import apps, inspector, run
 from fastmcp.cli.run import (
     create_mcp_config_server,
@@ -24,6 +24,11 @@ from fastmcp.client.transports import FastMCPTransport
 from fastmcp.mcp_config import MCPConfig, StdioMCPServer
 from fastmcp.server.server import FastMCP
 from fastmcp.utilities.mcp_server_config.v1.sources.filesystem import FileSystemSource
+
+PY38 = sys.version_info < (3, 9)
+
+if not PY38:
+    from fastmcp.cli.apps_dev import _make_dev_app, _MessageLog
 
 
 class TestUrlDetection:
@@ -961,7 +966,7 @@ class TestRunModuleCommand:
         mock_result = MagicMock()
         mock_result.returncode = 0
 
-        def fake_builder(cmd: list[str]) -> list[str]:
+        def fake_builder(cmd: List[str]) -> List[str]:
             return ["uv", "run", *cmd]
 
         with patch(
@@ -1352,6 +1357,7 @@ class TestInspectorHttpDeployment:
         assert mock_subprocess.call_args.kwargs["env"]["SERVER_PORT"] == "6277"
 
 
+@pytest.mark.skipif(PY38, reason="MCP Apps UI is not included in the Python 3.8 fork")
 class TestRunDevApps:
     """Test running dev apps with the run command."""
 

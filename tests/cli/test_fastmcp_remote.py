@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Optional, Tuple
 
 import pytest
 
@@ -259,7 +259,7 @@ async def test_ignore_tools_transform_filters_matching_names():
     transform = IgnoreTools(["delete*"])
 
     async def call_next(
-        name: str, *, version: VersionSpec | None = None
+        name: str, *, version: Optional[VersionSpec] = None
     ) -> FunctionTool:
         return tool
 
@@ -267,7 +267,7 @@ async def test_ignore_tools_transform_filters_matching_names():
     assert await transform.get_tool("delete_user", call_next) is None
 
 
-def records_remote(calls: list[str]) -> FastMCP:
+def records_remote(calls: List[str]) -> FastMCP:
     app = FastMCPApp("records")
 
     @app.tool()
@@ -282,7 +282,7 @@ def records_remote(calls: list[str]) -> FastMCP:
 
 @pytest.mark.parametrize("pattern", ["delete_records", "delete*", "*"])
 async def test_ignored_tool_is_unknown_by_listed_and_hashed_name(pattern: str):
-    calls: list[str] = []
+    calls: List[str] = []
     proxy = build_proxy(Client(records_remote(calls)), [pattern])
 
     async with Client(proxy) as client:
@@ -299,7 +299,7 @@ async def test_ignored_tool_is_unknown_by_listed_and_hashed_name(pattern: str):
 
 
 async def test_ignore_pattern_matches_remote_namespaced_name_for_hashed_calls():
-    calls: list[str] = []
+    calls: List[str] = []
     app = FastMCPApp("contacts")
 
     @app.tool()
@@ -321,7 +321,7 @@ async def test_ignore_pattern_matches_remote_namespaced_name_for_hashed_calls():
 
 
 async def test_tool_not_ignored_is_callable_by_hashed_name():
-    calls: list[str] = []
+    calls: List[str] = []
     app = FastMCPApp("contacts")
 
     @app.tool()
@@ -354,7 +354,7 @@ async def test_run_forwards_server_initiated_requests_to_handshake_front(
         result = await ctx.elicit("Proceed?", response_type=bool)
         return f"elicit action={result.action}"
 
-    served: list[FastMCPProxy] = []
+    served: List[FastMCPProxy] = []
 
     async def run_async(self: FastMCPProxy, **kwargs: Any) -> None:
         served.append(self)
@@ -365,9 +365,9 @@ async def test_run_forwards_server_initiated_requests_to_handshake_front(
     )
     await run(parse_args(["https://example.com/mcp", "--auth", "none"]))
 
-    prompts: list[str] = []
-    logs: list[LogMessage] = []
-    progress: list[tuple[float, float | None]] = []
+    prompts: List[str] = []
+    logs: List[LogMessage] = []
+    progress: List[Tuple[float, Optional[float]]] = []
 
     async def elicitation_handler(message, response_type, params, ctx):
         prompts.append(message)
@@ -377,7 +377,7 @@ async def test_run_forwards_server_initiated_requests_to_handshake_front(
         logs.append(message)
 
     async def progress_handler(
-        value: float, total: float | None, message: str | None
+        value: float, total: Optional[float], message: Optional[str]
     ) -> None:
         progress.append((value, total))
 
