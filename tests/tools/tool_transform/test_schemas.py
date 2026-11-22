@@ -1,10 +1,11 @@
-from typing import Annotated, Any
+from typing import Any, Dict, Optional
 
 import pytest
 from dirty_equals import IsList
 from inline_snapshot import snapshot
 from mcp_types import TextContent
 from pydantic import BaseModel, Field, TypeAdapter
+from typing_extensions import Annotated
 
 from fastmcp.tools import Tool, forward
 from fastmcp.tools.base import ToolResult
@@ -15,7 +16,7 @@ from fastmcp.tools.tool_transform import (
 )
 
 
-def get_property(tool: Tool, name: str) -> dict[str, Any]:
+def get_property(tool: Tool, name: str) -> Dict[str, Any]:
     return tool.parameters["properties"][name]
 
 
@@ -46,7 +47,7 @@ class TestTransformToolOutputSchema:
     def base_dict_tool(self) -> FunctionTool:
         """Tool that returns a dict (object type, not wrapped)."""
 
-        def dict_tool(x: int) -> dict[str, int]:
+        def dict_tool(x: int) -> Dict[str, int]:
             return {"value": x}
 
         return Tool.from_function(dict_tool)
@@ -242,7 +243,7 @@ class TestTransformToolOutputSchema:
     def test_transform_custom_function_explicit_overrides(self, base_string_tool):
         """Test that explicit output_schema overrides both custom function and parent."""
 
-        async def custom_fn(x: int) -> dict[str, str]:
+        async def custom_fn(x: int) -> Dict[str, str]:
             return {"custom": "value"}
 
         explicit_schema = {"type": "array", "items": {"type": "number"}}
@@ -256,14 +257,14 @@ class TestTransformToolOutputSchema:
     async def test_transform_custom_function_object_return(self, base_string_tool):
         """Test custom function returning object type."""
 
-        async def custom_fn(x: int) -> dict[str, int]:
+        async def custom_fn(x: int) -> Dict[str, int]:
             await forward(x=x)
             return {"original": x, "transformed": x * 2}
 
         new_tool = Tool.from_tool(base_string_tool, transform_fn=custom_fn)
 
         # Object types should not be wrapped
-        expected_schema = TypeAdapter(dict[str, int]).json_schema()
+        expected_schema = TypeAdapter(Dict[str, int]).json_schema()
         assert new_tool.output_schema == expected_schema
         assert isinstance(new_tool.output_schema, dict)
         assert "x-fastmcp-wrap-result" not in new_tool.output_schema
@@ -331,7 +332,7 @@ class TestTransformToolOutputSchema:
     def test_transform_output_schema_with_arg_transforms(self, base_string_tool):
         """Test that output schema works correctly with argument transformations."""
 
-        async def custom_fn(new_x: int) -> dict[str, str]:
+        async def custom_fn(new_x: int) -> Dict[str, str]:
             result = await forward(new_x=new_x)
             assert isinstance(result.content[0], TextContent)
             return {"transformed": result.content[0].text}
@@ -343,7 +344,7 @@ class TestTransformToolOutputSchema:
         )
 
         # Should infer object schema from custom function
-        expected_schema = TypeAdapter(dict[str, str]).json_schema()
+        expected_schema = TypeAdapter(Dict[str, str]).json_schema()
         assert new_tool.output_schema == expected_schema
 
     async def test_transform_output_schema_default_vs_none(self, base_string_tool):
@@ -491,7 +492,7 @@ class TestInputSchema:
 
         @Tool.from_function
         def complex_tool(
-            used_param: UsedType, unused_param: UnusedType | None = None
+            used_param: UsedType, unused_param: Optional[UnusedType] = None
         ) -> str:
             return used_param.value
 

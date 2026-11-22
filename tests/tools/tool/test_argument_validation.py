@@ -7,11 +7,12 @@ taxonomy (middleware, Sentry filters) can treat it as a client error, while a
 and must not be reclassified as a bad call.
 """
 
-from typing import Annotated, Any
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
+from typing_extensions import Annotated
 
 from fastmcp.exceptions import ValidationError
 from fastmcp.tools.base import Tool

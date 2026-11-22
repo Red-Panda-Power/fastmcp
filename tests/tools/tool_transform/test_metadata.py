@@ -1,7 +1,10 @@
-from typing import Annotated, Any
+from __future__ import annotations
+
+from typing import Any
 
 import pytest
 from pydantic import Field
+from typing_extensions import Annotated
 
 from fastmcp.tools import Tool
 from fastmcp.tools.function_tool import FunctionTool

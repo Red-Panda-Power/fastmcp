@@ -1,10 +1,13 @@
 """Consumer-visible schema contracts for transform_fn reannotations."""
 
-from typing import Annotated, Any, Literal
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import jsonschema
 import pytest
 from pydantic import Field
+from typing_extensions import Annotated, Literal
 
 from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
@@ -19,13 +22,18 @@ async def test_nullable_integer_reannotation_preserves_parent_bounds(
 ) -> None:
     """A repeated nullable type must still advertise the bounds enforced by the parent."""
 
-    def parent(n: Annotated[int | None, Field(ge=1, le=10)]) -> str:
+    def parent(
+        n: Annotated[Optional[int], Field(ge=1, le=10)],  # noqa: UP045
+    ) -> str:
         return "none" if n is None else str(n)
 
-    async def child(n: int | None) -> ToolResult:
+    async def child(n: Optional[int]) -> ToolResult:  # noqa: UP045
         return await forward(n=n)
 
-    async def child_with_kwargs(n: int | None, **kwargs: Any) -> ToolResult:
+    async def child_with_kwargs(
+        n: Optional[int],  # noqa: UP045
+        **kwargs: Any,
+    ) -> ToolResult:
         return await forward(n=n, **kwargs)
 
     parent_tool = Tool.from_function(parent)
@@ -112,44 +120,44 @@ async def test_changed_list_items_replace_incompatible_parent_schema(
     ("parent_type", "child_type", "allowed", "disallowed"),
     [
         (
-            Annotated[list[int] | None, Field(min_length=2)],
-            list[int] | None,
+            Annotated[Optional[List[int]], Field(min_length=2)],
+            Optional[List[int]],
             {"value": [1, 2]},
             {"value": [1]},
         ),
         (
-            list[list[int]],
-            list[list[str]],
+            List[List[int]],
+            List[List[str]],
             {"value": [["1"]]},
             {"value": [[1]]},
         ),
         (
-            dict[str, int],
-            dict[str, str],
+            Dict[str, int],
+            Dict[str, str],
             {"value": {"one": "1"}},
             {"value": {"one": 1}},
         ),
         (
-            tuple[int, int],
-            tuple[str, str],
+            Tuple[int, int],
+            Tuple[str, str],
             {"value": ["1", "2"]},
             {"value": [1, 2]},
         ),
         (
-            tuple[int, str],
-            tuple[str, int],
+            Tuple[int, str],
+            Tuple[str, int],
             {"value": ["1", 2]},
             {"value": [1, "2"]},
         ),
         (
-            list[Annotated[str, Field(min_length=2, pattern="^a")]] | None,
-            list[str] | None,
+            Optional[List[Annotated[str, Field(min_length=2, pattern="^a")]]],
+            Optional[List[str]],
             {"value": ["ab"]},
             {"value": ["bb"]},
         ),
         (
-            dict[Annotated[str, Field(pattern="^a")], Literal[1, "one"] | None],
-            dict[str, int | str | None],
+            Dict[Annotated[str, Field(pattern="^a")], Optional[Literal[1, "one"]]],
+            Dict[str, Optional[Union[int, str]]],
             {"value": {"abc": None}},
             {"value": {"abc": 2}},
         ),
@@ -192,29 +200,29 @@ def test_nested_schema_contracts(
     ("parent_type", "child_type", "allowed", "disallowed"),
     [
         (
-            Annotated[int, Field(ge=1, le=10)] | None | str,
-            str | int | None,
+            Union[Annotated[int, Field(ge=1, le=10)], None, str],
+            Optional[Union[str, int]],
             2,
             0,
         ),
-        (Literal["fast", "slow"] | None, str | None, "fast", "other"),
-        (Literal[1, "one"], str | int, "one", 2),
-        (Literal[True, "one"], str | bool, True, False),
-        (Literal[1, "one"] | None, str | int | None, None, 2),
+        (Optional[Literal["fast", "slow"]], Optional[str], "fast", "other"),
+        (Literal[1, "one"], Union[str, int], "one", 2),
+        (Literal[True, "one"], Union[str, bool], True, False),
+        (Optional[Literal[1, "one"]], Optional[Union[str, int]], None, 2),
         (
-            list[Literal[1, "one"] | None],
-            list[int | str | None],
+            List[Optional[Literal[1, "one"]]],
+            List[Optional[Union[int, str]]],
             [None, "one"],
             ["two"],
         ),
         (
-            Annotated[int, Field(ge=1)] | Annotated[int, Field(le=-1)],
+            Union[Annotated[int, Field(ge=1)], Annotated[int, Field(le=-1)]],
             int,
             -1,
             0,
         ),
-        (Literal[1] | Literal[2], int, 2, 3),
-        (list[Literal[1] | Literal[2]], list[int], [1, 2], [3]),
+        (Union[Literal[1], Literal[2]], int, 2, 3),
+        (List[Union[Literal[1], Literal[2]]], List[int], [1, 2], [3]),
     ],
     ids=[
         "reordered-union",
@@ -306,17 +314,20 @@ async def test_explicit_type_override_replaces_bounds_and_keeps_renamed_default(
     """Explicit type overrides intentionally replace validation even for the same type."""
 
     def parent(
-        n: Annotated[int | None, Field(ge=1, le=10, description="bounded")],
+        n: Annotated[
+            Optional[int],  # noqa: UP045
+            Field(ge=1, le=10, description="bounded"),
+        ],
     ) -> str:
         return str(n)
 
-    async def child(value: int | None = 0) -> str:
+    async def child(value: Optional[int] = 0) -> str:  # noqa: UP045
         return str(value)
 
     transformed = Tool.from_tool(
         Tool.from_function(parent),
         transform_fn=child,
-        transform_args={"n": ArgTransform(name="value", type=int | None)},
+        transform_args={"n": ArgTransform(name="value", type=Optional[int])},
     )
 
     async with Client(FastMCP(tools=[transformed])) as client:
@@ -403,3 +414,19 @@ def test_explicit_type_override_keeps_parent_extension_keys() -> None:
         "type": "integer",
         "x-ui": "slider",
     }
+
+
+def test_true_and_one_literal_schemas_remain_distinct() -> None:
+    """Python 3.8 typing.Literal caches True and 1 as the same value."""
+
+    def boolean_tool(value: Literal[True]) -> str:
+        return str(value)
+
+    def integer_tool(value: Literal[1]) -> str:
+        return str(value)
+
+    boolean_schema = Tool.from_function(boolean_tool).parameters["properties"]["value"]
+    integer_schema = Tool.from_function(integer_tool).parameters["properties"]["value"]
+
+    assert boolean_schema == {"const": True, "type": "boolean"}
+    assert integer_schema == {"const": 1, "type": "integer"}

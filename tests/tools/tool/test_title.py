@@ -1,8 +1,9 @@
-from typing import Annotated
+from typing import Optional
 
 import pytest
 from mcp_types import ToolAnnotations
 from pydantic import Field
+from typing_extensions import Annotated
 
 from fastmcp import Client, Context, FastMCP
 from fastmcp.tools.base import Tool
@@ -162,7 +163,7 @@ class TestParameterTitles:
 
     def test_title_on_optional_parameter_is_kept(self):
         def search(
-            limit: Annotated[int | None, Field(title="Max Results")] = None,
+            limit: Annotated[Optional[int], Field(title="Max Results")] = None,
         ) -> str:
             return "ok"
 
@@ -177,7 +178,7 @@ class TestParameterTitles:
     def test_title_on_optional_parameter_is_kept_with_context(self):
         def search(
             ctx: Context,
-            limit: Annotated[int | None, Field(title="Max Results")] = None,
+            limit: Annotated[Optional[int], Field(title="Max Results")] = None,
         ) -> str:
             return "ok"
 
