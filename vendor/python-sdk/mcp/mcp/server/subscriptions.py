@@ -199,7 +199,7 @@ class ListenHandler:
         # Buffered so publishers don't block on a slow consumer (the transport
         # write happens in this handler task, not the publisher's). A stream
         # whose backlog hits the cap is ended - see the class docstring.
-        send, recv = anyio.create_memory_object_stream[ServerEvent](self._max_buffered_events)
+        send, recv = anyio.create_memory_object_stream(self._max_buffered_events)
 
         def deliver(event: ServerEvent) -> None:
             if event_matches(honored, honored_uris, event):

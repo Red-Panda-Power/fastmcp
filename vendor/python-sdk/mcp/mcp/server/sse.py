@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Any, Union
+from typing import Union
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
@@ -176,7 +176,7 @@ class SseServerTransport:
         # This is the URI (path + query) the client will use to POST messages.
         client_post_uri_data = f"{quote(full_message_path_for_client)}?session_id={session_id.hex}"
 
-        sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream[dict[str, Any]](0)
+        sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream(0)
 
         async def sse_writer():
             logger.debug("Starting SSE writer")

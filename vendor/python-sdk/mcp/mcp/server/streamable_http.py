@@ -645,9 +645,7 @@ class StreamableHTTPServerTransport:
             request_id = str(message.id)
 
             if self.is_json_response_enabled:
-                self._request_streams[request_id] = anyio.create_memory_object_stream[EventMessage](
-                    REQUEST_STREAM_BUFFER_SIZE
-                )
+                self._request_streams[request_id] = anyio.create_memory_object_stream(REQUEST_STREAM_BUFFER_SIZE)
                 request_stream_reader = self._request_streams[request_id][1]
                 # Process the message
                 metadata = self._message_metadata(
@@ -681,11 +679,9 @@ class StreamableHTTPServerTransport:
                 # Still strictly precedes dispatch, so storage order == wire order.
                 priming_event = await self._mint_priming_event(request_id, protocol_version)
 
-                sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream[SSEEvent](0)
+                sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream(0)
                 self._sse_stream_writers[request_id] = sse_stream_writer
-                self._request_streams[request_id] = anyio.create_memory_object_stream[EventMessage](
-                    REQUEST_STREAM_BUFFER_SIZE
-                )
+                self._request_streams[request_id] = anyio.create_memory_object_stream(REQUEST_STREAM_BUFFER_SIZE)
                 request_stream_reader = self._request_streams[request_id][1]
 
                 headers = {
@@ -777,15 +773,13 @@ class StreamableHTTPServerTransport:
             return
 
         # Create SSE stream
-        sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream[SSEEvent](0)
+        sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream(0)
 
         async def standalone_sse_writer():
             try:
                 # Create a standalone message stream for server-initiated messages
 
-                self._request_streams[GET_STREAM_KEY] = anyio.create_memory_object_stream[EventMessage](
-                    REQUEST_STREAM_BUFFER_SIZE
-                )
+                self._request_streams[GET_STREAM_KEY] = anyio.create_memory_object_stream(REQUEST_STREAM_BUFFER_SIZE)
                 standalone_stream_reader = self._request_streams[GET_STREAM_KEY][1]
 
                 async with sse_stream_writer, standalone_stream_reader:
@@ -953,7 +947,7 @@ class StreamableHTTPServerTransport:
             replay_protocol_version = request.headers.get(MCP_PROTOCOL_VERSION_HEADER, DEFAULT_NEGOTIATED_VERSION)
 
             # Create SSE stream for replay
-            sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream[SSEEvent](0)
+            sse_stream_writer, sse_stream_reader = anyio.create_memory_object_stream(0)
 
             async def replay_sender():
                 try:
@@ -980,7 +974,7 @@ class StreamableHTTPServerTransport:
                                     await sse_stream_writer.send(priming_event)
 
                                 # Create new request streams for this connection
-                                self._request_streams[stream_id] = anyio.create_memory_object_stream[EventMessage](
+                                self._request_streams[stream_id] = anyio.create_memory_object_stream(
                                     REQUEST_STREAM_BUFFER_SIZE
                                 )
                                 msg_reader = self._request_streams[stream_id][1]
