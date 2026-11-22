@@ -20,7 +20,7 @@ from fastmcp.utilities.types import (
     replace_type,
 )
 
-RuntimeList = list if sys.version_info >= (3, 9) else List
+RuntimeList: Any = list if sys.version_info >= (3, 9) else List
 
 
 class BaseClass:

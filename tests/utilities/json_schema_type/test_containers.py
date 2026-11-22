@@ -17,8 +17,8 @@ from fastmcp.utilities.json_schema_type import (
     json_schema_to_type,
 )
 
-RuntimeDict = dict if sys.version_info >= (3, 9) else Dict
-RuntimeList = list if sys.version_info >= (3, 9) else List
+RuntimeDict: Any = dict if sys.version_info >= (3, 9) else Dict
+RuntimeList: Any = list if sys.version_info >= (3, 9) else List
 
 
 def get_dataclass_field(type: type, field_name: str) -> Field:

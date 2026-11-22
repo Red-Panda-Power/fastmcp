@@ -10,9 +10,21 @@ Create the normal Python 3.8 development environment with its test tools:
 uv sync --locked --python 3.8
 ```
 
-The default `dev` group includes pytest and the regular FastMCP development
-dependencies, but does not build the optional native code-mode sandbox on
-Python 3.8. Install that feature explicitly when it is needed:
+The default `dev` group includes pytest, the OpenAI and Anthropic integrations,
+and the regular FastMCP development dependencies. It does not build the optional
+native code-mode sandbox on Python 3.8.
+
+Run a focused set of Python 3.8 tests with:
+
+```powershell
+uv run --locked --python 3.8 pytest -n 0 tests/test_py38_server_compat.py tests/test_py38_app_provider.py tests/utilities/test_asgi_transport.py tests/client/sampling/handlers/test_anthropic_handler.py tests/client/sampling/handlers/test_openai_handler.py
+```
+
+The complete upstream test suite has not yet been ported: tests for deferred
+Tasks, MCP Apps UI, and some maintenance scripts can still fail during
+collection on Python 3.8. Select the tests relevant to the change being made.
+
+To install the native code-mode sandbox:
 
 ```powershell
 uv sync --locked --python 3.8 --group dev-code-mode
