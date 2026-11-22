@@ -368,3 +368,7 @@ max_lines = 1509
 [[rules]]
 path = "tests/utilities/test_json_schema.py"
 max_lines = 1436
+
+[[rules]]
+path = "tests/client/test_stdio.py"
+max_lines = 1178

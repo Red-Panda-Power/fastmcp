@@ -9,6 +9,7 @@ import os
 import time
 import weakref
 from pathlib import Path
+from typing import cast
 
 import anyio
 import psutil
@@ -182,7 +183,7 @@ class TestPartialConstruction:
     def test_del_signals_unbound_event_from_worker_thread(self):
         transport = StdioTransport(command="python", args=[])
         stop_event = transport._stop_event
-        assert stop_event._internal_event is None
+        assert getattr(stop_event, "_internal_event") is None
 
         async def run_connection():
             connection_started = asyncio.Event()
@@ -212,7 +213,9 @@ class TestPartialConstruction:
         loop = asyncio.new_event_loop()
         connect_task = loop.create_future()
         transport = StdioTransport(command="python", args=[])
-        transport._connect_task = connect_task
+        # A future supplies the task's done/get_loop interface without starting
+        # a coroutine on the loop we deliberately close below.
+        transport._connect_task = cast(asyncio.Task, connect_task)
 
         loop.close()
 
