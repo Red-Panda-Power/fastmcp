@@ -1,6 +1,6 @@
 {
  "schema": "fastmcp-pbt-coverage/1",
- "generated_at": "2026-11-22T19:47:39+00:00",
+ "generated_at": "2026-11-23T23:58:52+00:00",
  "source_commit": "0d0cdfe6faefb1065cf28943c5e623bed8678a86",
  "suite": {
   "status": "passed",
@@ -4374,9 +4374,9 @@
    "path": "fastmcp_slim/fastmcp/utilities/json_schema_type.py",
    "public": false,
    "statements": 617,
-   "hit": 424,
+   "hit": 395,
    "functions": 57,
-   "functions_hit": 46,
+   "functions_hit": 42,
    "symbols": [],
    "tests": 2,
    "test_ids": [
